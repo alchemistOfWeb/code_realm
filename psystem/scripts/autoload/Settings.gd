@@ -31,18 +31,23 @@ const DEFAULTS := {
 	"language": "ru",              # "ru" | "en"
 	"bindings": {},                # действие → physical keycode (переназначенные клавиши)
 	"mouse_sensitivity": 1.0,      # чувствительность камеры в вылазках
+	"graphics": "auto",            # качество графики вылазок: "auto" | "low" | "medium" | "high" (WorldStyle.QUALITY)
+	"show_fps": true,              # счётчик FPS в вылазках
 }
+## Версия раскладки по умолчанию: при смене (v2: пауза Space → P, прыжок F → Space)
+## старые переназначения этих действий сбрасываются.
+const INPUT_VERSION := 2
 
 var values: Dictionary = DEFAULTS.duplicate(true)
 
 
 ## Действия ввода вылазок (регистрируются в коде, чтобы не править project.godot вручную).
-## Space — пауза (по просьбе игрока), прыжок по умолчанию на F; всё переназначается в настройках.
+## Space — прыжок, P — пауза; всё переназначается в настройках.
 const INPUT_ACTIONS := {
 	"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 	"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
-	"interact": [KEY_E], "pause": [KEY_SPACE], "sprint": [KEY_SHIFT],
-	"jump": [KEY_F], "map": [KEY_M], "camera_left": [KEY_Q], "camera_right": [KEY_R],
+	"interact": [KEY_E], "pause": [KEY_P], "sprint": [KEY_SHIFT],
+	"jump": [KEY_SPACE], "map": [KEY_M], "camera_left": [KEY_Q], "camera_right": [KEY_R],
 }
 ## Действия, которые можно переназначить в настройках (порядок — как в списке).
 const REBINDABLE := {
@@ -119,6 +124,11 @@ func load_settings() -> void:
 		var v = cfg.get_value(SECTION, key, DEFAULTS[key])
 		if typeof(v) == typeof(DEFAULTS[key]) or (DEFAULTS[key] is float and v is int):
 			values[key] = v
+	if int(cfg.get_value(SECTION, "input_version", 1)) < INPUT_VERSION:
+		var b: Dictionary = values.bindings.duplicate()
+		b.erase("pause")
+		b.erase("jump")
+		values.bindings = b
 
 
 # ---------------------------------------------------------------- Клавиши
@@ -170,6 +180,7 @@ func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	for key in values:
 		cfg.set_value(SECTION, key, values[key])
+	cfg.set_value(SECTION, "input_version", INPUT_VERSION)
 	cfg.save(PATH)
 
 

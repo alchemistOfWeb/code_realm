@@ -5,6 +5,68 @@ extends RefCounted
 const GROUND := preload("res://shaders/ground.gdshader")
 const WATER := preload("res://shaders/water.gdshader")
 
+## Качество графики вылазок (Settings "graphics"): тени, густота растительности, MSAA, свечение,
+## разрешение 3D, дальность прорисовки растительности, число деревьев-силуэтов за краем карты.
+const QUALITY := {
+	"low": {"shadows": false, "tree_shadows": false, "shadow_dist": 0.0, "veg": 0.55, "msaa": false, "glow": false, "scale_3d": 0.85, "lod": 4.0, "shadow_size": 1024, "view_dist": 40.0, "outer_trees": 30},
+	"medium": {"shadows": true, "tree_shadows": false, "shadow_dist": 22.0, "veg": 0.8, "msaa": false, "glow": true, "scale_3d": 1.0, "lod": 2.5, "shadow_size": 2048, "view_dist": 55.0, "outer_trees": 60},
+	"high": {"shadows": true, "tree_shadows": true, "shadow_dist": 38.0, "veg": 1.0, "msaa": true, "glow": true, "scale_3d": 1.0, "lod": 1.0, "shadow_size": 4096, "view_dist": 85.0, "outer_trees": 120},
+}
+const QUALITY_NAMES := {"low": "Низкое (для слабых ноутбуков)", "medium": "Среднее", "high": "Высокое (для дискретной видеокарты)"}
+
+
+static func quality() -> Dictionary:
+	var key: String = Settings.get_value("graphics")
+	if key == "auto":
+		key = auto_quality()
+	return QUALITY.get(key, QUALITY.medium)
+
+
+## «Авто»: встроенная графика (Intel, AMD Radeon Graphics/Vega в процессоре) — низкое, иначе среднее.
+static func auto_quality() -> String:
+	var gpu := RenderingServer.get_video_adapter_name().to_lower()
+	if gpu == "" or "intel" in gpu or "radeon(tm) graphics" in gpu or "vega" in gpu or "llvmpipe" in gpu:
+		return "low"
+	return "medium"
+
+
+## Круглая полупрозрачная тень-пятно под персонажем — когда настоящие тени выключены.
+static func blob_shadow(radius: float = 0.45) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var quad := PlaneMesh.new()
+	quad.size = Vector2.ONE * radius * 2.0
+	mi.mesh = quad
+	mi.position.y = 0.06
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.material_override = _blob_material()
+	return mi
+
+
+static var _blob_mat: StandardMaterial3D
+
+
+static func _blob_material() -> StandardMaterial3D:
+	if _blob_mat:
+		return _blob_mat
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.45, 1.0])
+	g.colors = PackedColorArray([Color(0, 0, 0, 0.55), Color(0, 0, 0, 0.45), Color(0, 0, 0, 0)])
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.5, 0.0)
+	tex.width = 64
+	tex.height = 64
+	_blob_mat = StandardMaterial3D.new()
+	_blob_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_blob_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_blob_mat.albedo_texture = tex
+	_blob_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	_blob_mat.render_priority = 1
+	return _blob_mat
+
+
 ## Палитры земли по биому: [a, b, c, тропа].
 const GROUND_PALETTES := {
 	"forest": ["#447A26", "#5C9430", "#36661F", "#7A5A36"],
@@ -80,17 +142,18 @@ static func environment(preset: String) -> Array:
 	env.fog_light_color = Color(s.fog)
 	env.fog_density = s.fog_density
 	env.fog_sky_affect = 0.25
-	env.glow_enabled = true
+	var q := quality()
+	env.glow_enabled = q.glow
 	env.glow_intensity = 0.45
 	env.glow_bloom = 0.04
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = s.sun_rot
 	sun.light_color = Color(s.sun)
 	sun.light_energy = s.sun_energy
-	sun.shadow_enabled = true
+	sun.shadow_enabled = q.shadows
 	sun.shadow_blur = 1.5
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.directional_shadow_max_distance = 32.0
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if q.shadow_dist > 30.0 else DirectionalLight3D.SHADOW_ORTHOGONAL
+	sun.directional_shadow_max_distance = maxf(q.shadow_dist, 10.0)
 	return [env, sun]
 
 

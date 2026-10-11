@@ -273,16 +273,17 @@ static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, 
 			tree_models = ["CommonTree_2", "DeadTree_1", "DeadTree_2", "CommonTree_4", "TwistedTree_1"]
 		"riverside":
 			tree_models = ["CommonTree_1", "CommonTree_3", "Pine_1", "Pine_3", "TwistedTree_2"]
-	var density: float = {"forest": 0.55, "meadow": 0.32, "riverside": 0.45, "ruins": 0.35}.get(kind, 0.45)
+	var q := WorldStyle.quality()
+	var density: float = {"forest": 0.55, "meadow": 0.32, "riverside": 0.45, "ruins": 0.35}.get(kind, 0.45) * float(q.veg)
 	# Деревья по кромке и в глубине леса
 	for y in h:
 		for x in w:
 			var d := dist[y * w + x]
-			if d < 2 or d > 9:
+			if d < 2 or d > 7:
 				continue
 			if rng.randf() > density * (1.2 if d <= 4 else 0.7):
 				continue
-			var cell := Vector2i(x / 2, y / 2)
+			var cell := Vector2i(x / 3, y / 3)   # не больше одного дерева на 3×3 м
 			if occupied.has(cell):
 				continue
 			occupied[cell] = true
@@ -292,7 +293,11 @@ static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, 
 				trees_by_model[model] = []
 			trees_by_model[model].append(_xf(Vector3(x + rng.randf(), 0, y + rng.randf()), rng.randf() * TAU, s))
 	# Лес за пределами сетки — силуэты до горизонта
-	for i in 260:
+	var outer := {}
+	var outer_count := 0
+	for i in int(q.outer_trees) * 3:
+		if outer_count >= int(q.outer_trees):
+			break
 		var p := Vector3(rng.randf_range(-MARGIN + 2, w + MARGIN - 2), 0, rng.randf_range(-MARGIN + 2, h + MARGIN - 2))
 		if p.x >= -1 and p.x <= w and p.z >= -1 and p.z <= h:
 			continue
@@ -300,11 +305,15 @@ static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, 
 		if ch.size.x > 0 and p.x > ch.position.x - 2 and p.x < ch.end.x + 2:
 			continue
 		var model: String = tree_models[rng.randi() % tree_models.size()]
-		if not trees_by_model.has(model):
-			trees_by_model[model] = []
-		trees_by_model[model].append(_xf(p, rng.randf() * TAU, rng.randf_range(0.9, 1.3) * (0.45 if model.begins_with("Twisted") else 1.0)))
+		if not outer.has(model):
+			outer[model] = []
+		outer[model].append(_xf(p, rng.randf() * TAU, rng.randf_range(0.9, 1.3) * (0.45 if model.begins_with("Twisted") else 1.0)))
+		outer_count += 1
 	for model in trees_by_model:
-		scatter(root, N + model + ".gltf", trees_by_model[model])
+		scatter(root, N + model + ".gltf", trees_by_model[model], q.tree_shadows)
+	# Силуэты за краем карты: без теней и с большей дальностью (видны с края поляны)
+	for model in outer:
+		scatter(root, N + model + ".gltf", outer[model], false, float(q.view_dist) + 20.0)
 	_canopy_colliders(root, trees_by_model, w, h)
 
 	# Кусты на кромке, трава и цветы на полянах
@@ -323,7 +332,7 @@ static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, 
 			var r := rng.randf()
 			if v == OutdoorGenerator.BLOCK and dist[i] == 1 and r < 0.55:
 				_add(small_by_model, edge_models[rng.randi() % edge_models.size()], _xf(Vector3(x + rng.randf(), 0, y + rng.randf()), rng.randf() * TAU, rng.randf_range(0.6, 1.0)))
-			elif v == OutdoorGenerator.FLOOR and r < 0.07 and not _near_entity(data, Vector2i(x, y)):
+			elif v == OutdoorGenerator.FLOOR and r < 0.07 * float(q.veg) and not _near_entity(data, Vector2i(x, y)):
 				var m: String = ground_models[rng.randi() % ground_models.size()]
 				var s := 0.45 if (m.begins_with("Flower") or m.begins_with("Grass_Common_Tall")) else 0.6
 				_add(small_by_model, m, _xf(Vector3(x + rng.randf(), 0, y + rng.randf()), rng.randf() * TAU, s * rng.randf_range(0.8, 1.2)))
@@ -332,7 +341,8 @@ static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, 
 			elif v == OutdoorGenerator.BLOCK and dist[i] == 2 and r < 0.08:
 				_add(small_by_model, "Rock_Medium_%d" % (1 + rng.randi() % 3), _xf(Vector3(x + rng.randf(), -0.2, y + rng.randf()), rng.randf() * TAU, rng.randf_range(0.5, 0.9)))
 	for m in small_by_model:
-		scatter(root, N + m + ".gltf", small_by_model[m], m.begins_with("Bush") or m.begins_with("Rock"))
+		var big: bool = m.begins_with("Bush") or m.begins_with("Rock")
+		scatter(root, N + m + ".gltf", small_by_model[m], big and q.shadows, float(q.view_dist) * (0.8 if big else 0.55))
 
 	if kind == "ruins":
 		_ruins(root, data, dist, rng)
@@ -463,25 +473,44 @@ static func _fireflies(root: Node3D, center: Vector3, extent: Vector3) -> void:
 # ================================================================ MultiMesh
 
 ## Много копий модели одним MultiMesh на каждый её меш (деревья, трава, камни, стены).
-static func scatter(root: Node3D, path: String, transforms: Array, shadows: bool = true) -> void:
+## Экземпляры группируются по чанкам CHUNK×CHUNK м: MultiMesh отсекается по камере только целиком,
+## поэтому один MultiMesh на всю карту рисовался бы всегда. view_dist — дальность прорисовки чанка.
+const CHUNK := 14.0
+
+
+static func scatter(root: Node3D, path: String, transforms: Array, shadows: bool = true, view_dist: float = -1.0) -> void:
 	if transforms.is_empty():
 		return
 	var sc := scene(path)
 	if sc == null:
 		return
+	if view_dist < 0.0:
+		view_dist = WorldStyle.quality().view_dist
+	var chunks := {}
+	for xf in transforms:
+		var key := Vector2i(floori(xf.origin.x / CHUNK), floori(xf.origin.z / CHUNK))
+		if not chunks.has(key):
+			chunks[key] = []
+		chunks[key].append(xf)
 	var inst: Node3D = sc.instantiate()
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		var local := MonsterRig._local_xform(inst, mi)
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = mi.mesh
-		mm.instance_count = transforms.size()
-		for i in transforms.size():
-			mm.set_instance_transform(i, transforms[i] * local)
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mmi)
+		for key in chunks:
+			var list: Array = chunks[key]
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = mi.mesh
+			mm.instance_count = list.size()
+			for i in list.size():
+				mm.set_instance_transform(i, list[i] * local)
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if view_dist > 0.0:
+				mmi.visibility_range_end = view_dist
+				mmi.visibility_range_end_margin = 6.0
+				mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+			root.add_child(mmi)
 	inst.free()
 
 

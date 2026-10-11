@@ -296,7 +296,7 @@ func _select(node_id: String) -> void:
 			lock.add_theme_color_override("font_color", Palette.ENERGY)
 			_panel_box.add_child(lock)
 	var hint := Label.new()
-	hint.text = Loc.t("Управление в вылазке: WASD — ходьба, Shift — бег, F — прыжок, E — действие, Space — пауза, Esc — меню.")
+	hint.text = Loc.t("Управление в вылазке: WASD — ходьба, Shift — бег, %s — прыжок, E — действие, %s — пауза, Esc — меню.") % [Settings.action_key_name("jump"), Settings.action_key_name("pause")]
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size.x = 280
 	hint.theme_type_variation = &"DimLabel"

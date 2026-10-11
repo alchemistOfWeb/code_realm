@@ -69,6 +69,8 @@ func _ready() -> void:
 	var args := _dev_args()
 	if args.has("lang"):
 		Loc.setup(args.lang)   # dev: язык без сохранения в настройки
+	if args.has("graphics"):
+		Settings.values.graphics = args.graphics   # dev: качество графики без сохранения
 	if args.has("screen") or args.has("demo"):
 		_dev_profile(args)
 		var screen: String = args.get("screen", "")
@@ -505,6 +507,8 @@ func _apply_dev_args(args: Dictionary) -> void:
 		EventBus.notify(args.toast, "success")
 	if args.has("levelup"):
 		_on_level_up(GameManager.player_data.level)
+	if args.has("fps"):
+		_log_fps(args.fps.to_float() if args.fps != "" else 8.0)
 	if args.has("shot"):
 		_take_screenshot(args.shot, args.get("shot-delay", "1.5").to_float())
 
@@ -524,6 +528,20 @@ func _fill_demo_progress() -> void:
 	for i in 14:
 		GameManager.add_card_to_collection(CardDatabase.roll_card([], 2.5).id)
 	EventBus.progress_changed.emit("")
+
+
+## Dev: замер FPS (после прогрева) и выход.
+func _log_fps(seconds: float) -> void:
+	await get_tree().create_timer(3.0).timeout
+	var frames := Engine.get_frames_drawn()
+	var t0 := Time.get_ticks_msec()
+	await get_tree().create_timer(seconds).timeout
+	var fps := (Engine.get_frames_drawn() - frames) * 1000.0 / (Time.get_ticks_msec() - t0)
+	print("FPS_AVG %.1f  draw_calls %d  objects %d  prims %d" % [fps,
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
+	get_tree().quit()
 
 
 func _take_screenshot(path: String, delay: float) -> void:

@@ -5,8 +5,8 @@ extends Control
 ## Поток: карта локации → вылазка (−10 энергии) → подлокация; найденные переходы открывают соседние
 ## точки на карте. Поражение в бою — возврат в лагерь (без потери золота). Падение в пропасть —
 ## гибель: вся энергия теряется, герой возвращается на базу.
-## Управление: WASD, Shift — бег (выносливость), F — прыжок, E — действие, M — карта,
-## Space — пауза, Esc — меню. Камера: ПКМ — вращение, колесо — приближение, Q/R — поворот.
+## Управление: WASD, Shift — бег (выносливость), Space — прыжок, E — действие, M — карта,
+## P — пауза, Esc — меню. Камера: ПКМ — вращение, колесо — приближение, Q/R — поворот.
 
 const NPC_LOOKS := {
 	"greta": {"look": {"gender": "female", "race": "dwarf", "skin": 1, "hair": "Hair_Buns", "hair_color": 5, "outfit_variant": 1},
@@ -42,6 +42,7 @@ var _enemies: Array = []
 var _focus: Dictionary = {}
 var _explored: PackedByteArray
 var _map_image: Image
+var _terrain_image: Image   # открытый рельеф мини-карты (без точек)
 var _map_tex: ImageTexture
 var _map_timer := 0.0
 var _covered := false
@@ -67,6 +68,9 @@ var _pause_label: Control
 var _menu: Control
 var _fade: ColorRect
 var _big_map := false
+var _fps_label: Label
+var _player_blob: MeshInstance3D   # тень-пятно героя, когда тени выключены
+var _fps_t := 0.0
 
 
 func _ready() -> void:
@@ -127,7 +131,11 @@ func _build_ui() -> void:
 	add_child(container)
 	_viewport = SubViewport.new()
 	_viewport.own_world_3d = true
-	_viewport.msaa_3d = Viewport.MSAA_2X
+	var q := WorldStyle.quality()
+	_viewport.msaa_3d = Viewport.MSAA_2X if q.msaa else Viewport.MSAA_DISABLED
+	_viewport.scaling_3d_scale = float(q.scale_3d)
+	_viewport.mesh_lod_threshold = float(q.lod)
+	RenderingServer.directional_shadow_atlas_set_size(int(q.shadow_size), true)
 	_viewport.handle_input_locally = false
 	container.add_child(_viewport)
 
@@ -199,7 +207,7 @@ func _build_ui() -> void:
 	_layout_minimap()
 
 	var help := Label.new()
-	help.text = Loc.t("WASD — ходьба · Shift — бег · %s — прыжок · E — действие · M — карта · Space — пауза · Esc — меню · ПКМ — камера") % Settings.action_key_name("jump")
+	help.text = Loc.t("WASD — ходьба · Shift — бег · %s — прыжок · E — действие · M — карта · %s — пауза · Esc — меню · ПКМ — камера") % [Settings.action_key_name("jump"), Settings.action_key_name("pause")]
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	help.add_theme_constant_override("outline_size", 5)
@@ -224,6 +232,23 @@ func _build_ui() -> void:
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_prompt_label.add_theme_font_override("font", Palette.FONT_UI_BOLD)
 	_prompt.add_child(_prompt_label)
+
+	# Счётчик FPS (правый нижний угол)
+	_fps_label = Label.new()
+	_fps_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_fps_label.add_theme_font_override("font", Palette.FONT_UI_BOLD)
+	_fps_label.add_theme_font_size_override("font_size", 14)
+	_fps_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_fps_label.add_theme_constant_override("outline_size", 6)
+	_fps_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_fps_label.offset_left = -130
+	_fps_label.offset_top = -30
+	_fps_label.offset_right = -14
+	_fps_label.offset_bottom = -8
+	_fps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_fps_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fps_label.visible = Settings.get_value("show_fps")
+	add_child(_fps_label)
 
 	_fade = ColorRect.new()
 	_fade.color = Color.BLACK
@@ -339,6 +364,10 @@ func _build_entities(fall_y: float) -> void:
 	_player.fell.connect(_on_fell)
 	_world.add_child(_player)
 	_player.fall_y = fall_y
+	_player_blob = null
+	if not WorldStyle.quality().shadows:
+		_player_blob = WorldStyle.blob_shadow(0.6)
+		_world.add_child(_player_blob)
 	if data.get("underground", false):
 		_player.set_lantern(1.8)
 	# Смотреть в сторону центра карты
@@ -560,6 +589,8 @@ func _spawn_npc(npc_id: String, cell: Vector2i) -> void:
 		var s: float = vis.get("scale", 1.0)
 		rig.scale = Vector3.ONE * s
 		height = rig.height() * s
+	if not WorldStyle.quality().shadows:
+		root.add_child(WorldStyle.blob_shadow(0.5))
 	# Повернуть лицом к центру поляны/комнаты
 	root.rotation.y = randf() * TAU
 	var body := StaticBody3D.new()
@@ -723,6 +754,12 @@ func _make_pipe(from: Vector2i, to: Vector2i) -> void:
 # ---------------------------------------------------------------- Цикл и ввод
 
 func _process(delta: float) -> void:
+	_fps_t -= delta
+	if _fps_t <= 0.0 and _fps_label and _fps_label.visible:
+		_fps_t = 0.25
+		var fps := Engine.get_frames_per_second()
+		_fps_label.text = "FPS %d" % fps
+		_fps_label.add_theme_color_override("font_color", Palette.MINT if fps >= 50 else (Palette.ENERGY if fps >= 30 else Palette.HP))
 	if _world == null or _player == null or not is_instance_valid(_player):
 		return
 	for g in _gears:
@@ -732,6 +769,10 @@ func _process(delta: float) -> void:
 		_stamina_bar.max_value = _player.max_stamina
 		_stamina_bar.value = _player.stamina
 		_stamina_bar.modulate = Color(1, 0.55, 0.55) if _player.exhausted else Color.WHITE
+	if is_instance_valid(_player_blob):
+		var pp := _player.global_position
+		_player_blob.visible = _player.is_on_floor()
+		_player_blob.global_position = Vector3(pp.x, pp.y + 0.06, pp.z)
 	if _covered or _ended or _paused or _transitioning:
 		return
 	_update_focus()
@@ -948,7 +989,9 @@ func _world_action(a: Dictionary) -> void:
 		"open_gate":
 			_open_gates()
 		"reveal_map":
-			_explored.fill(1)
+			for y in data.h:
+				for x in data.w:
+					_reveal_cell(x, y)
 			_update_minimap()
 			EventBus.notify(Loc.t("Карта открыта"), "success")
 		"combat":
@@ -1117,6 +1160,7 @@ func _init_minimap() -> void:
 	_explored = PackedByteArray()
 	_explored.resize(data.w * data.h)
 	_map_image = Image.create(data.w, data.h, false, Image.FORMAT_RGBA8)
+	_terrain_image = Image.create(data.w, data.h, false, Image.FORMAT_RGBA8)
 	_map_tex = ImageTexture.create_from_image(_map_image)
 	_minimap.texture = _map_tex
 	_update_minimap()
@@ -1128,28 +1172,13 @@ func _update_minimap() -> void:
 	var w: int = data.w
 	var h: int = data.h
 	var pc := Vector2i(int(_player.global_position.x), int(_player.global_position.z))
+	# Рельеф копится в _terrain_image: рисуются только клетки, открытые на этом шаге
 	for y in range(pc.y - FOG_RADIUS, pc.y + FOG_RADIUS + 1):
 		for x in range(pc.x - FOG_RADIUS, pc.x + FOG_RADIUS + 1):
-			if x >= 0 and y >= 0 and x < w and y < h and Vector2i(x, y).distance_to(pc) <= FOG_RADIUS:
-				_explored[y * w + x] = 1
-	_map_image.fill(Color(0, 0, 0, 0))
-	var outdoor: bool = not data.get("underground", false)
-	for y in h:
-		for x in w:
-			var i: int = y * w + x
-			if _explored[i] == 0:
+			if x < 0 or y < 0 or x >= w or y >= h or Vector2i(x, y).distance_to(pc) > FOG_RADIUS:
 				continue
-			var v: int = data.grid[i]
-			match v:
-				0:
-					if _near_walkable(x, y):
-						_map_image.set_pixel(x, y, Color(0.18, 0.32, 0.16, 0.9) if outdoor else Color(0.35, 0.28, 0.2, 0.9))
-				1:
-					_map_image.set_pixel(x, y, Color(0.55, 0.78, 0.42, 0.85) if outdoor else Color(0.75, 0.68, 0.58, 0.75))
-				2:
-					_map_image.set_pixel(x, y, Color(0.82, 0.7, 0.5, 0.85) if outdoor else Color(0.55, 0.5, 0.45, 0.7))
-				3:
-					_map_image.set_pixel(x, y, Color(0.25, 0.5, 0.75, 0.8) if data.get("water", false) else Color(0.05, 0.04, 0.08, 0.9))
+			_reveal_cell(x, y)
+	_map_image.copy_from(_terrain_image)
 	for g in _gates:
 		_dot(g.cell, Color("#FF9F43"))
 	for it in _interactables:
@@ -1166,6 +1195,24 @@ func _update_minimap() -> void:
 			_dot(Vector2i(int(e.global_position.x), int(e.global_position.z)), Palette.HP)
 	_dot(pc, Palette.MINT, true, true)
 	_map_tex.update(_map_image)
+
+
+func _reveal_cell(x: int, y: int) -> void:
+	var i: int = y * data.w + x
+	if _explored[i] == 1:
+		return
+	_explored[i] = 1
+	var outdoor: bool = not data.get("underground", false)
+	match int(data.grid[i]):
+		0:
+			if _near_walkable(x, y):
+				_terrain_image.set_pixel(x, y, Color(0.18, 0.32, 0.16, 0.9) if outdoor else Color(0.35, 0.28, 0.2, 0.9))
+		1:
+			_terrain_image.set_pixel(x, y, Color(0.55, 0.78, 0.42, 0.85) if outdoor else Color(0.75, 0.68, 0.58, 0.75))
+		2:
+			_terrain_image.set_pixel(x, y, Color(0.82, 0.7, 0.5, 0.85) if outdoor else Color(0.55, 0.5, 0.45, 0.7))
+		3:
+			_terrain_image.set_pixel(x, y, Color(0.25, 0.5, 0.75, 0.8) if data.get("water", false) else Color(0.05, 0.04, 0.08, 0.9))
 
 
 func _near_walkable(x: int, y: int) -> bool:
@@ -1190,7 +1237,7 @@ func _dot(c: Vector2i, color: Color, big := false, force := false) -> void:
 
 # ---------------------------------------------------------------- Пауза, меню и итоги
 
-## Space — просто пауза: мир замирает, по центру белая надпись «ПАУЗА».
+## P — просто пауза: мир замирает, по центру белая надпись «ПАУЗА».
 func _toggle_pause() -> void:
 	_paused = not _paused
 	if _paused:

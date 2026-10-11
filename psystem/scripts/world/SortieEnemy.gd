@@ -51,6 +51,8 @@ func _ready() -> void:
 	var size_mul: float = float(enemy_data.get("model_size", 1.0)) * (1.25 if is_boss and not enemy_data.has("model_size") else 1.0)
 	_rig = MonsterRig.create(enemy_data.get("model", "Slime"), size_mul, tint)
 	add_child(_rig)
+	if not WorldStyle.quality().shadows:
+		add_child(WorldStyle.blob_shadow(0.4 * size_mul))
 	var h := _rig.height()
 	var shape := CollisionShape3D.new()
 	var cyl := CylinderShape3D.new()

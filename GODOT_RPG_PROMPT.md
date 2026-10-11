@@ -41,13 +41,21 @@ Godot: `C:\Users\user\games\godot\Godot_v4.6.3-stable_win64_console.exe`. Ред
      цвет волос, борода, расцветка одежды). Локации в стиле WoW/King's Bounty (Stylized Nature, Fantasy Props,
      Medieval Village MegaKit, монстры Quaternius).
   13. Бег (Shift) тратит выносливость (полоска в HUD вылазки; при истощении — шаг, восстановление после паузы).
-  14. Space — пауза с белой надписью «ПАУЗА»; Esc — меню вылазки (продолжить, настройки, в лагерь, выйти).
+  14. P — пауза с белой надписью «ПАУЗА» (была Space, перенесена по просьбе пользователя); Esc — меню вылазки (продолжить, настройки, в лагерь, выйти).
   15. Локализация ru/en (`Loc`, `locale/en.json`, переключатель в главном меню и настройках) + главное меню с профилями
      (выбрать/создать/удалить).
   16. Титры (`scenes/menu/Credits`) — авторы ассетов, движка, шрифтов, звука.
   17. +100 карт (`tools/gen_cards.py`, всего 138; описания ru/en собираются из эффектов).
-  18. Прыжок (F по умолчанию — Space занят паузой по просьбе пользователя; клавиши переназначаются в настройках),
+  18. Прыжок (Space; клавиши переназначаются в настройках),
      движущиеся платформы над пропастью/рекой; падение = гибель: вся энергия теряется, возврат на базу.
+- **Итерация 6 — ГОТОВА (производительность вылазок):** счётчик FPS в правом нижнем углу (Settings `show_fps`);
+  пауза — P, прыжок — Space (`Settings.INPUT_VERSION = 2` сбрасывает старые переназначения pause/jump);
+  качество графики `Settings.graphics` = auto/low/medium/high (`WorldStyle.QUALITY`, «Авто» — низкое на встроенной
+  графике Intel/AMD): тени (у деревьев только на высоком), густота растительности, MSAA, свечение, разрешение 3D,
+  порог LOD, атлас теней, дальность прорисовки. MultiMesh растительности разбит на чанки 14×14 м
+  (`LevelBuilder.CHUNK`) с `visibility_range_end` — раньше один MultiMesh на карту не отсекался камерой. Без теней —
+  тень-пятно `WorldStyle.blob_shadow()` под героем, NPC и врагами. Мини-карта дорисовывает только новые клетки.
+  Замеры на Intel UHD (720p, Опушка): было 5 FPS → низкое ~45, среднее ~30, высокое ~11; пещера — 53–60.
 - **Идеи на потом:** реализовать ещё локации (данные уже есть на карте), дома из модулей Medieval Village, 3D-иконки
   предметов (рендер моделей оружия), больше NPC и квестов между вылазками, перевод контента уроков.
 
@@ -55,7 +63,8 @@ Dev-аргументы Main (после `--`): `--screen=menu | creator | credit
 sortie:<loc>:<node>[:seed] [--look=platforms|exit] [--walk=N] | world | mini:<spec> | lesson:<id> | character[:tab] |
 settings | test:<spec> | reward:<spec> | lootbox | combat:<enemy> [--auto=N] | dialogue:<npc> | riddle:<id> | safe:<id>`,
 `--demo` (временный герой с прогрессом, user://demo_saves/), `--autodeck`, `--lang=en` (язык без сохранения),
-`--shot=<png> [--shot-delay=s]` (скриншот без баннера уровня; без --demo — user://dev_saves/), `--levelup`, `--toast=`.
+`--shot=<png> [--shot-delay=s]` (скриншот без баннера уровня; без --demo — user://dev_saves/), `--levelup`, `--toast=`,
+`--graphics=low|medium|high` (качество без сохранения), `--fps=N` (средний FPS за N секунд, draw calls, примитивы → выход).
 
 ---
 
@@ -63,8 +72,9 @@ settings | test:<spec> | reward:<spec> | lootbox | combat:<enemy> [--auto=N] | d
 
 ### Автолоады (`scripts/autoload/`, порядок: EventBus, Settings, ContentParser, GameManager, SaveSystem, Audio)
 - **Settings** — `user://settings.cfg`: окно, разрешение, масштаб UI, VSync, громкости, музыка, `language` ("ru"/"en"),
-  `bindings` (действие → physical keycode), `mouse_sensitivity`. Действия ввода регистрируются в коде (`INPUT_ACTIONS`):
-  move_*, sprint (Shift), jump (F), interact (E), pause (Space), map (M), camera_left/right (Q/R). `REBINDABLE`,
+  `bindings` (действие → physical keycode), `mouse_sensitivity`, `graphics` (auto/low/medium/high), `show_fps`.
+  Действия ввода регистрируются в коде (`INPUT_ACTIONS`):
+  move_*, sprint (Shift), jump (Space), interact (E), pause (P), map (M), camera_left/right (Q/R). `REBINDABLE`,
   `rebind(action, key)` (меняет местами при конфликте), `action_key_name()`. При смене языка вызывает `Loc.setup`.
 - **EventBus** — `navigate(screen, params)` (`params.root` — очистить стек, `replace`, `overlay`), `navigate_back`,
   `navigate_home`, `toast`, `progress_changed`, `combat_finished`, `dialogue_finished`, `riddle_finished`,
@@ -118,13 +128,14 @@ settings | test:<spec> | reward:<spec> | lootbox | combat:<enemy> [--auto=N] | d
   решётки (загадка/Страж), босс, выходы к соседям (назад — в стартовой комнате, вперёд — лестница за решёткой).
 - **LevelBuilder** — 3D: рельеф одним мешем с вырезом пропасти, обрывы, вода (shaders/water) или туман пропасти,
   земля со стилизованным шейдером (shaders/ground: пятна, «мазки», маска тропы), невидимые стены (слой 1|4),
-  кроны — коллизия только для камеры (слой 4), растительность/руины/камни через MultiMesh; подземелья: плитка Kenney
+  кроны — коллизия только для камеры (слой 4), растительность/руины/камни через MultiMesh, разбитый на чанки
+  `CHUNK` с дальностью прорисовки (`scatter(root, path, xforms, shadows, view_dist)`); подземелья: плитка Kenney
   (стены вытянуты ×2.3 под взрослых), пещера — скалы и светящиеся грибы/кристаллы, гробница — свечи и вазы.
 - **SortiePlayer** — герой: камера от третьего лица (SpringArm3D, ПКМ/колесо/Q/R), WASD от камеры, бег с выносливостью,
   прыжок с койот-таймом и буфером, анимации UAL, `fall_y` → сигнал `fell`.
 - **SortieEnemy** — враг: patrol → alert → chase по AStarGrid2D (только проходимые клетки), контакт → бой.
 - **MovingPlatform** (AnimatableBody3D) — пинг-понг между точками с плавным разгоном, покачивание.
-- **WorldStyle** — палитры земли по биому, небо/свет (`day`, `sunset`, `gloom`, `cave`), вода, костёр и частицы огня.
+- **WorldStyle** — `QUALITY` (пресеты графики), `quality()`, `auto_quality()`, `blob_shadow()`; палитры земли по биому, небо/свет (`day`, `sunset`, `gloom`, `cave`), вода, костёр и частицы огня.
 - **CampScene** — 3D-фон главного меню и создания героя (поляна у костра, герой).
 
 ### Сцены (`scenes/`)

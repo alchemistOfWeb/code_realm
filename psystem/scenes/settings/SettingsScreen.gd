@@ -24,6 +24,8 @@ var _controls_box: VBoxContainer
 var _bind_buttons: Dictionary = {}     # action → Button
 var _waiting_action := ""
 var _sens_slider: HSlider
+var _gfx_option: OptionButton
+var _fps_check: CheckBox
 
 
 func _ready() -> void:
@@ -100,6 +102,22 @@ func _build_screen_section() -> void:
 	_vsync_check.text = Loc.t("Вертикальная синхронизация (VSync)")
 	_vsync_check.toggled.connect(func(on): Settings.set_value("vsync", on))
 	screen_box.add_child(_vsync_check)
+
+	_gfx_option = OptionButton.new()
+	_gfx_option.add_item(Loc.t("Авто (%s)") % Loc.t(WorldStyle.QUALITY_NAMES[WorldStyle.auto_quality()]))
+	_gfx_option.set_item_metadata(0, "auto")
+	for key in WorldStyle.QUALITY_NAMES:
+		_gfx_option.add_item(Loc.t(WorldStyle.QUALITY_NAMES[key]))
+		_gfx_option.set_item_metadata(_gfx_option.item_count - 1, key)
+	_gfx_option.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_gfx_option.tooltip_text = Loc.t("Тени, густота леса и дальность прорисовки в вылазках. Применяется при входе в подлокацию.")
+	_gfx_option.item_selected.connect(func(i): Settings.set_value("graphics", _gfx_option.get_item_metadata(i)))
+	screen_box.add_child(_row(Loc.t("Графика вылазок"), _gfx_option))
+
+	_fps_check = CheckBox.new()
+	_fps_check.text = Loc.t("Показывать FPS в вылазках")
+	_fps_check.toggled.connect(func(on): Settings.set_value("show_fps", on))
+	screen_box.add_child(_fps_check)
 
 	_window_info = Label.new()
 	_window_info.theme_type_variation = &"DimLabel"
@@ -307,6 +325,10 @@ func _refresh() -> void:
 	_scale_slider.set_value_no_signal(scale_pct)
 	_scale_label.text = "%d%%" % scale_pct
 	_vsync_check.set_pressed_no_signal(Settings.get_value("vsync"))
+	_fps_check.set_pressed_no_signal(Settings.get_value("show_fps"))
+	for i in _gfx_option.item_count:
+		if _gfx_option.get_item_metadata(i) == Settings.get_value("graphics"):
+			_gfx_option.select(i)
 
 	for key in _volume_sliders:
 		var v := roundi(float(Settings.get_value(key)) * 100.0)
