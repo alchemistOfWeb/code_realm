@@ -1,0 +1,49 @@
+{
+	"specializations": [
+		{
+			"id": "python_developer",
+			"name": "Python Developer",
+			"short": "Python",
+			"color": "#4A9EFF",
+			"icon": "res://assets/icons/code.svg",
+			"content_file": "res://content/python_developer.md",
+			"description": "Язык Python от синтаксиса до внутреннего устройства: типы данных, ООП, итераторы, генераторы, async, тестирование."
+		},
+		{
+			"id": "ai_developer",
+			"name": "AI/LLM Engineer",
+			"short": "AI/LLM",
+			"color": "#9B59B6",
+			"icon": "res://assets/icons/bot.svg",
+			"content_file": "res://content/ai_developer.md",
+			"description": "RAG, эмбеддинги, промпт-инжиниринг, агенты, fine-tuning, evaluation. Вопросы собеседований Junior AI Engineer."
+		},
+		{
+			"id": "python_backend",
+			"name": "Python Backend",
+			"short": "Backend",
+			"color": "#2ECC71",
+			"icon": "res://assets/icons/server.svg",
+			"content_file": "res://content/python_backend.md",
+			"description": "HTTP, REST, FastAPI/Django, базы данных, SQL, кэширование, очереди, Docker, безопасность и системный дизайн."
+		},
+		{
+			"id": "game_designer",
+			"name": "Game Designer",
+			"short": "Game Design",
+			"color": "#E74C3C",
+			"icon": "res://assets/icons/gamepad-2.svg",
+			"content_file": "res://content/game_designer.md",
+			"description": "Механики, баланс, прогрессия, экономика, документация. Карта навыков и требования по грейдам."
+		},
+		{
+			"id": "level_designer",
+			"name": "Level Designer",
+			"short": "Level Design",
+			"color": "#F39C12",
+			"icon": "res://assets/icons/map.svg",
+			"content_file": "res://content/level_designer.md",
+			"description": "Пространство, навигация, пейсинг, блокаут, обучение через уровень, освещение и композиция."
+		}
+	]
+}

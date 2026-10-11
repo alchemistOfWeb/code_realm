@@ -1,0 +1,245 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/character/CharacterScreen.gd" id="1_char"]
+[ext_resource type="Texture2D" path="res://assets/icons/arrow-left.svg" id="2_back"]
+[ext_resource type="Shader" path="res://shaders/orb.gdshader" id="3_orb"]
+[ext_resource type="Texture2D" path="res://assets/icons/user.svg" id="4_user"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_avatar"]
+resource_local_to_scene = true
+shader = ExtResource("3_orb")
+shader_parameter/orb_color = Color(0.482, 0.408, 0.933, 1)
+shader_parameter/ring_color = Color(0, 0.83, 0.67, 1)
+shader_parameter/progress = 0.0
+shader_parameter/hover = 0.0
+shader_parameter/seed = 2.0
+shader_parameter/show_ring = true
+
+[node name="CharacterScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_char")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="BackButton" type="Button" parent="Margin/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Назад (Esc)"
+text = "Назад"
+icon = ExtResource("2_back")
+
+[node name="Title" type="Label" parent="Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 26
+text = "Персонаж"
+
+[node name="SaveDirButton" type="Button" parent="Margin/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Открыть папку с сохранениями"
+theme_type_variation = &"GhostButton"
+text = "Папка сохранений"
+
+[node name="WipeButton" type="Button" parent="Margin/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Начать игру заново: удалит уровень, прогресс, карты и заметки"
+theme_type_variation = &"DangerButton"
+text = "Начать заново"
+
+[node name="Tabs" type="TabContainer" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+current_tab = 0
+
+[node name="Stats" type="HBoxContainer" parent="Margin/VBox/Tabs"]
+layout_mode = 2
+theme_override_constants/separation = 18
+metadata/_tab_index = 0
+
+[node name="Profile" type="PanelContainer" parent="Margin/VBox/Tabs/Stats"]
+custom_minimum_size = Vector2(330, 0)
+layout_mode = 2
+theme_type_variation = &"CardPanel"
+
+[node name="ProfileBox" type="VBoxContainer" parent="Margin/VBox/Tabs/Stats/Profile"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="AvatarCenter" type="CenterContainer" parent="Margin/VBox/Tabs/Stats/Profile/ProfileBox"]
+layout_mode = 2
+
+[node name="Avatar" type="Control" parent="Margin/VBox/Tabs/Stats/Profile/ProfileBox/AvatarCenter"]
+custom_minimum_size = Vector2(180, 180)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="AvatarOrb" type="ColorRect" parent="Margin/VBox/Tabs/Stats/Profile/ProfileBox/AvatarCenter/Avatar"]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_avatar")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="AvatarIcon" type="TextureRect" parent="Margin/VBox/Tabs/Stats/Profile/ProfileBox/AvatarCenter/Avatar"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -28.0
+offset_top = -28.0
+offset_right = 28.0
+offset_bottom = 28.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("4_user")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LevelLabel" type="Label" parent="Margin/VBox/Tabs/Stats/Profile/ProfileBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+text = "Уровень 1"
+horizontal_alignment = 1
+
+[node name="TotalXPLabel" type="Label" parent="Margin/VBox/Tabs/Stats/Profile/ProfileBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Всего опыта: 0"
+horizontal_alignment = 1
+
+[node name="Bars" type="GridContainer" parent="Margin/VBox/Tabs/Stats/Profile/ProfileBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 12
+columns = 3
+
+[node name="Attributes" type="PanelContainer" parent="Margin/VBox/Tabs/Stats"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"CardPanel"
+
+[node name="AttrBox" type="VBoxContainer" parent="Margin/VBox/Tabs/Stats/Attributes"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="AttrTitle" type="Label" parent="Margin/VBox/Tabs/Stats/Attributes/AttrBox"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Атрибуты"
+
+[node name="AttributePointsLabel" type="Label" parent="Margin/VBox/Tabs/Stats/Attributes/AttrBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MonoLabel"
+text = "Очки атрибутов: 0"
+
+[node name="AttributesContainer" type="VBoxContainer" parent="Margin/VBox/Tabs/Stats/Attributes/AttrBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="AttrHint" type="Label" parent="Margin/VBox/Tabs/Stats/Attributes/AttrBox"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+theme_override_font_sizes/font_size = 13
+text = "Очко атрибутов даётся за каждый новый уровень. Атрибуты работают в карточном бою и подземелье (итерации 3–4)."
+autowrap_mode = 3
+
+[node name="Knowledge" type="PanelContainer" parent="Margin/VBox/Tabs/Stats"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"CardPanel"
+
+[node name="KnowledgeBox" type="VBoxContainer" parent="Margin/VBox/Tabs/Stats/Knowledge"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="KnowledgeTitle" type="Label" parent="Margin/VBox/Tabs/Stats/Knowledge/KnowledgeBox"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "Знания"
+
+[node name="SpecList" type="VBoxContainer" parent="Margin/VBox/Tabs/Stats/Knowledge/KnowledgeBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Cards" type="VBoxContainer" parent="Margin/VBox/Tabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+metadata/_tab_index = 1
+
+[node name="CardsInfo" type="Label" parent="Margin/VBox/Tabs/Cards"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Коллекция"
+autowrap_mode = 3
+
+[node name="CardsScroll" type="ScrollContainer" parent="Margin/VBox/Tabs/Cards"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CardsGrid" type="GridContainer" parent="Margin/VBox/Tabs/Cards/CardsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 6
+
+[node name="Deck" type="VBoxContainer" parent="Margin/VBox/Tabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+metadata/_tab_index = 2
+
+[node name="DeckInfo" type="Label" parent="Margin/VBox/Tabs/Deck"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Колода"
+autowrap_mode = 3

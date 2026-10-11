@@ -1,0 +1,19 @@
+Звуки интерфейса: Kenney "Interface Sounds" — CC0 — https://kenney.nl/assets/interface-sounds
+Джинглы: Kenney "Music Jingles" — CC0 — https://kenney.nl/assets/music-jingles (reward.ogg)
+Звуки RPG (свиток, карты, сундук, монеты): Kenney "RPG Audio" — CC0 — https://kenney.nl/assets/rpg-audio
+
+Фанфары:
+  jingles/levelup.ogg         — "VICTORY" из "Fanfares" by Spring Spring — CC-BY 4.0 — https://opengameart.org/content/fanfares
+  jingles/fanfare_reward.ogg  — "Just a random fanfare" by Spring Spring — CC0 — https://opengameart.org/content/just-a-random-fanfare
+
+Музыка (все CC0):
+  slow_stride.ogg          — "Slow Stride" by isaiah658 — https://opengameart.org/content/slow-stride
+  underwater_theme_ii.ogg  — "Underwater Theme II" by Cleyton Kauffman — https://opengameart.org/content/underwater-theme-ii
+  heavenly_loop.ogg        — "Heavenly Loop" by isaiah658 — https://opengameart.org/content/heavenly-loop
+
+Бой и экспедиции:
+  music/battle_loop.ogg   — "Heartfelt Battle (loopable)" — OpenGameArt, CC0 — https://opengameart.org/content/heartfelt-battle-loopable-fantasy-stringspianohorn
+  combat/*.ogg (удары, шаги, механизмы) — Kenney "Impact Sounds" — CC0 — https://kenney.nl/assets/impact-sounds
+  combat/slash.ogg, draw.ogg — Kenney "RPG Audio" — CC0
+
+3D-модели: Kenney "Mini Dungeon" — CC0 — https://kenney.nl/assets/mini-dungeon (assets/models/dungeon)

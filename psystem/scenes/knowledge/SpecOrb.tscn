@@ -1,0 +1,67 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/knowledge/SpecOrb.gd" id="1_orb"]
+[ext_resource type="Shader" path="res://shaders/orb.gdshader" id="2_shader"]
+[ext_resource type="Texture2D" path="res://assets/icons/code.svg" id="3_icon"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_orb"]
+resource_local_to_scene = true
+shader = ExtResource("2_shader")
+shader_parameter/orb_color = Color(0.29, 0.62, 1, 1)
+shader_parameter/ring_color = Color(0, 0.83, 0.67, 1)
+shader_parameter/progress = 0.0
+shader_parameter/hover = 0.0
+shader_parameter/seed = 0.0
+shader_parameter/show_ring = true
+
+[node name="SpecOrb" type="Control"]
+custom_minimum_size = Vector2(230, 260)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 230.0
+offset_bottom = 260.0
+pivot_offset = Vector2(115, 100)
+mouse_default_cursor_shape = 2
+script = ExtResource("1_orb")
+
+[node name="Orb" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_orb")
+layout_mode = 0
+offset_left = 15.0
+offset_top = 0.0
+offset_right = 215.0
+offset_bottom = 200.0
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="."]
+modulate = Color(1, 1, 1, 0.92)
+layout_mode = 0
+offset_left = 85.0
+offset_top = 70.0
+offset_right = 145.0
+offset_bottom = 130.0
+mouse_filter = 2
+texture = ExtResource("3_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="NameLabel" type="Label" parent="."]
+layout_mode = 0
+offset_top = 196.0
+offset_right = 230.0
+offset_bottom = 224.0
+theme_type_variation = &"HeaderLabel"
+theme_override_font_sizes/font_size = 17
+text = "Python Developer"
+horizontal_alignment = 1
+
+[node name="CountLabel" type="Label" parent="."]
+layout_mode = 0
+offset_top = 226.0
+offset_right = 230.0
+offset_bottom = 248.0
+theme_type_variation = &"MonoLabel"
+theme_override_colors/font_color = Color(0.55, 0.55, 0.69, 1)
+theme_override_font_sizes/font_size = 13
+text = "0 / 0 · 0%"
+horizontal_alignment = 1

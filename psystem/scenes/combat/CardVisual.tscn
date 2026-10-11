@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/CardVisual.gd" id="1_card"]
+
+[node name="CardVisual" type="Control"]
+custom_minimum_size = Vector2(200, 280)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 200.0
+offset_bottom = 280.0
+pivot_offset = Vector2(100, 140)
+mouse_default_cursor_shape = 2
+script = ExtResource("1_card")

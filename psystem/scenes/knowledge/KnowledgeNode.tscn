@@ -1,0 +1,72 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/knowledge/KnowledgeNode.gd" id="1_node"]
+[ext_resource type="Texture2D" path="res://assets/icons/circle-dot.svg" id="2_icon"]
+
+[node name="KnowledgeNode" type="PanelContainer"]
+custom_minimum_size = Vector2(210, 84)
+offset_right = 210.0
+offset_bottom = 84.0
+mouse_default_cursor_shape = 2
+script = ExtResource("1_node")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Top" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="StatusIcon" type="TextureRect" parent="VBox/Top"]
+custom_minimum_size = Vector2(18, 18)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+texture = ExtResource("2_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Title" type="Label" parent="VBox/Top"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+text = "Название узла"
+autowrap_mode = 3
+text_overrun_behavior = 3
+max_lines_visible = 2
+
+[node name="Bottom" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Stars" type="Label" parent="VBox/Bottom"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.843, 0, 0.85)
+theme_override_font_sizes/font_size = 12
+text = "★☆☆"
+
+[node name="Freq" type="Label" parent="VBox/Bottom"]
+visible = false
+layout_mode = 2
+theme_type_variation = &"MonoLabel"
+theme_override_colors/font_color = Color(0.55, 0.55, 0.69, 1)
+theme_override_font_sizes/font_size = 11
+text = "97%"
+
+[node name="Spacer" type="Control" parent="VBox/Bottom"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Info" type="Label" parent="VBox/Bottom"]
+layout_mode = 2
+theme_type_variation = &"MonoLabel"
+theme_override_colors/font_color = Color(0.55, 0.55, 0.69, 1)
+theme_override_font_sizes/font_size = 11
+text = "+5 XP"

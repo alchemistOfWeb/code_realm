@@ -1,0 +1,213 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/HUD.gd" id="1_hud"]
+[ext_resource type="Texture2D" path="res://assets/icons/sparkles.svg" id="2_logo"]
+[ext_resource type="Texture2D" path="res://assets/icons/heart.svg" id="3_heart"]
+[ext_resource type="Texture2D" path="res://assets/icons/zap.svg" id="4_zap"]
+[ext_resource type="Texture2D" path="res://assets/icons/coins.svg" id="5_coins"]
+[ext_resource type="Texture2D" path="res://assets/icons/notebook-pen.svg" id="6_notes"]
+[ext_resource type="Texture2D" path="res://assets/icons/user.svg" id="7_user"]
+[ext_resource type="Texture2D" path="res://assets/icons/star.svg" id="8_star"]
+[ext_resource type="Texture2D" path="res://assets/icons/music.svg" id="9_music"]
+[ext_resource type="Texture2D" path="res://assets/icons/settings.svg" id="10_settings"]
+
+[node name="HUD" type="PanelContainer"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 64.0
+grow_horizontal = 2
+theme_type_variation = &"HudPanel"
+script = ExtResource("1_hud")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="LogoButton" type="Button" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "На главный экран"
+theme_type_variation = &"GhostButton"
+theme_override_colors/font_color = Color(0.9, 0.9, 0.95, 1)
+theme_override_colors/icon_normal_color = Color(0.482, 0.408, 0.933, 1)
+theme_override_font_sizes/font_size = 17
+text = "CodeRealm"
+icon = ExtResource("2_logo")
+
+[node name="Sep1" type="VSeparator" parent="Row"]
+layout_mode = 2
+
+[node name="LevelBox" type="HBoxContainer" parent="Row"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LevelIcon" type="TextureRect" parent="Row/LevelBox"]
+modulate = Color(1, 0.843, 0, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("8_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LevelLabel" type="Label" parent="Row/LevelBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"StatLabel"
+text = "УР 1"
+
+[node name="XPBox" type="VBoxContainer" parent="Row"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 3
+
+[node name="XPLabel" type="Label" parent="Row/XPBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MonoLabel"
+theme_override_colors/font_color = Color(0.55, 0.55, 0.69, 1)
+theme_override_font_sizes/font_size = 12
+text = "0 / 20 XP"
+
+[node name="XPBar" type="ProgressBar" parent="Row/XPBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_type_variation = &"XPBar"
+max_value = 20.0
+show_percentage = false
+
+[node name="HPBox" type="HBoxContainer" parent="Row"]
+layout_mode = 2
+tooltip_text = "Здоровье = уровень персонажа"
+theme_override_constants/separation = 8
+
+[node name="HPIcon" type="TextureRect" parent="Row/HPBox"]
+modulate = Color(1, 0.42, 0.42, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("3_heart")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HPLabel" type="Label" parent="Row/HPBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"StatLabel"
+text = "1 / 1"
+
+[node name="EnergyBox" type="HBoxContainer" parent="Row"]
+layout_mode = 2
+tooltip_text = "Энергия: +5 за изученный узел. Нужна для входа в подземелье (30)."
+theme_override_constants/separation = 8
+
+[node name="EnergyIcon" type="TextureRect" parent="Row/EnergyBox"]
+modulate = Color(1, 0.843, 0, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("4_zap")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="EnergyCol" type="VBoxContainer" parent="Row/EnergyBox"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 3
+
+[node name="EnergyLabel" type="Label" parent="Row/EnergyBox/EnergyCol"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MonoLabel"
+theme_override_colors/font_color = Color(0.55, 0.55, 0.69, 1)
+theme_override_font_sizes/font_size = 12
+text = "50 / 50"
+
+[node name="EnergyBar" type="ProgressBar" parent="Row/EnergyBox/EnergyCol"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_type_variation = &"EnergyBar"
+max_value = 50.0
+value = 50.0
+show_percentage = false
+
+[node name="GoldBox" type="HBoxContainer" parent="Row"]
+layout_mode = 2
+tooltip_text = "Золото"
+theme_override_constants/separation = 8
+
+[node name="GoldIcon" type="TextureRect" parent="Row/GoldBox"]
+modulate = Color(0.96, 0.77, 0.26, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("5_coins")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="GoldLabel" type="Label" parent="Row/GoldBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"StatLabel"
+text = "0"
+
+[node name="Spacer" type="Control" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="ChestButton" type="Button" parent="Row"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Сундуки с картами — за новые уровни. Нажми, чтобы открыть"
+theme_type_variation = &"GhostButton"
+theme_override_colors/font_color = Color(0.96, 0.77, 0.26, 1)
+theme_override_colors/icon_normal_color = Color(0.96, 0.77, 0.26, 1)
+theme_override_constants/icon_max_width = 24
+text = "×1"
+
+[node name="PointsBadge" type="Label" parent="Row"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"MonoLabel"
+theme_override_colors/font_color = Color(0, 0.83, 0.67, 1)
+mouse_filter = 1
+text = "+1 очк."
+
+[node name="NotesButton" type="Button" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Заметки для Claude: общие пожелания и экспорт NOTES_FOR_CLAUDE.md"
+theme_type_variation = &"GhostButton"
+icon = ExtResource("6_notes")
+
+[node name="CharacterButton" type="Button" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+text = "Персонаж"
+icon = ExtResource("7_user")
+
+[node name="MusicButton" type="Button" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Музыка: вкл/выкл"
+theme_type_variation = &"GhostButton"
+icon = ExtResource("9_music")
+
+[node name="SettingsButton" type="Button" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Настройки: экран, разрешение, звук"
+theme_type_variation = &"GhostButton"
+icon = ExtResource("10_settings")

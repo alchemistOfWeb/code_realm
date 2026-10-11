@@ -1,0 +1,7 @@
+# Godot
+psystem/.godot/
+psystem/android/
+*.tmp
+# ОС
+Thumbs.db
+.DS_Store

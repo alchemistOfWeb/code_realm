@@ -1,0 +1,187 @@
+{
+	"enemies": [
+		{
+			"id": "syntax_error",
+			"name": "Syntax Error",
+			"hp": 8,
+			"attack": 2,
+			"xp_reward": 10,
+			"gold_reward": 3,
+			"description": "Мелкий механический жук: тикает, путает шестерёнки. Много шума, мало угрозы.",
+			"cards": [
+				"sql_query",
+				"git_commit"
+			],
+			"color": "#E74C3C",
+			"title": "Заводной жучок-опечатка",
+			"icon": "alien-bug",
+			"floor": 1,
+			"special": ""
+		},
+		{
+			"id": "null_pointer",
+			"name": "Null Pointer",
+			"hp": 12,
+			"attack": 4,
+			"xp_reward": 20,
+			"gold_reward": 7,
+			"description": "Автоматон, указывающий в пустоту. Бьёт сильно, но без цели.",
+			"cards": [
+				"docker_container",
+				"async_coroutine"
+			],
+			"color": "#E67E22",
+			"title": "Пустотный автоматон",
+			"icon": "android-mask",
+			"floor": 1,
+			"special": ""
+		},
+		{
+			"id": "legacy_code",
+			"name": "Legacy Code",
+			"hp": 20,
+			"attack": 3,
+			"xp_reward": 35,
+			"gold_reward": 15,
+			"description": "Голем, собранный до Остановки. Никто не знает, как он работает. Броня: −1 к каждому урону.",
+			"cards": [
+				"neural_network",
+				"rag_pipeline"
+			],
+			"color": "#8E44AD",
+			"title": "Древний голем без документации",
+			"icon": "metal-golem-head",
+			"floor": 2,
+			"special": "armor"
+		},
+		{
+			"id": "infinite_loop",
+			"name": "Infinite Loop",
+			"hp": 15,
+			"attack": 5,
+			"xp_reward": 30,
+			"gold_reward": 10,
+			"description": "Маятник, который никогда не останавливается. Атакует дважды за ход.",
+			"cards": [
+				"vector_database",
+				"transformer_model"
+			],
+			"color": "#2980B9",
+			"special": "double_attack",
+			"title": "Вечный маятник",
+			"icon": "cogsplosion",
+			"floor": 2
+		},
+		{
+			"id": "data_breach",
+			"name": "Data Breach",
+			"hp": 25,
+			"attack": 6,
+			"xp_reward": 50,
+			"gold_reward": 25,
+			"description": "Мини-босс. Крадёт карту из твоей руки в начале каждого своего хода.",
+			"cards": [
+				"prompt_injection",
+				"kubernetes_pod"
+			],
+			"color": "#C0392B",
+			"special": "steal_card",
+			"is_miniboss": true,
+			"title": "Похититель архивов",
+			"icon": "hooded-figure",
+			"floor": 3
+		},
+		{
+			"id": "memory_leak",
+			"name": "Memory Leak",
+			"title": "Масляный слизень",
+			"hp": 14,
+			"attack": 2,
+			"xp_reward": 15,
+			"gold_reward": 5,
+			"description": "Слизень из отработанного масла. С каждым ходом разрастается: +1 к атаке.",
+			"cards": [
+				"try_except",
+				"list_comprehension"
+			],
+			"color": "#5D8A3A",
+			"special": "grow",
+			"icon": "slime",
+			"floor": 1
+		},
+		{
+			"id": "race_condition",
+			"name": "Race Condition",
+			"title": "Заводная гончая",
+			"hp": 10,
+			"attack": 3,
+			"xp_reward": 12,
+			"gold_reward": 4,
+			"description": "Две шестерёнки спорят, кто быстрее. Иногда побеждают обе — двойная атака.",
+			"cards": [
+				"async_coroutine",
+				"hallucination"
+			],
+			"color": "#D35400",
+			"special": "double_attack",
+			"icon": "spider-bot",
+			"floor": 1
+		},
+		{
+			"id": "deadlock",
+			"name": "Deadlock",
+			"title": "Сцепленные стражи",
+			"hp": 22,
+			"attack": 3,
+			"xp_reward": 30,
+			"gold_reward": 12,
+			"description": "Два голема, ждущих друг друга вечно. Чинят себя: +2 HP каждый ход.",
+			"cards": [
+				"blockout",
+				"docker_container"
+			],
+			"color": "#7F8C8D",
+			"special": "regen",
+			"icon": "tracked-robot",
+			"floor": 2
+		},
+		{
+			"id": "segfault",
+			"name": "Segfault",
+			"title": "Призрак в доспехах",
+			"hp": 16,
+			"attack": 5,
+			"xp_reward": 28,
+			"gold_reward": 10,
+			"description": "Обращается туда, куда нельзя. Опасный удар, хрупкий корпус.",
+			"cards": [
+				"hallucination",
+				"gil_lock"
+			],
+			"color": "#8E44AD",
+			"special": "",
+			"icon": "ghost",
+			"floor": 2
+		},
+		{
+			"id": "corrupted_compiler",
+			"name": "Corrupted Compiler",
+			"title": "Порченый Компилятор",
+			"hp": 40,
+			"attack": 5,
+			"xp_reward": 80,
+			"gold_reward": 50,
+			"description": "Босс. Сердце остановившегося города: собирает из обломков прислужников каждые два хода.",
+			"cards": [
+				"microservices",
+				"load_balancer",
+				"kubernetes_pod"
+			],
+			"color": "#C0392B",
+			"special": "summon",
+			"icon": "skull-staff",
+			"floor": 3,
+			"is_boss": true
+		}
+	]
+}

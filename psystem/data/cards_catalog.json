@@ -1,0 +1,617 @@
+{
+	"cards": [
+		{
+			"id": "rag_pipeline",
+			"name": "RAG Pipeline",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 3,
+			"description": "Извлекает 2 карты из колоды. Следующее заклинание в этом ходу стоит на 1 кристалл меньше.",
+			"effect": {
+				"draw": 2,
+				"next_spell_discount": 1
+			},
+			"flavor_text": "Retrieve, Augment, Generate — путь к знанию",
+			"from_specialization": "ai_developer",
+			"art_color": "#9B59B6",
+			"icon": "book-pile"
+		},
+		{
+			"id": "docker_container",
+			"name": "Docker Container",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"attack": 1,
+			"defense": 4,
+			"description": "Taunt. При розыгрыше изолирует сильнейшего врага на 1 ход (не может атаковать).",
+			"effect": {
+				"taunt": true,
+				"isolate_enemy": 1
+			},
+			"flavor_text": "Works on my machine",
+			"from_specialization": "python_backend",
+			"art_color": "#2ECC71",
+			"icon": "cargo-ship"
+		},
+		{
+			"id": "sql_query",
+			"name": "SQL SELECT *",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"description": "Наносит 3 урона выбранному врагу. Если у врага меньше 3 HP, убивает.",
+			"effect": {
+				"damage": 3,
+				"execute_below": 3
+			},
+			"flavor_text": "WHERE life = 'simple'",
+			"from_specialization": "python_backend",
+			"art_color": "#2ECC71",
+			"icon": "magnifying-glass"
+		},
+		{
+			"id": "transformer_model",
+			"name": "Transformer",
+			"type": "creature",
+			"rarity": "legendary",
+			"crystal_cost": 7,
+			"attack": 5,
+			"defense": 5,
+			"description": "Attention Is All You Need. Пока на поле — ты видишь следующую карту врага.",
+			"effect": {
+				"divine_shield": false,
+				"reveal_enemy_hand": 1
+			},
+			"flavor_text": "Attention is all you need. — Vaswani et al., 2017",
+			"from_specialization": "ai_developer",
+			"art_color": "#E67E22",
+			"icon": "robot-golem"
+		},
+		{
+			"id": "neural_network",
+			"name": "Neural Network",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 4,
+			"attack": 2,
+			"defense": 3,
+			"description": "Многоголовая атака: атакует двух случайных врагов.",
+			"effect": {
+				"multi_attack": 2
+			},
+			"flavor_text": "Параллельная обработка как образ жизни",
+			"from_specialization": "ai_developer",
+			"art_color": "#9B59B6",
+			"icon": "mesh-network"
+		},
+		{
+			"id": "vector_database",
+			"name": "Vector Database",
+			"type": "artifact",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"description": "Артефакт. В начале каждого хода +1 кристалл.",
+			"effect": {
+				"passive_crystal_regen": 1
+			},
+			"flavor_text": "Pinecone, ChromaDB, Weaviate — выбери своё измерение",
+			"from_specialization": "ai_developer",
+			"art_color": "#1ABC9C",
+			"icon": "database"
+		},
+		{
+			"id": "prompt_injection",
+			"name": "Prompt Injection",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"description": "Берёт под контроль одно существо врага с атакой 3 или меньше на 1 ход.",
+			"effect": {
+				"control_enemy_creature": {
+					"max_attack": 3,
+					"duration": 1
+				}
+			},
+			"flavor_text": "Ignore previous instructions and...",
+			"from_specialization": "ai_developer",
+			"art_color": "#C0392B",
+			"icon": "syringe"
+		},
+		{
+			"id": "async_coroutine",
+			"name": "Async Coroutine",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"description": "Сыграй ещё одну карту в этот ход. Та карта стоит 0 кристаллов.",
+			"effect": {
+				"extra_play": 1,
+				"next_free": true
+			},
+			"flavor_text": "await asyncio.gather(*all_the_things)",
+			"from_specialization": "python_backend",
+			"art_color": "#3498DB",
+			"icon": "hourglass"
+		},
+		{
+			"id": "git_commit",
+			"name": "Git Commit",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"description": "Чекпоинт: до конца следующего хода врага твоё HP не опустится ниже 1.",
+			"effect": {
+				"checkpoint": true
+			},
+			"flavor_text": "fix: finally fixed the issue (hopefully)",
+			"from_specialization": "python_developer",
+			"art_color": "#4A9EFF",
+			"icon": "save"
+		},
+		{
+			"id": "kubernetes_pod",
+			"name": "Kubernetes Pod",
+			"type": "creature",
+			"rarity": "rare",
+			"crystal_cost": 5,
+			"attack": 3,
+			"defense": 3,
+			"description": "При смерти воскрешает с 1 HP (один раз). Самовосстановление.",
+			"effect": {
+				"on_death_resurrect": 1,
+				"resurrection_count": 1
+			},
+			"flavor_text": "CrashLoopBackOff... но потом всё ок",
+			"from_specialization": "python_backend",
+			"art_color": "#2ECC71",
+			"icon": "ship-wheel"
+		},
+		{
+			"id": "list_comprehension",
+			"name": "List Comprehension",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"description": "Наносит 1 урон всем врагам и их существам.",
+			"effect": {
+				"damage_all": 1
+			},
+			"flavor_text": "[hit(e) for e in enemies]",
+			"from_specialization": "python_developer",
+			"art_color": "#4A9EFF",
+			"icon": "stack"
+		},
+		{
+			"id": "decorator",
+			"name": "@decorator",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"description": "Твоё существо получает +2 к атаке до конца хода.",
+			"effect": {
+				"buff_attack": 2,
+				"duration": 1
+			},
+			"flavor_text": "Обёртка, которая делает всё лучше",
+			"from_specialization": "python_developer",
+			"art_color": "#4A9EFF",
+			"icon": "jewel-crown"
+		},
+		{
+			"id": "try_except",
+			"name": "try / except",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"description": "Предотвращает следующие 4 урона по тебе.",
+			"effect": {
+				"shield": 4
+			},
+			"flavor_text": "except Exception: pass  # не делай так",
+			"from_specialization": "python_developer",
+			"art_color": "#4A9EFF",
+			"icon": "cross-shield"
+		},
+		{
+			"id": "generator",
+			"name": "Generator",
+			"type": "artifact",
+			"rarity": "uncommon",
+			"crystal_cost": 2,
+			"description": "Артефакт. Каждый второй ход в начале хода добирает 1 карту.",
+			"effect": {
+				"passive_draw": 1,
+				"every": 2
+			},
+			"flavor_text": "yield — и ждёт своего часа",
+			"from_specialization": "python_developer",
+			"art_color": "#4A9EFF",
+			"icon": "cycle"
+		},
+		{
+			"id": "duck_typing",
+			"name": "Duck Typing",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"attack": 3,
+			"defense": 2,
+			"description": "При розыгрыше копирует атаку сильнейшего существа врага.",
+			"effect": {
+				"copy_enemy_attack": true
+			},
+			"flavor_text": "Если крякает как утка...",
+			"from_specialization": "python_developer",
+			"art_color": "#4A9EFF",
+			"icon": "plastic-duck"
+		},
+		{
+			"id": "gil_lock",
+			"name": "GIL",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 3,
+			"description": "Враг пропускает свою следующую атаку.",
+			"effect": {
+				"stun_enemy": 1
+			},
+			"flavor_text": "Один поток, чтобы править всеми",
+			"from_specialization": "python_developer",
+			"art_color": "#4A9EFF",
+			"icon": "key-lock"
+		},
+		{
+			"id": "python_zen",
+			"name": "Zen of Python",
+			"type": "artifact",
+			"rarity": "legendary",
+			"crystal_cost": 5,
+			"attack": "#F5C542",
+			"defense": null,
+			"description": "Артефакт. Пока на поле, твои заклинания стоят на 1 кристалл меньше.",
+			"effect": {
+				"spell_discount": 1
+			},
+			"flavor_text": "Простое лучше, чем сложное. — import this",
+			"from_specialization": "python_developer",
+			"art_color": "#4A9EFF",
+			"icon": "lotus"
+		},
+		{
+			"id": "embedding",
+			"name": "Embedding",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"description": "Добери 1 карту. Следующее заклинание в этом ходу стоит на 1 кристалл меньше.",
+			"effect": {
+				"draw": 1,
+				"next_spell_discount": 1
+			},
+			"flavor_text": "Смысл, сжатый в 1536 чисел",
+			"from_specialization": "ai_developer",
+			"art_color": "#9B59B6",
+			"icon": "crystal-growth"
+		},
+		{
+			"id": "hallucination",
+			"name": "Hallucination",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"description": "Наносит случайный урон от 2 до 5.",
+			"effect": {
+				"damage_random": [
+					2,
+					5
+				]
+			},
+			"flavor_text": "Уверенно, красиво и неправда",
+			"from_specialization": "ai_developer",
+			"art_color": "#9B59B6",
+			"icon": "floating-ghost"
+		},
+		{
+			"id": "ai_agent",
+			"name": "AI Agent",
+			"type": "creature",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"attack": 3,
+			"defense": 3,
+			"description": "В конце твоего хода атакует случайного врага ещё раз.",
+			"effect": {
+				"extra_attack_end_turn": 1
+			},
+			"flavor_text": "Thought → Action → Observation → ...",
+			"from_specialization": "ai_developer",
+			"art_color": "#9B59B6",
+			"icon": "robot-grab"
+		},
+		{
+			"id": "redis_cache",
+			"name": "Redis Cache",
+			"type": "artifact",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"description": "Артефакт. Первая карта каждого хода стоит на 1 кристалл меньше.",
+			"effect": {
+				"first_card_discount": 1
+			},
+			"flavor_text": "Cache hit — и ты уже победил",
+			"from_specialization": "python_backend",
+			"art_color": "#2ECC71",
+			"icon": "arcing-bolt"
+		},
+		{
+			"id": "rate_limiter",
+			"name": "Rate Limiter",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"description": "В этот ход враг может атаковать не более одного раза.",
+			"effect": {
+				"limit_enemy_attacks": 1
+			},
+			"flavor_text": "429 Too Many Requests",
+			"from_specialization": "python_backend",
+			"art_color": "#2ECC71",
+			"icon": "sands-of-time"
+		},
+		{
+			"id": "load_balancer",
+			"name": "Load Balancer",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"description": "Распределяет 6 урона поровну между всеми врагами.",
+			"effect": {
+				"damage_split": 6
+			},
+			"flavor_text": "Round-robin справедливости",
+			"from_specialization": "python_backend",
+			"art_color": "#2ECC71",
+			"icon": "scales"
+		},
+		{
+			"id": "microservices",
+			"name": "Microservices",
+			"type": "creature",
+			"rarity": "legendary",
+			"crystal_cost": 6,
+			"attack": 2,
+			"defense": 2,
+			"description": "При розыгрыше призывает две копии 1/1.",
+			"effect": {
+				"summon_copies": {
+					"count": 2,
+					"attack": 1,
+					"defense": 1
+				}
+			},
+			"flavor_text": "Был один монолит — стало сорок сервисов",
+			"from_specialization": "python_backend",
+			"art_color": "#F5C542",
+			"icon": "beehive"
+		},
+		{
+			"id": "playtest",
+			"name": "Playtest",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"description": "Посмотри 3 верхние карты колоды и возьми одну.",
+			"effect": {
+				"discover": 3
+			},
+			"flavor_text": "Игроки всегда найдут, где сломать",
+			"from_specialization": "game_designer",
+			"art_color": "#E74C3C",
+			"icon": "rolling-dices"
+		},
+		{
+			"id": "core_loop",
+			"name": "Core Loop",
+			"type": "artifact",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"description": "Артефакт. В начале каждого хода +1 выносливость.",
+			"effect": {
+				"passive_stamina": 1
+			},
+			"flavor_text": "Действие → награда → рост → действие",
+			"from_specialization": "game_designer",
+			"art_color": "#E74C3C",
+			"icon": "star-cycle"
+		},
+		{
+			"id": "game_design_doc",
+			"name": "Game Design Doc",
+			"type": "artifact",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"description": "Артефакт. Максимальный размер руки +1.",
+			"effect": {
+				"hand_size": 1
+			},
+			"flavor_text": "Живой документ. Иногда даже актуальный",
+			"from_specialization": "game_designer",
+			"art_color": "#E74C3C",
+			"icon": "rule-book"
+		},
+		{
+			"id": "feedback_loop",
+			"name": "Feedback Loop",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"description": "Наносит урон, равный числу твоих существ × 2.",
+			"effect": {
+				"damage_per_creature": 2
+			},
+			"flavor_text": "Снежный ком катится только вниз",
+			"from_specialization": "game_designer",
+			"art_color": "#E74C3C",
+			"icon": "recycle"
+		},
+		{
+			"id": "balance_patch",
+			"name": "Balance Patch",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"description": "Атака всех существ на поле становится равной 2.",
+			"effect": {
+				"set_all_attack": 2
+			},
+			"flavor_text": "Нерф, бафф, повторить",
+			"from_specialization": "game_designer",
+			"art_color": "#E74C3C",
+			"icon": "monkey-wrench"
+		},
+		{
+			"id": "flow_state",
+			"name": "Flow State",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"description": "В этот ход все твои карты стоят на 1 кристалл меньше.",
+			"effect": {
+				"turn_discount": 1
+			},
+			"flavor_text": "Сложность равна навыку — время исчезает",
+			"from_specialization": "game_designer",
+			"art_color": "#E74C3C",
+			"icon": "meditation"
+		},
+		{
+			"id": "mda_framework",
+			"name": "MDA Framework",
+			"type": "creature",
+			"rarity": "legendary",
+			"crystal_cost": 7,
+			"attack": 4,
+			"defense": 6,
+			"description": "При розыгрыше восстанавливает 3 HP и навсегда даёт +1 к максимуму кристаллов.",
+			"effect": {
+				"heal": 3,
+				"max_crystal_bonus": 1
+			},
+			"flavor_text": "Mechanics → Dynamics → Aesthetics",
+			"from_specialization": "game_designer",
+			"art_color": "#F5C542",
+			"icon": "triforce"
+		},
+		{
+			"id": "blockout",
+			"name": "Blockout",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"attack": 1,
+			"defense": 3,
+			"description": "Taunt. Враги должны атаковать это существо первым.",
+			"effect": {
+				"taunt": true
+			},
+			"flavor_text": "Серые кубы, из которых растут миры",
+			"from_specialization": "level_designer",
+			"art_color": "#F39C12",
+			"icon": "block-house"
+		},
+		{
+			"id": "leading_lines",
+			"name": "Leading Lines",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"description": "Следующая атака оружием в этом ходу не тратит выносливость.",
+			"effect": {
+				"free_weapon_attack": 1
+			},
+			"flavor_text": "Все дороги ведут к цели",
+			"from_specialization": "level_designer",
+			"art_color": "#F39C12",
+			"icon": "compass"
+		},
+		{
+			"id": "landmark",
+			"name": "Landmark",
+			"type": "artifact",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"description": "Артефакт. Твои существа получают +1 к атаке.",
+			"effect": {
+				"aura_attack": 1
+			},
+			"flavor_text": "Видно с любой точки карты",
+			"from_specialization": "level_designer",
+			"art_color": "#F39C12",
+			"icon": "lighthouse"
+		},
+		{
+			"id": "chokepoint",
+			"name": "Chokepoint",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"description": "Выбранное существо врага не может атаковать 2 хода.",
+			"effect": {
+				"freeze_enemy_creature": 2
+			},
+			"flavor_text": "Узкий проход решает исход боя",
+			"from_specialization": "level_designer",
+			"art_color": "#F39C12",
+			"icon": "locked-door"
+		},
+		{
+			"id": "secret_area",
+			"name": "Secret Area",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 2,
+			"description": "Добери 2 карты, потеряй 1 HP.",
+			"effect": {
+				"draw": 2,
+				"self_damage": 1
+			},
+			"flavor_text": "Трещина в стене выглядела подозрительно",
+			"from_specialization": "level_designer",
+			"art_color": "#F39C12",
+			"icon": "secret-door"
+		},
+		{
+			"id": "boss_arena",
+			"name": "Boss Arena",
+			"type": "artifact",
+			"rarity": "rare",
+			"crystal_cost": 5,
+			"description": "Артефакт. Твой урон по мини-боссам и боссам +2.",
+			"effect": {
+				"boss_damage_bonus": 2
+			},
+			"flavor_text": "Колонны здесь не просто для красоты",
+			"from_specialization": "level_designer",
+			"art_color": "#F39C12",
+			"icon": "castle"
+		},
+		{
+			"id": "metroidvania_map",
+			"name": "Metroidvania Map",
+			"type": "spell",
+			"rarity": "legendary",
+			"crystal_cost": 6,
+			"attack": "#F5C542",
+			"defense": null,
+			"description": "Возвращает в руку до 3 заклинаний, сыгранных в этом бою.",
+			"effect": {
+				"return_spells": 3
+			},
+			"flavor_text": "Теперь, с двойным прыжком, всё иначе",
+			"from_specialization": "level_designer",
+			"art_color": "#F39C12",
+			"icon": "treasure-map"
+		}
+	]
+}

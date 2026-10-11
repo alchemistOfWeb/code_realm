@@ -1,0 +1,110 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/knowledge/WorldTree.gd" id="1_world"]
+[ext_resource type="Texture2D" path="res://assets/icons/list-checks.svg" id="2_quest"]
+
+[node name="WorldTree" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_world")
+
+[node name="ConnectionsLayer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="NodesContainer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Header" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -260.0
+offset_top = 18.0
+offset_right = 260.0
+offset_bottom = 130.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Header"]
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+text = "Древо Знаний"
+horizontal_alignment = 1
+
+[node name="ProgressLabel" type="Label" parent="Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MonoLabel"
+theme_override_colors/font_color = Color(0, 0.83, 0.67, 1)
+text = "Знания: 0 / 0"
+horizontal_alignment = 1
+
+[node name="TotalBar" type="ProgressBar" parent="Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(360, 8)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"MintBar"
+show_percentage = false
+
+[node name="Hint" type="Label" parent="Header"]
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+text = "Выбери сферу, чтобы открыть дерево специализации"
+horizontal_alignment = 1
+
+[node name="QuestPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 14.0
+offset_right = 326.0
+offset_bottom = 60.0
+theme_type_variation = &"GlassPanel"
+
+[node name="QuestBox" type="VBoxContainer" parent="QuestPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="QuestHeader" type="HBoxContainer" parent="QuestPanel/QuestBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="QuestIcon" type="TextureRect" parent="QuestPanel/QuestBox/QuestHeader"]
+modulate = Color(1, 0.843, 0, 1)
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("2_quest")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="QuestTitle" type="Label" parent="QuestPanel/QuestBox/QuestHeader"]
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+theme_override_font_sizes/font_size = 16
+text = "Путь новичка"
+
+[node name="QuestList" type="VBoxContainer" parent="QuestPanel/QuestBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6

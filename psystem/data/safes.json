@@ -1,0 +1,114 @@
+{
+	"safes": [
+		{
+			"id": "gear_counter",
+			"title": "Счётчик зубцов",
+			"story": "Механизм сейфа считает зубцы шестерён от 1 до n включительно, но всегда ошибается на один зубец. Замок откроется, когда сумма будет верной.",
+			"spec": "python_developer",
+			"code": "def total_teeth(n):\n    \"\"\"Сумма чисел от 1 до n включительно.\"\"\"\n    total = 0\n    for i in range(1, n):\n        total += i\n    return total\n",
+			"tests": "assert total_teeth(1) == 1\nassert total_teeth(4) == 10\nassert total_teeth(10) == 55\n",
+			"solution": "def total_teeth(n):\n    \"\"\"Сумма чисел от 1 до n включительно.\"\"\"\n    total = 0\n    for i in range(1, n + 1):\n        total += i\n    return total\n",
+			"checks": ["range\\(\\s*1\\s*,\\s*n\\s*\\+\\s*1\\s*\\)|sum\\(\\s*range\\(\\s*(1\\s*,\\s*)?n\\s*\\+\\s*1|n\\s*\\*\\s*\\(\\s*n\\s*\\+\\s*1\\s*\\)\\s*//\\s*2"],
+			"hint": "range(a, b) не включает b."
+		},
+		{
+			"id": "shared_toolbox",
+			"title": "Общий ящик инструментов",
+			"story": "Каждый механик получает свой ящик инструментов… но почему-то все ящики — один и тот же. Инструменты одного появляются у другого.",
+			"spec": "python_developer",
+			"code": "def make_toolbox(tool, box=[]):\n    box.append(tool)\n    return box\n",
+			"tests": "a = make_toolbox('ключ')\nb = make_toolbox('молот')\nassert a == ['ключ'], a\nassert b == ['молот'], b\nassert make_toolbox('отвёртка', ['лом']) == ['лом', 'отвёртка']\n",
+			"solution": "def make_toolbox(tool, box=None):\n    if box is None:\n        box = []\n    box.append(tool)\n    return box\n",
+			"checks": ["box\\s*=\\s*None", "is\\s+None|==\\s*None|not\\s+box|box\\s+or\\s+\\["],
+			"hint": "Значение по умолчанию вычисляется один раз — при определении функции."
+		},
+		{
+			"id": "steam_pressure",
+			"title": "Датчик давления",
+			"story": "Клапан должен открываться, если давление НЕ МЕНЬШЕ порога. Сейчас он упрямо ждёт, пока давление станет строго больше.",
+			"spec": "python_developer",
+			"code": "def valve_open(pressure, threshold):\n    return pressure > threshold\n",
+			"tests": "assert valve_open(10, 10) is True\nassert valve_open(11, 10) is True\nassert valve_open(9, 10) is False\n",
+			"solution": "def valve_open(pressure, threshold):\n    return pressure >= threshold\n",
+			"checks": [">=|not\\s*\\(?\\s*pressure\\s*<\\s*threshold|threshold\\s*<=\\s*pressure"],
+			"hint": "«Не меньше» — это ≥."
+		},
+		{
+			"id": "average_temperature",
+			"title": "Средняя температура котла",
+			"story": "Котёл показывает среднюю температуру за смену. Для пустого журнала он взрывается ошибкой деления на ноль — а должен вернуть 0.",
+			"spec": "python_developer",
+			"code": "def average(temps):\n    return sum(temps) / len(temps)\n",
+			"tests": "assert average([10, 20, 30]) == 20\nassert average([]) == 0\nassert average([5]) == 5\n",
+			"solution": "def average(temps):\n    if not temps:\n        return 0\n    return sum(temps) / len(temps)\n",
+			"checks": ["if\\s+not\\s+temps|len\\(\\s*temps\\s*\\)\\s*==\\s*0|if\\s+temps|temps\\s*==\\s*\\[\\]"],
+			"hint": "Сначала обработай пустой список."
+		},
+		{
+			"id": "reverse_cipher",
+			"title": "Зеркальный шифр",
+			"story": "Пароль хранится задом наперёд. Функция должна перевернуть строку, но сейчас возвращает её без изменений.",
+			"spec": "python_developer",
+			"code": "def unmirror(code):\n    return code[::1]\n",
+			"tests": "assert unmirror('LATUN') == 'NUTAL'\nassert unmirror('') == ''\nassert unmirror('ab') == 'ba'\n",
+			"solution": "def unmirror(code):\n    return code[::-1]\n",
+			"checks": ["\\[\\s*:\\s*:\\s*-\\s*1\\s*\\]|reversed\\("],
+			"hint": "Срез с отрицательным шагом идёт с конца."
+		},
+		{
+			"id": "gear_inventory",
+			"title": "Опись шестерён",
+			"story": "Кладовщик считает шестерёнки по размерам. Когда размер встречается впервые, опись падает с KeyError.",
+			"spec": "python_developer",
+			"code": "def count_gears(sizes):\n    counts = {}\n    for s in sizes:\n        counts[s] += 1\n    return counts\n",
+			"tests": "assert count_gears([3, 5, 3]) == {3: 2, 5: 1}\nassert count_gears([]) == {}\n",
+			"solution": "def count_gears(sizes):\n    counts = {}\n    for s in sizes:\n        counts[s] = counts.get(s, 0) + 1\n    return counts\n",
+			"checks": ["\\.get\\(\\s*s\\s*,\\s*0\\s*\\)|defaultdict|Counter|setdefault|if\\s+s\\s+(not\\s+)?in\\s+counts"],
+			"hint": "dict.get(key, default) или collections.Counter."
+		},
+		{
+			"id": "active_automatons",
+			"title": "Список живых автоматонов",
+			"story": "Нужно отобрать только работающие автоматоны (energy > 0), но фильтр пропускает всех подряд.",
+			"spec": "python_developer",
+			"code": "def active(automatons):\n    return [a for a in automatons if a['energy'] >= 0]\n",
+			"tests": "bots = [{'name': 'A', 'energy': 3}, {'name': 'B', 'energy': 0}, {'name': 'C', 'energy': 1}]\nassert [b['name'] for b in active(bots)] == ['A', 'C']\n",
+			"solution": "def active(automatons):\n    return [a for a in automatons if a['energy'] > 0]\n",
+			"checks": ["\\['energy'\\]\\s*>\\s*0|\\[\"energy\"\\]\\s*>\\s*0|>\\s*0"],
+			"hint": "Работает тот, у кого энергии строго больше нуля."
+		},
+		{
+			"id": "chain_length",
+			"title": "Длина цепи",
+			"story": "Рекурсивный механизм меряет длину цепи из звеньев-списков. Он никогда не останавливается — пока не сломается от переполнения стека.",
+			"spec": "python_developer",
+			"code": "def chain_length(chain):\n    return 1 + chain_length(chain[1:])\n",
+			"tests": "assert chain_length([]) == 0\nassert chain_length(['звено']) == 1\nassert chain_length([1, 2, 3, 4]) == 4\n",
+			"solution": "def chain_length(chain):\n    if not chain:\n        return 0\n    return 1 + chain_length(chain[1:])\n",
+			"checks": ["if\\s+not\\s+chain|len\\(\\s*chain\\s*\\)\\s*==\\s*0|chain\\s*==\\s*\\[\\]"],
+			"hint": "У рекурсии нет базового случая."
+		},
+		{
+			"id": "sorted_by_weight",
+			"title": "Весы грузового лифта",
+			"story": "Грузы нужно отсортировать по весу (от лёгкого к тяжёлому), но лифт сортирует их по названию.",
+			"spec": "python_developer",
+			"code": "def load_order(crates):\n    \"\"\"crates — список пар (название, вес).\"\"\"\n    return sorted(crates)\n",
+			"tests": "crates = [('бочка', 30), ('ящик', 10), ('сундук', 20)]\nassert load_order(crates) == [('ящик', 10), ('сундук', 20), ('бочка', 30)]\n",
+			"solution": "def load_order(crates):\n    \"\"\"crates — список пар (название, вес).\"\"\"\n    return sorted(crates, key=lambda c: c[1])\n",
+			"checks": ["key\\s*=\\s*(lambda\\s+\\w+\\s*:\\s*\\w+\\[\\s*1\\s*\\]|itemgetter\\(\\s*1\\s*\\))"],
+			"hint": "sorted(..., key=...) — по второму элементу пары."
+		},
+		{
+			"id": "even_pistons",
+			"title": "Чётные поршни",
+			"story": "Работают только поршни с чётными номерами. Механизм должен вернуть их сумму, но считает нечётные.",
+			"spec": "python_developer",
+			"code": "def even_sum(pistons):\n    return sum(p for p in pistons if p % 2 == 1)\n",
+			"tests": "assert even_sum([1, 2, 3, 4]) == 6\nassert even_sum([]) == 0\nassert even_sum([7]) == 0\n",
+			"solution": "def even_sum(pistons):\n    return sum(p for p in pistons if p % 2 == 0)\n",
+			"checks": ["%\\s*2\\s*==\\s*0|%\\s*2\\s*!=\\s*1|not\\s+p\\s*%\\s*2"],
+			"hint": "Чётное число делится на 2 без остатка."
+		}
+	]
+}
