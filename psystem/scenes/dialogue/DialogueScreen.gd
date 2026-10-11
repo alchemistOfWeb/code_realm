@@ -79,14 +79,14 @@ func _build(npc: Dictionary) -> void:
 	_portrait.modulate = _color.lightened(0.35)
 	frame.add_child(_portrait)
 	_name = Label.new()
-	_name.text = npc.get("name", "?")
+	_name.text = Loc.f(npc, "name", "?")
 	_name.theme_type_variation = &"HeaderLabel"
 	_name.add_theme_color_override("font_color", _color.lightened(0.3))
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	left.add_child(_name)
 	_title = Label.new()
-	_title.text = npc.get("title", "")
+	_title.text = Loc.f(npc, "title")
 	_title.theme_type_variation = &"DimLabel"
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	left.add_child(_title)
@@ -129,7 +129,7 @@ func _show_node(messages: Array) -> void:
 	if runner.finished:
 		_finish()
 		return
-	var md: String = runner.node.get("text", "")
+	var md: String = Loc.t(runner.node.get("text", ""))
 	_text.text = MarkdownBBCode.to_bbcode(md, _color.lightened(0.3)).replace("[i]", "[i][color=#A9A2C4]").replace("[/i]", "[/color][/i]")
 	_text.visible_ratio = 0.0
 	if _typing:
@@ -153,7 +153,7 @@ func _show_rewards(messages: Array) -> void:
 			col = "#FF6B6B"
 		elif "XP" in m or "HP" in m:
 			col = "#00D4AA"
-		elif m.begins_with("Нов") or "квест" in m.to_lower():
+		elif m.begins_with(Loc.t("Нов")) or Loc.t("квест") in m.to_lower():
 			col = "#C792EA"
 		parts.append("[color=%s]%s[/color]" % [col, m])
 	_rewards.text = "  ·  ".join(parts)
@@ -274,7 +274,7 @@ func _show_roll(roll: Dictionary) -> void:
 	box.add_theme_constant_override("separation", 8)
 	center.add_child(box)
 	var caption := Label.new()
-	caption.text = "ПРОВЕРКА: %s · СЛ %d" % [Requirements.ATTR_NAMES.get(roll.attr, roll.attr), roll.dc]
+	caption.text = Loc.t("ПРОВЕРКА: %s · СЛ %d") % [Loc.t(Requirements.ATTR_NAMES.get(roll.attr, roll.attr)), roll.dc]
 	caption.theme_type_variation = &"MonoLabel"
 	caption.add_theme_color_override("font_color", Palette.ENERGY)
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -317,14 +317,14 @@ func _show_roll(roll: Dictionary) -> void:
 		Audio.play("gear", 0.2)
 		await get_tree().create_timer(0.05 + i * 0.006).timeout
 	num.text = str(roll.roll)
-	var parts := "%d (кубик)" % roll.roll
+	var parts := Loc.t("%d (кубик)") % roll.roll
 	if roll.attr_bonus != 0:
-		parts += " + %d (%s)" % [roll.attr_bonus, Requirements.ATTR_NAMES.get(roll.attr, roll.attr).to_lower()]
+		parts += " + %d (%s)" % [roll.attr_bonus, Loc.t(Requirements.ATTR_NAMES.get(roll.attr, roll.attr)).to_lower()]
 	if roll.know_bonus != 0:
-		parts += " + %d (знания)" % roll.know_bonus
-	detail.text = "%s = %d  против СЛ %d" % [parts, roll.total, roll.dc]
+		parts += Loc.t(" + %d (знания)") % roll.know_bonus
+	detail.text = Loc.t("%s = %d  против СЛ %d") % [parts, roll.total, roll.dc]
 	var color := Palette.MINT if roll.success else Palette.HP
-	verdict.text = roll.natural if roll.natural != "" else ("УСПЕХ" if roll.success else "ПРОВАЛ")
+	verdict.text = roll.natural if roll.natural != "" else (Loc.t("УСПЕХ") if roll.success else Loc.t("ПРОВАЛ"))
 	verdict.add_theme_color_override("font_color", color)
 	icon.modulate = color.lightened(0.2)
 	Audio.play_jingle("reward" if roll.success else "drop")

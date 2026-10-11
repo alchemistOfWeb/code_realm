@@ -53,7 +53,7 @@ func _build() -> void:
 
 	var title := Label.new()
 	title.name = "Title"
-	title.text = "Сундук искателя знаний"
+	title.text = Loc.t("Сундук искателя знаний")
 	title.theme_type_variation = &"TitleLabel"
 	title.add_theme_color_override("font_color", Palette.GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -90,7 +90,7 @@ func _build() -> void:
 	add_child(_hint)
 
 	_open_btn = Button.new()
-	_open_btn.text = "Открыть сундук"
+	_open_btn.text = Loc.t("Открыть сундук")
 	_open_btn.theme_type_variation = &"AccentButton"
 	_open_btn.custom_minimum_size = Vector2(240, 46)
 	_open_btn.set_meta("sfx", "")
@@ -98,7 +98,7 @@ func _build() -> void:
 	add_child(_open_btn)
 
 	_close_btn = Button.new()
-	_close_btn.text = "Закрыть"
+	_close_btn.text = Loc.t("Закрыть")
 	_close_btn.custom_minimum_size = Vector2(160, 46)
 	_close_btn.pressed.connect(EventBus.back)
 	add_child(_close_btn)
@@ -119,10 +119,10 @@ func _layout() -> void:
 
 func _refresh() -> void:
 	var n := GameManager.lootbox_count()
-	_count_label.text = "Сундуков: %d" % n
+	_count_label.text = Loc.t("Сундуков: %d") % n
 	_open_btn.disabled = n <= 0 or _busy
-	_open_btn.text = "Открыть ещё" if _card_slot.get_child_count() > 0 else "Открыть сундук"
-	_hint.text = "Сундук даётся за каждый новый уровень (на каждом 5-м — два)" if n <= 0 else "Нажми на сундук"
+	_open_btn.text = Loc.t("Открыть ещё") if _card_slot.get_child_count() > 0 else Loc.t("Открыть сундук")
+	_hint.text = Loc.t("Сундук даётся за каждый новый уровень (на каждом 5-м — два)") if n <= 0 else Loc.t("Нажми на сундук")
 	if n > 0 and not _busy:
 		_start_bob()
 
@@ -197,7 +197,7 @@ func _spawn_card(card_id: String) -> void:
 		var rarity: String = cv.card.get("rarity", "common")
 		if rarity in ["rare", "legendary"]:
 			Audio.play_jingle("levelup" if rarity == "legendary" else "reward")
-		var name_text := "%s — %s" % [cv.card.get("name", "?"), CardDatabase.RARITY_NAMES.get(rarity, rarity)]
+		var name_text := "%s — %s" % [cv.card.get("name", "?"), Loc.t(CardDatabase.RARITY_NAMES.get(rarity, rarity))]
 		_hint.text = name_text
 		_hint.add_theme_color_override("font_color", Palette.RARITY_COLORS.get(rarity, Palette.TEXT)))
 

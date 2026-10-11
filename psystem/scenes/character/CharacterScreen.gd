@@ -23,10 +23,10 @@ func _ready() -> void:
 	equipment.name = "Equipment"
 	tabs.add_child(equipment)
 	tabs.move_child(equipment, 1)
-	tabs.set_tab_title(0, "Статистика")
-	tabs.set_tab_title(1, "Снаряжение")
-	tabs.set_tab_title(2, "Коллекция карт")
-	tabs.set_tab_title(3, "Колода")
+	tabs.set_tab_title(0, Loc.t("Статистика"))
+	tabs.set_tab_title(1, Loc.t("Снаряжение"))
+	tabs.set_tab_title(2, Loc.t("Коллекция карт"))
+	tabs.set_tab_title(3, Loc.t("Колода"))
 	GameManager.player_changed.connect(_refresh_stats)
 	_refresh_all()
 
@@ -51,20 +51,20 @@ func _refresh_all() -> void:
 func _refresh_stats() -> void:
 	var p := GameManager.player_data
 	level_label.text = "%s · %s" % [p.get("name", ""), Loc.t("Уровень %d") % p.level]
-	total_xp_label.text = "Всего опыта: %d" % p.get("total_xp", 0)
+	total_xp_label.text = Loc.t("Всего опыта: %d") % p.get("total_xp", 0)
 	(avatar_orb.material as ShaderMaterial).set_shader_parameter("progress", float(p.xp) / maxf(p.xp_to_next, 1))
 
 	for child in bars.get_children():
 		child.queue_free()
-	_add_bar_row("Здоровье", "HPBar", p.hp, p.max_hp, "%d / %d" % [p.hp, p.max_hp])
-	_add_bar_row("Опыт", "XPBar", p.xp, p.xp_to_next, "%d / %d" % [p.xp, p.xp_to_next])
-	_add_bar_row("Энергия", "EnergyBar", p.energy, p.max_energy, "%d / %d" % [p.energy, p.max_energy])
-	_add_text_row("Золото", str(p.gold), Palette.GOLD)
+	_add_bar_row(Loc.t("Здоровье"), "HPBar", p.hp, p.max_hp, "%d / %d" % [p.hp, p.max_hp])
+	_add_bar_row(Loc.t("Опыт"), "XPBar", p.xp, p.xp_to_next, "%d / %d" % [p.xp, p.xp_to_next])
+	_add_bar_row(Loc.t("Энергия"), "EnergyBar", p.energy, p.max_energy, "%d / %d" % [p.energy, p.max_energy])
+	_add_text_row(Loc.t("Золото"), str(p.gold), Palette.GOLD)
 	var eq := GameManager.equipment_stats()
-	_add_text_row("Уклонение", "%d%%" % XPCalculator.dodge_chance(GameManager.effective_attributes().get("agility", 0), int(eq.get("dodge", 0))), Palette.TEXT)
-	_add_text_row("Броня", str(int(eq.get("armor", 0))), Palette.TEXT)
+	_add_text_row(Loc.t("Уклонение"), "%d%%" % XPCalculator.dodge_chance(GameManager.effective_attributes().get("agility", 0), int(eq.get("dodge", 0))), Palette.TEXT)
+	_add_text_row(Loc.t("Броня"), str(int(eq.get("armor", 0))), Palette.TEXT)
 
-	attr_points_label.text = "Очки атрибутов: %d" % p.attribute_points
+	attr_points_label.text = Loc.t("Очки атрибутов: %d") % p.attribute_points
 	attr_points_label.add_theme_color_override("font_color", Palette.MINT if p.attribute_points > 0 else Palette.TEXT_DIM)
 	for child in attr_container.get_children():
 		child.queue_free()
@@ -148,7 +148,7 @@ func _attribute_row(attr_name: String, p: Dictionary) -> Control:
 	var plus := Button.new()
 	plus.icon = Palette.icon("plus")
 	plus.theme_type_variation = &"AccentButton"
-	plus.tooltip_text = "Вложить очко атрибутов"
+	plus.tooltip_text = Loc.t("Вложить очко атрибутов")
 	plus.disabled = p.attribute_points <= 0
 	plus.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	plus.set_meta("sfx", "")
@@ -178,7 +178,7 @@ func _refresh_knowledge() -> void:
 		btn.text = ContentParser.get_spec_name(spec_id)
 		btn.add_theme_color_override("font_color", color.lightened(0.2))
 		btn.add_theme_color_override("font_hover_color", color.lightened(0.4))
-		btn.tooltip_text = "Открыть дерево"
+		btn.tooltip_text = Loc.t("Открыть дерево")
 		btn.pressed.connect(func(): EventBus.go("mini_tree", {"spec_id": spec_id}))
 		head.add_child(btn)
 		var spacer := Control.new()
@@ -219,7 +219,7 @@ func _build_cards_bar() -> void:
 	cards_tab.move_child(bar, 0)
 
 	_rarity_filter = OptionButton.new()
-	_rarity_filter.add_item("Все редкости")
+	_rarity_filter.add_item(Loc.t("Все редкости"))
 	_rarity_filter.set_item_metadata(0, "")
 	for r in ["legendary", "rare", "uncommon", "common"]:
 		_rarity_filter.add_item(CardDatabase.RARITY_NAMES[r])
@@ -228,7 +228,7 @@ func _build_cards_bar() -> void:
 	bar.add_child(_rarity_filter)
 
 	_spec_filter = OptionButton.new()
-	_spec_filter.add_item("Все специализации")
+	_spec_filter.add_item(Loc.t("Все специализации"))
 	_spec_filter.set_item_metadata(0, "")
 	for spec_id in ContentParser.get_all_spec_ids():
 		_spec_filter.add_item(ContentParser.get_spec_name(spec_id))
@@ -237,7 +237,7 @@ func _build_cards_bar() -> void:
 	bar.add_child(_spec_filter)
 
 	_show_locked = CheckBox.new()
-	_show_locked.text = "Показать неполученные"
+	_show_locked.text = Loc.t("Показать неполученные")
 	_show_locked.button_pressed = true
 	_show_locked.toggled.connect(func(_on): _refresh_card_collection())
 	bar.add_child(_show_locked)
@@ -274,12 +274,12 @@ func _refresh_card_collection() -> void:
 		child.queue_free()
 	var catalog := CardDatabase.all_cards()
 	var owned: Dictionary = GameManager.card_collection
-	cards_info.text = "Уникальных карт: %d из %d  ·  всего в коллекции: %d  ·  колода: %d / %d" % [
+	cards_info.text = Loc.t("Уникальных карт: %d из %d  ·  всего в коллекции: %d  ·  колода: %d / %d") % [
 		owned.size(), catalog.size(), GameManager.collection_size(), GameManager.combat_deck.size(), XPCalculator.MAX_DECK_SIZE]
 	var boxes := GameManager.lootbox_count()
-	_chest_btn.text = "Открыть сундук (%d)" % boxes
+	_chest_btn.text = Loc.t("Открыть сундук (%d)") % boxes
 	_chest_btn.disabled = boxes <= 0
-	_chest_btn.tooltip_text = "Сундуки даются за каждый новый уровень" if boxes <= 0 else "В сундуке — случайная карта"
+	_chest_btn.tooltip_text = Loc.t("Сундуки даются за каждый новый уровень") if boxes <= 0 else Loc.t("В сундуке — случайная карта")
 
 	var rarity: String = _rarity_filter.get_item_metadata(_rarity_filter.selected)
 	var spec: String = _spec_filter.get_item_metadata(_spec_filter.selected)
@@ -305,7 +305,7 @@ func _refresh_card_collection() -> void:
 			cv.clicked.connect(_show_card_detail)
 	if ids.is_empty():
 		var empty := Label.new()
-		empty.text = "Нет карт по выбранным фильтрам."
+		empty.text = Loc.t("Нет карт по выбранным фильтрам.")
 		empty.theme_type_variation = &"DimLabel"
 		cards_grid.add_child(empty)
 	_update_grid_columns.call_deferred()
@@ -347,13 +347,13 @@ func _show_card_detail(card_id: String) -> void:
 	name_label.add_theme_color_override("font_color", Palette.RARITY_COLORS.get(rarity, Palette.TEXT))
 	info.add_child(name_label)
 	var lines := [
-		"%s · %s" % [CardDatabase.TYPE_NAMES.get(card.get("type", ""), ""), CardDatabase.RARITY_NAMES.get(rarity, rarity)],
-		"Специализация: %s" % ContentParser.get_spec_name(card.get("from_specialization", "")),
-		"Стоимость: %d кристалл(а)" % card.get("crystal_cost", 0),
-		"В коллекции: ×%d" % int(GameManager.card_collection.get(card_id, 0)),
+		"%s · %s" % [Loc.t(CardDatabase.TYPE_NAMES.get(card.get("type", ""), "")), Loc.t(CardDatabase.RARITY_NAMES.get(rarity, rarity))],
+		Loc.t("Специализация: %s") % ContentParser.get_spec_name(card.get("from_specialization", "")),
+		Loc.t("Стоимость: %d кристалл(а)") % card.get("crystal_cost", 0),
+		Loc.t("В коллекции: ×%d") % int(GameManager.card_collection.get(card_id, 0)),
 	]
 	if card.get("type", "") == "creature":
-		lines.insert(3, "Атака / защита: %d / %d" % [card.get("attack", 0), card.get("defense", 0)])
+		lines.insert(3, Loc.t("Атака / защита: %d / %d") % [card.get("attack", 0), card.get("defense", 0)])
 	for t in lines:
 		var l := Label.new()
 		l.text = t
@@ -369,7 +369,7 @@ func _show_card_detail(card_id: String) -> void:
 	flavor.theme_type_variation = &"DimLabel"
 	info.add_child(flavor)
 	var hint := Label.new()
-	hint.text = "Клик — закрыть"
+	hint.text = Loc.t("Клик — закрыть")
 	hint.theme_type_variation = &"DimLabel"
 	info.add_child(hint)
 	overlay.modulate.a = 0.0
@@ -397,15 +397,15 @@ func _refresh_deck() -> void:
 
 func _confirm_wipe() -> void:
 	var dialog := ConfirmationDialog.new()
-	dialog.title = "Начать заново?"
-	dialog.dialog_text = "Будут удалены уровень, опыт, прогресс знаний, карты и заметки для Claude.\nЭто действие нельзя отменить."
-	dialog.ok_button_text = "Удалить всё"
-	dialog.cancel_button_text = "Отмена"
+	dialog.title = Loc.t("Начать заново?")
+	dialog.dialog_text = Loc.t("Будут удалены уровень, опыт, прогресс знаний, карты и заметки для Claude.\nЭто действие нельзя отменить.")
+	dialog.ok_button_text = Loc.t("Удалить всё")
+	dialog.cancel_button_text = Loc.t("Отмена")
 	dialog.confirmed.connect(func():
 		if not GameManager.claude_notes.is_empty():
 			ClaudeNotesExporter.export_all()  # заметки не теряются: остаются в NOTES_FOR_CLAUDE.md
 		SaveSystem.wipe()
-		EventBus.notify("Прогресс сброшен. Новое начало!", "warning")
+		EventBus.notify(Loc.t("Прогресс сброшен. Новое начало!"), "warning")
 		EventBus.navigate_home.emit())
 	add_child(dialog)
 	dialog.popup_centered()

@@ -80,7 +80,7 @@ func _build() -> void:
 	title.add_theme_constant_override("outline_size", 10)
 	col.add_child(title)
 	var sub := Label.new()
-	sub.text = "Королевство знаний: учись, сражайся, исследуй"
+	sub.text = Loc.t("Королевство знаний: учись, сражайся, исследуй")
 	sub.theme_type_variation = &"DimLabel"
 	sub.add_theme_color_override("font_color", Color("#E8D9B8"))
 	col.add_child(sub)
@@ -90,7 +90,7 @@ func _build() -> void:
 	col.add_child(spacer)
 
 	var heroes_title := Label.new()
-	heroes_title.text = "Герои"
+	heroes_title.text = Loc.t("Герои")
 	heroes_title.theme_type_variation = &"HeaderLabel"
 	col.add_child(heroes_title)
 
@@ -110,20 +110,20 @@ func _build() -> void:
 	row.add_theme_constant_override("separation", 10)
 	col.add_child(row)
 	var new_btn := Button.new()
-	new_btn.text = "Новый герой"
+	new_btn.text = Loc.t("Новый герой")
 	new_btn.icon = Palette.icon("plus")
 	new_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	new_btn.pressed.connect(func(): EventBus.go("creator"))
 	row.add_child(new_btn)
 	_delete_btn = Button.new()
-	_delete_btn.text = "Удалить"
+	_delete_btn.text = Loc.t("Удалить")
 	_delete_btn.icon = Palette.icon("x")
 	_delete_btn.theme_type_variation = &"GhostButton"
 	_delete_btn.pressed.connect(_ask_delete)
 	row.add_child(_delete_btn)
 
 	_play_btn = Button.new()
-	_play_btn.text = "Играть"
+	_play_btn.text = Loc.t("Играть")
 	_play_btn.theme_type_variation = &"AccentButton"
 	_play_btn.custom_minimum_size.y = 52
 	_play_btn.add_theme_font_size_override("font_size", 20)
@@ -139,9 +139,9 @@ func _build() -> void:
 	var bottom := HBoxContainer.new()
 	bottom.add_theme_constant_override("separation", 10)
 	col.add_child(bottom)
-	for b in [["Настройки", "settings", func(): EventBus.go("settings")],
-			["Титры", "scroll-text", func(): EventBus.go("credits")],
-			["Выйти из игры", "x", EventBus.quit_game]]:
+	for b in [[Loc.t("Настройки"), "settings", func(): EventBus.go("settings")],
+			[Loc.t("Титры"), "scroll-text", func(): EventBus.go("credits")],
+			[Loc.t("Выйти из игры"), "x", EventBus.quit_game]]:
 		var btn := Button.new()
 		btn.text = b[0]
 		btn.icon = Palette.icon(b[1])
@@ -187,7 +187,7 @@ func _refresh_list() -> void:
 		_selected = profiles[0].id if not profiles.is_empty() else ""
 	if profiles.is_empty():
 		var empty := Label.new()
-		empty.text = "Пока нет ни одного героя.\nСоздай первого — выбери расу, пол и внешность."
+		empty.text = Loc.t("Пока нет ни одного героя.\nСоздай первого — выбери расу, пол и внешность.")
 		empty.theme_type_variation = &"DimLabel"
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_list.add_child(empty)
@@ -246,13 +246,13 @@ func _ask_delete() -> void:
 		return
 	if _confirm == null:
 		_confirm = ConfirmationDialog.new()
-		_confirm.title = "Удалить героя?"
-		_confirm.ok_button_text = "Удалить навсегда"
-		_confirm.cancel_button_text = "Отмена"
+		_confirm.title = Loc.t("Удалить героя?")
+		_confirm.ok_button_text = Loc.t("Удалить навсегда")
+		_confirm.cancel_button_text = Loc.t("Отмена")
 		_confirm.confirmed.connect(func():
 			SaveSystem.delete_profile(_selected)
 			_selected = SaveSystem.last_profile_id()
-			EventBus.notify("Герой удалён", "info")
+			EventBus.notify(Loc.t("Герой удалён"), "info")
 			_refresh_list())
 		add_child(_confirm)
 	_confirm.dialog_text = Loc.t("Профиль «%s» и весь его прогресс будут удалены. Это действие нельзя отменить.") % p.name

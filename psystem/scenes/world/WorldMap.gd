@@ -194,7 +194,7 @@ func _build_markers() -> void:
 	var camp := MapMarker.new()
 	camp.setup_camp()
 	camp.position = Vector2(WorldData.camp().pos[0], WorldData.camp().pos[1]) * MAP_SIZE - camp.size * 0.5
-	camp.pressed.connect(func(): EventBus.notify("Лагерь искателей: здесь лавка и Древо знаний", "info"))
+	camp.pressed.connect(func(): EventBus.notify(Loc.t("Лагерь искателей: здесь лавка и Древо знаний"), "info"))
 	_canvas.add_child(camp)
 	for l in WorldData.map_locations():
 		var m := MapMarker.new()
@@ -230,12 +230,12 @@ func _build_ui() -> void:
 	top.add_theme_constant_override("separation", 12)
 	add_child(top)
 	var back := Button.new()
-	back.text = "Назад"
+	back.text = Loc.t("Назад")
 	back.icon = Palette.icon("arrow-left")
 	back.pressed.connect(EventBus.back)
 	top.add_child(back)
 	var title := Label.new()
-	title.text = "Карта мира"
+	title.text = Loc.t("Карта мира")
 	title.theme_type_variation = &"TitleLabel"
 	title.add_theme_font_size_override("font_size", 26)
 	title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
@@ -253,7 +253,7 @@ func _build_ui() -> void:
 	count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	top.add_child(count)
 	var hint := Label.new()
-	hint.text = "Перетаскивай карту мышью · колесо — масштаб · двойной клик по локации — открыть"
+	hint.text = Loc.t("Перетаскивай карту мышью · колесо — масштаб · двойной клик по локации — открыть")
 	hint.add_theme_color_override("font_color", Color("#FFF2D6"))
 	hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	hint.add_theme_constant_override("outline_size", 6)
@@ -339,7 +339,7 @@ func _refresh_panel() -> void:
 		nodes_label.theme_type_variation = &"DimLabel"
 		_panel_box.add_child(nodes_label)
 		var go := Button.new()
-		go.text = "Открыть карту локации"
+		go.text = Loc.t("Открыть карту локации")
 		go.icon = Palette.game_icon("treasure-map")
 		go.add_theme_constant_override("icon_max_width", 22)
 		go.theme_type_variation = &"AccentButton"
@@ -348,7 +348,7 @@ func _refresh_panel() -> void:
 		_panel_box.add_child(go)
 		if lvl > plvl + 2:
 			var warn := Label.new()
-			warn.text = "Враги здесь сильнее тебя. Идти можно, но будь готов отступить."
+			warn.text = Loc.t("Враги здесь сильнее тебя. Идти можно, но будь готов отступить.")
 			warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			warn.custom_minimum_size.x = 280
 			warn.add_theme_color_override("font_color", Palette.ENERGY)
@@ -360,12 +360,12 @@ func _refresh_panel() -> void:
 		desc.custom_minimum_size.x = 280
 		_panel_box.add_child(desc)
 		var wip := Label.new()
-		wip.text = "🔨 В разработке"
+		wip.text = Loc.t("🔨 В разработке")
 		wip.add_theme_color_override("font_color", Palette.ENERGY)
 		wip.add_theme_font_override("font", Palette.FONT_UI_BOLD)
 		_panel_box.add_child(wip)
 		var wip2 := Label.new()
-		wip2.text = "Эта земля ещё не нанесена на карты искателей. Загляни после следующего обновления!"
+		wip2.text = Loc.t("Эта земля ещё не нанесена на карты искателей. Загляни после следующего обновления!")
 		wip2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		wip2.custom_minimum_size.x = 280
 		wip2.theme_type_variation = &"DimLabel"

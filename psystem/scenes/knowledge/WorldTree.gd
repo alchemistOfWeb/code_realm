@@ -37,7 +37,7 @@ func on_resume() -> void:
 func _build_world_tree() -> void:
 	_core = ORB_SCENE.instantiate()
 	nodes_container.add_child(_core)
-	_core.setup_custom("Ядро знаний", Palette.ACCENT, "brain", "Общий прогресс по всем специализациям.\nНажми, чтобы открыть экран персонажа.")
+	_core.setup_custom(Loc.t("Ядро знаний"), Palette.ACCENT, "brain", Loc.t("Общий прогресс по всем специализациям.\nНажми, чтобы открыть экран персонажа."))
 	_core.pressed.connect(func(): EventBus.go("character"))
 	for spec_id in ContentParser.get_all_spec_ids():
 		var orb := ORB_SCENE.instantiate()
@@ -121,12 +121,12 @@ func _add_line(points: PackedVector2Array, color: Color, width: float) -> Line2D
 func refresh() -> void:
 	var learned := GameManager.total_learned()
 	var total := ContentParser.total_node_count()
-	progress_label.text = "Знания: %d / %d" % [learned, total]
+	progress_label.text = Loc.t("Знания: %d / %d") % [learned, total]
 	total_bar.max_value = maxi(total, 1)
 	total_bar.value = learned
 	for spec_id in _orbs:
 		_orbs[spec_id].refresh()
-	_core.set_progress(learned, total, "Уровень %d · %d%%" % [GameManager.player_data.level, roundi(100.0 * learned / maxf(total, 1))])
+	_core.set_progress(learned, total, Loc.t("Уровень %d · %d%%") % [GameManager.player_data.level, roundi(100.0 * learned / maxf(total, 1))])
 	_refresh_quests()
 	_layout()
 
@@ -139,7 +139,7 @@ func _on_spec_pressed(spec_id: String) -> void:
 
 func _build_expedition_button() -> void:
 	var btn := Button.new()
-	btn.text = "Карта мира"
+	btn.text = Loc.t("Карта мира")
 	btn.icon = Palette.game_icon("treasure-map")
 	btn.theme_type_variation = &"AccentButton"
 	btn.add_theme_constant_override("icon_max_width", 26)
@@ -149,7 +149,7 @@ func _build_expedition_button() -> void:
 	btn.offset_top = -66
 	btn.offset_right = -18
 	btn.offset_bottom = -18
-	btn.tooltip_text = "Сотня локаций: леса, руины, пещеры и гробницы. Вылазка стоит %d энергии." % XPCalculator.SORTIE_ENERGY_COST
+	btn.tooltip_text = Loc.t("Сотня локаций: леса, руины, пещеры и гробницы. Вылазка стоит %d энергии.") % XPCalculator.SORTIE_ENERGY_COST
 	btn.pressed.connect(func(): EventBus.go("world_map"))
 	add_child(btn)
 
@@ -162,8 +162,8 @@ func _refresh_quests() -> void:
 	var first_spec := "python_developer" if "python_developer" in ContentParser.get_all_spec_ids() else ""
 	var first_learned := GameManager.count_learned(first_spec) > 0 if first_spec != "" else GameManager.total_learned() > 0
 	var steps := [
-		["Изучи первый узел Python Developer → получи XP", first_learned],
-		["Получи первую карту — пройди общий тест дерева", GameManager.collection_size() > 0],
+		[Loc.t("Изучи первый узел Python Developer → получи XP"), first_learned],
+		[Loc.t("Получи первую карту — пройди общий тест дерева"), GameManager.collection_size() > 0],
 		[Loc.t("Загляни в лавку и подбери снаряжение"), GameManager.player_data.inventory.size() > 0 or GameManager.world.flags.get("visited_shop", false)],
 		[Loc.t("Отправься в вылазку с карты мира (стоит %d энергии)") % XPCalculator.SORTIE_ENERGY_COST, GameManager.player_data.get("dungeon_runs", 0) > 0],
 	]

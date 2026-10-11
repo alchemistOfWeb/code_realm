@@ -122,13 +122,16 @@ func _build_props() -> void:
 		var a := rng.randf() * TAU
 		var r := rng.randf_range(2.6, 13.0)
 		var pos := Vector3(cos(a) * r, 0, sin(a) * r)
-		# Не загораживать вид камеры (камера смотрит с +Z)
-		if pos.z > 0.0 and absf(pos.x) < pos.z * 0.9 + 2.0 and r < 11.0:
+		if _in_view(pos):
 			continue
 		_place(N + small[rng.randi() % small.size()] + ".gltf", pos, rng.randf() * TAU, rng.randf_range(0.55, 0.9))
 	for i in 7:
 		var a := rng.randf() * TAU
-		_place(N + "Rock_Medium_%d.gltf" % (1 + i % 3), Vector3(cos(a) * rng.randf_range(4, 9), 0, sin(a) * rng.randf_range(4, 9)), rng.randf() * TAU, rng.randf_range(0.6, 1.2))
+		var r := rng.randf_range(4.5, 9.0)
+		var pos := Vector3(cos(a) * r, 0, sin(a) * r)
+		if _in_view(pos):
+			continue
+		_place(N + "Rock_Medium_%d.gltf" % (1 + i % 3), pos, rng.randf() * TAU, rng.randf_range(0.6, 1.2))
 	# Лагерь: костёр, бочки, ящики, бревно
 	var fire_pos := Vector3(1.6, 0, 1.2)
 	WorldStyle.make_campfire(self, fire_pos)
@@ -144,6 +147,11 @@ func _build_props() -> void:
 	_place(P + "WeaponStand.gltf", Vector3(-1.2, 0, -2.4), 0.2, 1.0)
 	_place(P + "Lantern_Wall.gltf", Vector3(2.8, 0, -1.2), 0.0, 1.0)
 	_place(N + "DeadTree_3.gltf", Vector3(3.6, 0, -2.4), 1.0, 0.5)
+
+
+## Сектор между героем и камерой (камера облетает со стороны +Z) — держим свободным.
+func _in_view(pos: Vector3) -> bool:
+	return pos.z > -1.5 and absf(pos.x - 0.8) < pos.z * 0.9 + 3.0 and pos.length() < 12.0
 
 
 func _place(path: String, pos: Vector3, rot: float, scale_mul: float) -> Node3D:

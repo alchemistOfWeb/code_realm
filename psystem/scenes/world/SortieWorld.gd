@@ -88,7 +88,7 @@ func setup(params: Dictionary) -> void:
 	_build_ui()
 	if not params.get("free", false):
 		if not GameManager.spend_energy(XPCalculator.SORTIE_ENERGY_COST):
-			EventBus.notify("Не хватает энергии для вылазки", "error")
+			EventBus.notify(Loc.t("Не хватает энергии для вылазки"), "error")
 			EventBus.back.call_deferred()
 			return
 	GameManager.player_data.hp = GameManager.player_data.max_hp
@@ -169,7 +169,7 @@ func _build_ui() -> void:
 	st_icon.custom_minimum_size = Vector2(16, 16)
 	st_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	st_icon.modulate = Palette.MINT
-	st_icon.tooltip_text = "Выносливость: тратится на бег (Shift)"
+	st_icon.tooltip_text = Loc.t("Выносливость: тратится на бег (Shift)")
 	st_row.add_child(st_icon)
 	_stamina_bar = ProgressBar.new()
 	_stamina_bar.show_percentage = false
@@ -258,7 +258,7 @@ func _update_hud() -> void:
 		roundi(WorldData.node_progress(location_id, node_id) * 100.0)]
 	var lines: PackedStringArray = []
 	for q in GameManager.active_quests():
-		lines.append("[color=#C792EA]◆ %s[/color]\n[color=#8C8CB0]%s[/color]" % [q.title, q.desc])
+		lines.append("[color=#C792EA]◆ %s[/color]\n[color=#8C8CB0]%s[/color]" % [Loc.t(q.title), Loc.t(q.desc)])
 	var st := WorldData.node_state(location_id, node_id)
 	var unfound: PackedStringArray = []
 	for e in data.get("exits", []):
@@ -823,10 +823,10 @@ func _use_exit(it: Dictionary) -> void:
 		EventBus.go("riddle", {"riddle_id": data.riddle_id, "overlay": true})
 		return
 	if _gates_closed() and e.cell in _gated_cells():
-		EventBus.notify("Путь перекрыт решёткой", "warning")
+		EventBus.notify(Loc.t("Путь перекрыт решёткой"), "warning")
 		return
 	if _boss_alive() and data.underground and e.cell == data.get("exit", Vector2i(-99, -99)):
-		EventBus.notify("Страж этого места не даст пройти — победи его", "warning")
+		EventBus.notify(Loc.t("Страж этого места не даст пройти — победи его"), "warning")
 		return
 	WorldData.mark_exit(location_id, node_id, e.to)
 	_transitioning = true
@@ -908,7 +908,7 @@ func _after_combat(result: Dictionary) -> void:
 				var st := WorldData.node_state(location_id, node_id)
 				if not -1 in st.kills:
 					st.kills.append(-1)
-				EventBus.notify("Страж повержен! Путь свободен.", "success")
+				EventBus.notify(Loc.t("Страж повержен! Путь свободен."), "success")
 				_on_boss_defeated(_combat_enemy.enemy_data)
 			_combat_enemy.die()
 			_enemies.erase(_combat_enemy)
@@ -930,7 +930,7 @@ func _on_boss_defeated(enemy: Dictionary) -> void:
 		GameManager.set_flag(location_id + "_cleared")
 		if location_id == "ferrograd_ruins":
 			GameManager.set_flag("ruins_cleared")
-		EventBus.notify("Сердце этого края спасено: +50 XP и сундук с картой", "success")
+		EventBus.notify(Loc.t("Сердце этого края спасено: +50 XP и сундук с картой"), "success")
 
 
 # ---------------------------------------------------------------- Диалоги, загадки, сейфы
@@ -950,7 +950,7 @@ func _world_action(a: Dictionary) -> void:
 		"reveal_map":
 			_explored.fill(1)
 			_update_minimap()
-			EventBus.notify("Карта открыта", "success")
+			EventBus.notify(Loc.t("Карта открыта"), "success")
 		"combat":
 			_combat_open_gate = a.get("open_gate_on_win", false)
 			_start_combat(null, a.get("enemy", "syntax_error"))
@@ -980,7 +980,7 @@ func _on_riddle_finished(riddle_id: String, solved: bool) -> void:
 		if it.kind == "exit" and it.exit.get("sealed", false):
 			it.exit.sealed = false
 			it.prompt = Loc.t("E — перейти: %s") % it.exit.to_name
-			EventBus.notify("Печать спала — проход открыт!", "success")
+			EventBus.notify(Loc.t("Печать спала — проход открыт!"), "success")
 
 
 func _on_safe_finished(safe_id: String, opened: bool) -> void:
@@ -998,7 +998,7 @@ func _on_safe_finished(safe_id: String, opened: bool) -> void:
 	var has_greta: bool = data.npcs.any(func(n): return n.id == "greta")
 	if has_greta and GameManager.item_count("valve") == 0 and not GameManager.has_flag("valve_returned"):
 		GameManager.add_item("valve")
-		EventBus.notify("В сейфе — латунный клапан Греты!", "success")
+		EventBus.notify(Loc.t("В сейфе — латунный клапан Греты!"), "success")
 	else:
 		var gold := randi_range(15, 30)
 		GameManager.add_gold(gold)
@@ -1030,7 +1030,7 @@ func _open_gates() -> void:
 	for it in _interactables.duplicate():
 		if it.kind == "gate":
 			_interactables.erase(it)
-	EventBus.notify("Решётка поднята!", "success")
+	EventBus.notify(Loc.t("Решётка поднята!"), "success")
 	_update_hud()
 
 
@@ -1205,7 +1205,7 @@ func _toggle_pause() -> void:
 		dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_pause_label.add_child(dim)
 		var l := Label.new()
-		l.text = "ПАУЗА"
+		l.text = Loc.t("ПАУЗА")
 		l.set_anchors_preset(Control.PRESET_FULL_RECT)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1235,11 +1235,11 @@ func _toggle_menu() -> void:
 		return
 	_player.input_enabled = false
 	_world.process_mode = Node.PROCESS_MODE_DISABLED
-	_menu = _overlay_panel("Меню вылазки", Loc.t("%s\nДобыча: %d золота. Найденное золото, предметы и карты остаются с тобой.") % [node.get("name", ""), run.gold],
-		[["Продолжить", _toggle_menu, "AccentButton"],
-		["Настройки", func(): EventBus.go("settings"), ""],
-		["Вернуться в лагерь", func(): _end_run("leave"), ""],
-		["Выйти из игры", EventBus.quit_game, "GhostButton"]])
+	_menu = _overlay_panel(Loc.t("Меню вылазки"), Loc.t("%s\nДобыча: %d золота. Найденное золото, предметы и карты остаются с тобой.") % [node.get("name", ""), run.gold],
+		[[Loc.t("Продолжить"), _toggle_menu, "AccentButton"],
+		[Loc.t("Настройки"), func(): EventBus.go("settings"), ""],
+		[Loc.t("Вернуться в лагерь"), func(): _end_run("leave"), ""],
+		[Loc.t("Выйти из игры"), EventBus.quit_game, "GhostButton"]])
 
 
 func _on_fell() -> void:
@@ -1292,7 +1292,7 @@ func _end_run(reason: String) -> void:
 	GameManager.player_changed.emit()
 	SaveSystem.save_all()
 	Audio.play_jingle("levelup" if reason == "leave" else "drop")
-	_overlay_panel(title, "\n".join(lines), [["Вернуться", _return_to_camp, "AccentButton"]])
+	_overlay_panel(title, "\n".join(lines), [[Loc.t("Вернуться"), _return_to_camp, "AccentButton"]])
 
 
 func _return_to_camp() -> void:

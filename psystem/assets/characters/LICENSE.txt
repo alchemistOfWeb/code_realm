@@ -1,0 +1,5 @@
+Персонажи и анимации — Quaternius (https://quaternius.com), лицензия CC0 1.0 (public domain):
+  Universal Base Characters, Modular Character Outfits - Fantasy, Universal Animation Library.
+hero_male.glb / hero_female.glb собраны в Blender (scratch-скрипт build_hero.py): одежда Peasant/Ranger,
+головы базовых персонажей, причёски; добавлены эльфийские уши, клыки орков и рога тифлингов.
+ual_anims.glb — Universal Animation Library без меша (только скелет и 43 анимации).

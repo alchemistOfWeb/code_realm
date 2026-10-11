@@ -197,12 +197,12 @@ func _build() -> void:
 	surrender.text = ""
 	surrender.icon = Palette.icon("x")
 	surrender.theme_type_variation = &"GhostButton"
-	surrender.tooltip_text = "Покинуть бой (засчитывается поражение)"
+	surrender.tooltip_text = Loc.t("Покинуть бой (засчитывается поражение)")
 	surrender.pressed.connect(_on_surrender)
 	surrender.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	player_row.add_child(surrender)
 	_end_btn = Button.new()
-	_end_btn.text = "Завершить ход"
+	_end_btn.text = Loc.t("Завершить ход")
 	_end_btn.theme_type_variation = &"AccentButton"
 	_end_btn.custom_minimum_size = Vector2(150, 44)
 	_end_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -303,11 +303,11 @@ func _refresh() -> void:
 	_enemy_hp.value = maxi(e.hp, 0)
 	_enemy_hp_label.text = " %d/%d" % [maxi(e.hp, 0), e.max_hp]
 	_enemy_intent.text = state.enemy_intent()
-	_enemy_info.text = "◆ %d/%d  ·  карт в руке: %d  ·  колода: %d" % [e.crystals, e.max_crystals, e.hand.size(), e.deck.size()]
+	_enemy_info.text = Loc.t("◆ %d/%d  ·  карт в руке: %d  ·  колода: %d") % [e.crystals, e.max_crystals, e.hand.size(), e.deck.size()]
 	_player_hp.max_value = p.max_hp
 	_player_hp.value = maxi(p.hp, 0)
 	_player_hp_label.text = " %d/%d" % [maxi(p.hp, 0), p.max_hp]
-	_res_label.text = "[color=#7FDBFF]◆ %d/%d[/color]   [color=#C792EA]✦ %d[/color]   [color=#F5C542]⚡ %d/%d[/color]%s\n[color=#8C8CB0]колода %d · сброс %d · ход %d[/color]" % [
+	_res_label.text = Loc.t("[color=#7FDBFF]◆ %d/%d[/color]   [color=#C792EA]✦ %d[/color]   [color=#F5C542]⚡ %d/%d[/color]%s\n[color=#8C8CB0]колода %d · сброс %d · ход %d[/color]") % [
 		p.crystals, p.max_crystals + p.crystal_bonus, p.mana, p.stamina, p.max_stamina,
 		"   [color=#6FB3FF]🛡 %d[/color]" % p.shield if p.shield > 0 else "", p.deck.size(), p.discard.size(), state.turn]
 
@@ -329,7 +329,7 @@ func _refresh() -> void:
 		else:
 			var rune: Dictionary = XPCalculator.RUNES[id]
 			b.text = "%d✦" % rune.cost
-			b.tooltip_text = "%s (%d маны)\n%s" % [rune.name, rune.cost, rune.desc]
+			b.tooltip_text = Loc.t("%s (%d маны)\n%s") % [rune.name, rune.cost, rune.desc]
 			b.disabled = _busy or state.over or p.mana < rune.cost
 	_end_btn.disabled = _busy or state.over
 	_update_hint()
@@ -341,7 +341,7 @@ func _fill_board(row: HBoxContainer, board: Array, side: String) -> void:
 		child.queue_free()
 	if board.is_empty():
 		var empty := Label.new()
-		empty.text = "Поле пусто" if side == "player" else ""
+		empty.text = Loc.t("Поле пусто") if side == "player" else ""
 		empty.theme_type_variation = &"DimLabel"
 		row.add_child(empty)
 	for c in board:
@@ -402,9 +402,9 @@ func _update_hint() -> void:
 	if state.over:
 		_hint.text = ""
 	elif _targeting.is_empty():
-		_hint.text = "Сыграй карту, ударь оружием или атакуй существом. ПКМ — отмена выбора."
+		_hint.text = Loc.t("Сыграй карту, ударь оружием или атакуй существом. ПКМ — отмена выбора.")
 	else:
-		_hint.text = "Выбери цель… (ПКМ или Esc — отмена)"
+		_hint.text = Loc.t("Выбери цель… (ПКМ или Esc — отмена)")
 
 
 func _apply_highlights() -> void:
@@ -492,7 +492,7 @@ func _on_token_clicked(token) -> void:
 			Audio.play("select")
 			_refresh()
 		else:
-			_flash_hint("Это существо пока не может атаковать (атакуют со следующего хода)")
+			_flash_hint(Loc.t("Это существо пока не может атаковать (атакуют со следующего хода)"))
 
 
 func _on_enemy_hero_input(event: InputEvent) -> void:
@@ -502,7 +502,7 @@ func _on_enemy_hero_input(event: InputEvent) -> void:
 
 func _use_target(ref: Dictionary) -> void:
 	if not _ref_listed(_current_targets(), ref):
-		_flash_hint("Неподходящая цель")
+		_flash_hint(Loc.t("Неподходящая цель"))
 		Audio.play("error")
 		return
 	var t := _targeting
@@ -579,12 +579,12 @@ func _process_events(animate: bool) -> void:
 			"heal":
 				_float_at(ev.target, "+%d" % ev.amount, Palette.MINT)
 			"block":
-				_float_at(ev.target, "блок", Color("#6FB3FF"))
+				_float_at(ev.target, Loc.t("блок"), Color("#6FB3FF"))
 				Audio.play("block")
 			"dodge":
-				_float_at(ev.target, "уклон!", Palette.ENERGY)
+				_float_at(ev.target, Loc.t("уклон!"), Palette.ENERGY)
 			"shield":
-				_float_at(ev.target, "+%d щит" % ev.amount, Color("#6FB3FF"))
+				_float_at(ev.target, Loc.t("+%d щит") % ev.amount, Color("#6FB3FF"))
 			"death":
 				var key := "%s:%d" % [ev.side, ev.uid]
 				if _tokens.has(key) and is_instance_valid(_tokens[key]):
@@ -599,7 +599,7 @@ func _process_events(animate: bool) -> void:
 						await get_tree().create_timer(EVENT_DELAY * 1.5).timeout
 						_refresh()
 			"steal":
-				_float_at({"side": "player", "kind": "hero"}, "украдено: %s" % ev.card, Palette.HP)
+				_float_at({"side": "player", "kind": "hero"}, Loc.t("украдено: %s") % ev.card, Palette.HP)
 			"enemy_attack":
 				_lunge_enemy()
 				if animate:
@@ -677,7 +677,7 @@ func _show_discover() -> void:
 	box.add_theme_constant_override("separation", 14)
 	center.add_child(box)
 	var title := Label.new()
-	title.text = "Выбери карту"
+	title.text = Loc.t("Выбери карту")
 	title.theme_type_variation = &"TitleLabel"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
@@ -731,7 +731,7 @@ func _show_result(result: Dictionary) -> void:
 	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
 	var title := Label.new()
-	title.text = "ПОБЕДА" if result.won else "ПОРАЖЕНИЕ"
+	title.text = Loc.t("ПОБЕДА") if result.won else Loc.t("ПОРАЖЕНИЕ")
 	title.theme_type_variation = &"TitleLabel"
 	title.add_theme_color_override("font_color", color)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -742,18 +742,18 @@ func _show_result(result: Dictionary) -> void:
 	text.add_theme_font_size_override("normal_font_size", 16)
 	var lines: PackedStringArray = []
 	if context == "training":
-		lines.append("Тренировочный бой — без наград и потерь.")
+		lines.append(Loc.t("Тренировочный бой — без наград и потерь."))
 	elif result.won:
-		lines.append("[color=#00D4AA]+%d XP[/color]   [color=#F5C542]+%d золота[/color]   [color=#FFD700]+%d энергии[/color]" % [result.xp, result.gold, result.energy])
+		lines.append(Loc.t("[color=#00D4AA]+%d XP[/color]   [color=#F5C542]+%d золота[/color]   [color=#FFD700]+%d энергии[/color]") % [result.xp, result.gold, result.energy])
 		for id in result.cards:
-			lines.append("Трофей: карта «%s»" % CardDatabase.get_card(id).get("name", id))
-		lines.append("[color=#8C8CB0]Осталось HP: %d[/color]" % result.hp_left)
+			lines.append(Loc.t("Трофей: карта «%s»") % CardDatabase.get_card(id).get("name", id))
+		lines.append(Loc.t("[color=#8C8CB0]Осталось HP: %d[/color]") % result.hp_left)
 	else:
-		lines.append("Ты падаешь без сил. Экспедиция прервана — часть золота потеряна.")
+		lines.append(Loc.t("Ты падаешь без сил. Вылазка прервана — тебя доставят в лагерь, золото останется с тобой."))
 	text.text = "[center]%s[/center]" % "\n".join(lines)
 	box.add_child(text)
 	var btn := Button.new()
-	btn.text = "Продолжить"
+	btn.text = Loc.t("Продолжить")
 	btn.theme_type_variation = &"AccentButton"
 	btn.pressed.connect(func():
 		EventBus.combat_finished.emit(result)

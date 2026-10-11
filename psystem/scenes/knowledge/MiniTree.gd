@@ -85,7 +85,7 @@ func _build_tree() -> void:
 	var nodes: Array = spec_data.get("nodes", [])
 	if nodes.is_empty():
 		var empty := Label.new()
-		empty.text = "Контент не найден. Добавь .md файл в content/ и укажи его в data/specializations.json"
+		empty.text = Loc.t("Контент не найден. Добавь .md файл в content/ и укажи его в data/specializations.json")
 		empty.theme_type_variation = &"DimLabel"
 		empty.position = Vector2(PAD, PAD)
 		nodes_area.add_child(empty)
@@ -184,10 +184,10 @@ func _build_legend() -> void:
 	for child in legend.get_children():
 		child.queue_free()
 	var items := [
-		["Изучено", Palette.glow_box(spec_color.darkened(0.72), Palette.MINT, Color(Palette.MINT, 0.3), 3, 4)],
-		["В процессе", Palette.box(Palette.PANEL_2, Color(spec_color, 0.75), 1, 4)],
-		["Не начато", Palette.box(Palette.PANEL, Color(spec_color, 0.3), 1, 4)],
-		["Дополнительный", Palette.box(Palette.PANEL, Palette.PURPLE, 2, 4)],
+		[Loc.t("Изучено"), Palette.glow_box(spec_color.darkened(0.72), Palette.MINT, Color(Palette.MINT, 0.3), 3, 4)],
+		[Loc.t("В процессе"), Palette.box(Palette.PANEL_2, Color(spec_color, 0.75), 1, 4)],
+		[Loc.t("Не начато"), Palette.box(Palette.PANEL, Color(spec_color, 0.3), 1, 4)],
+		[Loc.t("Дополнительный"), Palette.box(Palette.PANEL, Palette.PURPLE, 2, 4)],
 	]
 	for item in items:
 		var row := HBoxContainer.new()
@@ -219,7 +219,7 @@ func _update_progress() -> void:
 	var total := ContentParser.count_nodes(current_spec_id)
 	var learned := GameManager.count_learned(current_spec_id)
 	var pct := roundi(100.0 * learned / maxf(total, 1))
-	progress_label.text = "%d / %d узлов (%d%%)" % [learned, total, pct]
+	progress_label.text = Loc.t("%d / %d узлов (%d%%)") % [learned, total, pct]
 	progress_bar.max_value = maxi(total, 1)
 	progress_bar.value = learned
 	_update_test_button()
@@ -229,19 +229,19 @@ func _update_test_button() -> void:
 	var rec := GameManager.test_record("tree:" + current_spec_id)
 	var tip := "Общий тест: %d вопросов по обязательным темам, зачёт от %d%%.
 " % [QuizGenerator.TREE_TEST, roundi(XPCalculator.TREE_TEST_PASS_RATIO * 100)]
-	tip += "Первый зачёт: все обязательные темы изучены, +%d XP, +%d энергии и %d карт(ы)." % [
+	tip += Loc.t("Первый зачёт: все обязательные темы изучены, +%d XP, +%d энергии и %d карт(ы).") % [
 		GameManager.tree_xp_bonus(current_spec_id), XPCalculator.TREE_TEST_ENERGY_REWARD,
 		XPCalculator.tree_card_count(CardDatabase.avg_tree_difficulty(current_spec_id))]
 	test_btn.disabled = false
 	if rec.get("passes", 0) > 0:
-		test_btn.text = "Общий тест ✓  %d/%d" % [rec.best, rec.total]
+		test_btn.text = Loc.t("Общий тест ✓  %d/%d") % [rec.best, rec.total]
 		var left := GameManager.tree_test_cooldown_left(current_spec_id)
 		tip += "
 
 Пройден %d раз(а). Повтор: 1 карта, +%d энергии, 25%% XP — " % [rec.passes, XPCalculator.TREE_RETEST_ENERGY]
-		tip += "доступно сейчас." if left == 0 else "через %d ч." % ceili(left / 3600.0)
+		tip += Loc.t("доступно сейчас.") if left == 0 else Loc.t("через %d ч.") % ceili(left / 3600.0)
 	else:
-		test_btn.text = "Пройти общий тест"
+		test_btn.text = Loc.t("Пройти общий тест")
 	test_btn.tooltip_text = tip
 
 
@@ -257,10 +257,10 @@ func _on_node_pressed(node_data: Dictionary) -> void:
 
 func _on_reset_pressed() -> void:
 	var dialog := ConfirmationDialog.new()
-	dialog.title = "Сбросить прогресс?"
-	dialog.dialog_text = "Все отметки дерева «%s» будут сброшены.\nXP и энергия останутся, повторно за эти узлы XP не начисляется.\nЗаметки для Claude сохранятся." % spec_title.text
-	dialog.ok_button_text = "Сбросить"
-	dialog.cancel_button_text = "Отмена"
+	dialog.title = Loc.t("Сбросить прогресс?")
+	dialog.dialog_text = Loc.t("Все отметки дерева «%s» будут сброшены.\nXP и энергия останутся, повторно за эти узлы XP не начисляется.\nЗаметки для Claude сохранятся.") % spec_title.text
+	dialog.ok_button_text = Loc.t("Сбросить")
+	dialog.cancel_button_text = Loc.t("Отмена")
 	dialog.confirmed.connect(_do_reset)
 	dialog.visibility_changed.connect(_free_if_hidden.bind(dialog))
 	add_child(dialog)
@@ -277,7 +277,7 @@ func _do_reset() -> void:
 	GameManager.reset_spec(current_spec_id)
 	SaveSystem.save_all()
 	_refresh_states()
-	EventBus.notify("Прогресс дерева «%s» сброшен" % spec_title.text, "warning")
+	EventBus.notify(Loc.t("Прогресс дерева «%s» сброшен") % spec_title.text, "warning")
 
 
 # ---------------------------------------------------------------- Прокрутка

@@ -9,8 +9,9 @@ signal loaded()
 signal profiles_changed()
 
 const LEGACY_DIR := "user://saves/"
-const PROFILES_FILE := "user://profiles.json"
-const PROFILES_DIR := "user://profiles/"
+## Пути профилей (тесты подменяют их, чтобы не трогать настоящие профили).
+var profiles_file := "user://profiles.json"
+var profiles_dir := "user://profiles/"
 const SAVE_VERSION := 3
 const PLAYER_FILE := "player_save.json"
 const KNOWLEDGE_FILE := "knowledge_progress.json"
@@ -32,6 +33,11 @@ var _save_queued := false
 func _ready() -> void:
 	_load_profiles()
 	_migrate_legacy()
+
+
+## Перечитать список профилей (после смены profiles_file в тестах).
+func reload_profiles() -> void:
+	_load_profiles()
 	# Автосохранение при любом изменении состояния
 	GameManager.player_changed.connect(request_save)
 	GameManager.knowledge_unlocked.connect(func(_id): request_save())
@@ -71,7 +77,7 @@ func create_profile(hero_name: String) -> String:
 		"last_played": Time.get_datetime_string_from_system(), "level": 1, "look": GameManager.player_data.get("look", {}),
 		"outfit": GameManager.hero_outfit()})
 	profile_id = id
-	save_dir = PROFILES_DIR + id + "/"
+	save_dir = profiles_dir + id + "/"
 	_active = true
 	save_all()
 	_save_profiles()
@@ -82,7 +88,7 @@ func select_profile(id: String) -> bool:
 	if get_profile(id).is_empty():
 		return false
 	profile_id = id
-	save_dir = PROFILES_DIR + id + "/"
+	save_dir = profiles_dir + id + "/"
 	_active = true
 	load_all()
 	_touch_profile()
@@ -103,7 +109,7 @@ func delete_profile(id: String) -> void:
 		_active = false
 		profile_id = ""
 		GameManager.reset_all()
-	var dir := PROFILES_DIR + id + "/"
+	var dir := profiles_dir + id + "/"
 	if DirAccess.dir_exists_absolute(dir):
 		for f in DirAccess.get_files_at(dir):
 			DirAccess.remove_absolute(dir + f)
@@ -142,15 +148,15 @@ func _touch_profile() -> void:
 
 func _load_profiles() -> void:
 	profiles = []
-	if not FileAccess.file_exists(PROFILES_FILE):
+	if not FileAccess.file_exists(profiles_file):
 		return
-	var parsed = JSON.parse_string(FileAccess.get_file_as_string(PROFILES_FILE))
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string(profiles_file))
 	if parsed is Dictionary:
 		profiles = _coerce_ints(parsed.get("profiles", []))
 
 
 func _save_profiles() -> void:
-	var f := FileAccess.open(PROFILES_FILE, FileAccess.WRITE)
+	var f := FileAccess.open(profiles_file, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify({"profiles": profiles}, "\t"))
 	profiles_changed.emit()
@@ -158,16 +164,16 @@ func _save_profiles() -> void:
 
 ## Сохранения до появления профилей (user://saves/) переносятся в профиль «Странник».
 func _migrate_legacy() -> void:
-	if FileAccess.file_exists(PROFILES_FILE) or not FileAccess.file_exists(LEGACY_DIR + PLAYER_FILE):
+	if FileAccess.file_exists(profiles_file) or not FileAccess.file_exists(LEGACY_DIR + PLAYER_FILE):
 		return
 	var id := "p_legacy"
-	var dir := PROFILES_DIR + id + "/"
+	var dir := profiles_dir + id + "/"
 	DirAccess.make_dir_recursive_absolute(dir)
 	for f in FILES:
 		if FileAccess.file_exists(LEGACY_DIR + f):
 			DirAccess.copy_absolute(LEGACY_DIR + f, dir + f)
 	var player: Dictionary = _load_json_at(dir + PLAYER_FILE)
-	profiles.append({"id": id, "name": "Странник", "created": player.get("created_at", ""),
+	profiles.append({"id": id, "name": Loc.t("Странник"), "created": player.get("created_at", ""),
 		"last_played": Time.get_datetime_string_from_system(), "level": int(player.get("level", 1)), "look": {}})
 	_save_profiles()
 
@@ -248,7 +254,7 @@ func load_all() -> void:
 
 ## Удалить сохранения текущего профиля и начать заново (имя и внешность героя сохраняются).
 func wipe() -> void:
-	var hero_name: String = GameManager.player_data.get("name", "Странник")
+	var hero_name: String = GameManager.player_data.get("name", Loc.t("Странник"))
 	var look: Dictionary = GameManager.player_data.get("look", {})
 	for file_name in FILES:
 		if FileAccess.file_exists(save_dir + file_name):
@@ -260,7 +266,7 @@ func wipe() -> void:
 
 
 func get_save_dir_absolute() -> String:
-	return ProjectSettings.globalize_path(save_dir if save_dir != "" else PROFILES_DIR)
+	return ProjectSettings.globalize_path(save_dir if save_dir != "" else profiles_dir)
 
 
 func _save_json(file_name: String, data: Dictionary) -> void:
@@ -268,7 +274,7 @@ func _save_json(file_name: String, data: Dictionary) -> void:
 	var tmp := path + ".tmp"
 	var file := FileAccess.open(tmp, FileAccess.WRITE)
 	if file == null:
-		push_error("SaveSystem: не удалось открыть %s (%s)" % [tmp, error_string(FileAccess.get_open_error())])
+		push_error(Loc.t("SaveSystem: не удалось открыть %s (%s)") % [tmp, error_string(FileAccess.get_open_error())])
 		return
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
@@ -286,7 +292,7 @@ func _load_json_at(path: String) -> Dictionary:
 		return {}
 	var parsed = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if not parsed is Dictionary:
-		push_warning("SaveSystem: повреждён файл " + path)
+		push_warning(Loc.t("SaveSystem: повреждён файл ") + path)
 		return {}
 	return _coerce_ints(parsed)
 

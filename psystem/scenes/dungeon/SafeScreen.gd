@@ -78,19 +78,19 @@ func _build() -> void:
 	icon.modulate = brass
 	head.add_child(icon)
 	var title := Label.new()
-	title.text = "Сейф: %s" % safe.get("title", "?")
+	title.text = Loc.t("Сейф: %s") % Loc.t(safe.get("title", "?"))
 	title.theme_type_variation = &"HeaderLabel"
 	title.add_theme_color_override("font_color", brass.lightened(0.2))
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
 	var story := Label.new()
-	story.text = safe.get("story", "")
+	story.text = Loc.t(safe.get("story", ""))
 	story.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	story.add_theme_color_override("font_color", Color("#E8DCC0"))
 	left.add_child(story)
 	var tests_head := Label.new()
-	tests_head.text = "Механизм проверяет:"
+	tests_head.text = Loc.t("Механизм проверяет:")
 	tests_head.theme_type_variation = &"MonoLabel"
 	tests_head.add_theme_color_override("font_color", brass)
 	left.add_child(tests_head)
@@ -111,7 +111,7 @@ func _build() -> void:
 	method.theme_type_variation = &"DimLabel"
 	method.add_theme_font_size_override("font_size", 12)
 	method.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	method.text = "Код запускается в Python на твоём компьютере." if PythonRunner.available() else "Python не найден — проверка по шаблону исправления."
+	method.text = Loc.t("Код запускается в Python на твоём компьютере.") if PythonRunner.available() else Loc.t("Python не найден — проверка по шаблону исправления.")
 	left.add_child(method)
 
 	# Редактор
@@ -120,7 +120,7 @@ func _build() -> void:
 	right.add_theme_constant_override("separation", 10)
 	row.add_child(right)
 	var ed_head := Label.new()
-	ed_head.text = "Найди и исправь ошибку (Ctrl+Enter — проверить)"
+	ed_head.text = Loc.t("Найди и исправь ошибку (Ctrl+Enter — проверить)")
 	ed_head.theme_type_variation = &"DimLabel"
 	right.add_child(ed_head)
 	_editor = CodeEdit.new()
@@ -147,14 +147,14 @@ func _build() -> void:
 	buttons.add_theme_constant_override("separation", 10)
 	right.add_child(buttons)
 	_check_btn = Button.new()
-	_check_btn.text = "Проверить код"
+	_check_btn.text = Loc.t("Проверить код")
 	_check_btn.icon = Palette.icon("check")
 	_check_btn.theme_type_variation = &"MintButton"
 	_check_btn.set_meta("sfx", "gear")
 	_check_btn.pressed.connect(_on_check)
 	buttons.add_child(_check_btn)
 	var reset := Button.new()
-	reset.text = "Сбросить"
+	reset.text = Loc.t("Сбросить")
 	reset.icon = Palette.icon("rotate-ccw")
 	reset.pressed.connect(func(): _editor.text = safe.get("code", ""))
 	buttons.add_child(reset)
@@ -162,7 +162,7 @@ func _build() -> void:
 	sp2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	buttons.add_child(sp2)
 	var leave := Button.new()
-	leave.text = "Отойти"
+	leave.text = Loc.t("Отойти")
 	leave.theme_type_variation = &"GhostButton"
 	leave.pressed.connect(_close)
 	buttons.add_child(leave)
@@ -188,22 +188,22 @@ func _python_highlighter() -> CodeHighlighter:
 
 func _update_hint() -> void:
 	if GameManager.has_flag("safe_hint") or _attempts >= 1:
-		_hint.text = "[color=#F5C542]💡 Подсказка:[/color] %s" % safe.get("hint", "").replace("[", "[lb]")
+		_hint.text = Loc.t("[color=#F5C542]💡 Подсказка:[/color] %s") % Loc.t(safe.get("hint", "")).replace("[", "[lb]")
 	else:
-		_hint.text = "[color=#8C8CB0]Подсказка появится после первой попытки (или если помочь Архивариусу Сайферу).[/color]"
+		_hint.text = Loc.t("[color=#8C8CB0]Подсказка появится после первой попытки (или если помочь Архивариусу Сайферу).[/color]")
 
 
 func _on_check() -> void:
 	if _opened or _check_btn.disabled:
 		return
 	_check_btn.disabled = true
-	_result.text = "[color=#8C8CB0]Шестерёнки проворачиваются…[/color]"
+	_result.text = Loc.t("[color=#8C8CB0]Шестерёнки проворачиваются…[/color]")
 	var res: Dictionary = await PythonRunner.check(self, _editor.text, safe)
 	_check_btn.disabled = false
 	_attempts += 1
 	if res.ok:
 		_opened = true
-		_result.text = "[color=#00D4AA][b]Щёлк! Замок открыт.[/b][/color]"
+		_result.text = Loc.t("[color=#00D4AA][b]Щёлк! Замок открыт.[/b][/color]")
 		Audio.play("gate")
 		Audio.play_jingle("reward")
 		_check_btn.disabled = true

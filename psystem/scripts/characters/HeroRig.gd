@@ -222,7 +222,11 @@ func _mount(bone_name: String) -> BoneAttachment3D:
 
 ## model — имя файла в assets/weapons без расширения ("" — убрать).
 func set_weapon(model: String) -> void:
-	_attach(_weapon_mount, model, _xform(weapon_rot, weapon_offset))
+	var xf := _xform(weapon_rot, weapon_offset)
+	if model.begins_with("Bow"):
+		# Лук держат за середину: сдвигаем модель вдоль оси на половину длины (~0.46 м)
+		xf.origin += xf.basis * Vector3(0, 0.46, 0)
+	_attach(_weapon_mount, model, xf)
 
 
 func set_offhand(model: String) -> void:

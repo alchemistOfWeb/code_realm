@@ -98,7 +98,7 @@ func _build() -> void:
 	top.add_theme_constant_override("separation", 14)
 	add_child(top)
 	var back := Button.new()
-	back.text = "Карта мира"
+	back.text = Loc.t("Карта мира")
 	back.icon = Palette.icon("arrow-left")
 	back.pressed.connect(EventBus.back)
 	top.add_child(back)
@@ -197,7 +197,7 @@ func _footprint() -> Texture2D:
 func _on_node(node_id: String) -> void:
 	var status := WorldData.node_status(location_id, node_id)
 	if status == "hidden":
-		EventBus.notify("Эта часть локации ещё не исследована", "info")
+		EventBus.notify(Loc.t("Эта часть локации ещё не исследована"), "info")
 		return
 	if _selected == node_id and status in ["open", "visited", "cleared"]:
 		_start(node_id)
@@ -283,20 +283,20 @@ func _select(node_id: String) -> void:
 			_panel_box.add_child(go)
 			if go.disabled:
 				var warn := Label.new()
-				warn.text = "Не хватает энергии. Изучай темы в Древе знаний: +5 энергии за каждую."
+				warn.text = Loc.t("Не хватает энергии. Изучай темы в Древе знаний: +5 энергии за каждую.")
 				warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				warn.custom_minimum_size.x = 280
 				warn.add_theme_color_override("font_color", Palette.HP)
 				_panel_box.add_child(warn)
 		"known":
 			var lock := Label.new()
-			lock.text = "Проход сюда ещё не найден. Исследуй соседнюю подлокацию и найди точку перехода."
+			lock.text = Loc.t("Проход сюда ещё не найден. Исследуй соседнюю подлокацию и найди точку перехода.")
 			lock.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			lock.custom_minimum_size.x = 280
 			lock.add_theme_color_override("font_color", Palette.ENERGY)
 			_panel_box.add_child(lock)
 	var hint := Label.new()
-	hint.text = "Управление в вылазке: WASD — ходьба, Shift — бег, F — прыжок, E — действие, Space — пауза, Esc — меню."
+	hint.text = Loc.t("Управление в вылазке: WASD — ходьба, Shift — бег, F — прыжок, E — действие, Space — пауза, Esc — меню.")
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size.x = 280
 	hint.theme_type_variation = &"DimLabel"
@@ -313,7 +313,7 @@ static func _enemy_name(enemy_id: String) -> String:
 
 func _start(node_id: String) -> void:
 	if GameManager.player_data.energy < XPCalculator.SORTIE_ENERGY_COST:
-		EventBus.notify("Не хватает энергии для вылазки", "error")
+		EventBus.notify(Loc.t("Не хватает энергии для вылазки"), "error")
 		return
 	Audio.play("whoosh")
 	EventBus.go("sortie", {"location_id": location_id, "node_id": node_id})

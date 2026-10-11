@@ -57,7 +57,7 @@ static func default_player_data() -> Dictionary:
 		"dungeon_runs": 0,
 		"lootboxes": 0,
 		"created_at": Time.get_datetime_string_from_system(),
-		"name": "Странник",
+		"name": Loc.t("Странник"),
 		"look": Appearance.default_look(),
 		"inventory": [],        # id предметов (повторы — несколько экземпляров)
 		"equipment": {},        # слот → id предмета
@@ -385,14 +385,14 @@ func deck_count(card_id: String) -> int:
 ## Можно ли добавить карту в колоду. "" — можно, иначе причина.
 func deck_add_block_reason(card_id: String) -> String:
 	if combat_deck.size() >= XPCalculator.MAX_DECK_SIZE:
-		return "В колоде максимум %d карт" % XPCalculator.MAX_DECK_SIZE
+		return Loc.t("В колоде максимум %d карт") % XPCalculator.MAX_DECK_SIZE
 	var owned := int(card_collection.get(card_id, 0))
 	var in_deck := deck_count(card_id)
 	if in_deck >= owned:
-		return "Все копии уже в колоде"
+		return Loc.t("Все копии уже в колоде")
 	var limit := XPCalculator.MAX_LEGENDARY_COPIES if CardDatabase.get_card(card_id).get("rarity") == "legendary" else XPCalculator.MAX_COPIES
 	if in_deck >= limit:
-		return "Не больше %d копий" % limit
+		return Loc.t("Не больше %d копий") % limit
 	return ""
 
 

@@ -100,7 +100,7 @@ func _build() -> void:
 	_root.add_child(_seal)
 
 	_hint = Label.new()
-	_hint.text = "Нажми на печать, чтобы развернуть свиток"
+	_hint.text = Loc.t("Нажми на печать, чтобы развернуть свиток")
 	_hint.theme_type_variation = &"DimLabel"
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.size = Vector2(PAPER_W, 24)
@@ -108,7 +108,7 @@ func _build() -> void:
 	_root.add_child(_hint)
 
 	_claim = Button.new()
-	_claim.text = "Забрать награду"
+	_claim.text = Loc.t("Забрать награду")
 	_claim.icon = Palette.icon("check")
 	_claim.theme_type_variation = &"AccentButton"
 	_claim.custom_minimum_size = Vector2(280, 48)
@@ -183,14 +183,14 @@ func _make_seal() -> Control:
 func _fill_content() -> void:
 	var spec_name := ContentParser.get_spec_name(result.get("spec_id", ""))
 	var title := Label.new()
-	title.text = "Свиток мастерства" if result.get("first", false) else "Свиток повторения"
+	title.text = Loc.t("Свиток мастерства") if result.get("first", false) else Loc.t("Свиток повторения")
 	title.add_theme_font_override("font", Palette.FONT_DISPLAY)
 	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(title)
 	var sub := Label.new()
-	sub.text = "Древо «%s» покорено: %d из %d" % [spec_name, result.get("correct", 0), result.get("total", 0)]
+	sub.text = Loc.t("Древо «%s» покорено: %d из %d") % [spec_name, result.get("correct", 0), result.get("total", 0)]
 	sub.add_theme_color_override("font_color", INK_SOFT)
 	sub.add_theme_font_override("font", Palette.FONT_TEXT_SEMI)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -201,8 +201,8 @@ func _fill_content() -> void:
 	row.add_theme_constant_override("separation", 28)
 	row.name = "RewardRow"
 	for item in [["sparkles", "+%d XP" % result.get("xp", 0), Color("#2E6B3A"), result.get("xp", 0) > 0],
-			["zap", "+%d энергии" % result.get("energy", 0), Color("#8A5A00"), result.get("energy", 0) > 0],
-			["book-open", "изучено тем: %d" % result.get("nodes_marked", 0), INK_SOFT, result.get("nodes_marked", 0) > 0]]:
+			["zap", Loc.t("+%d энергии") % result.get("energy", 0), Color("#8A5A00"), result.get("energy", 0) > 0],
+			["book-open", Loc.t("изучено тем: %d") % result.get("nodes_marked", 0), INK_SOFT, result.get("nodes_marked", 0) > 0]]:
 		if not item[3]:
 			continue
 		var box := HBoxContainer.new()
@@ -364,7 +364,7 @@ func _show_claim() -> void:
 func _on_claim() -> void:
 	var n: int = result.get("cards", []).size()
 	if n > 0:
-		EventBus.notify("Карты добавлены в коллекцию: %d" % n, "success")
+		EventBus.notify(Loc.t("Карты добавлены в коллекцию: %d") % n, "success")
 	EventBus.back()
 
 

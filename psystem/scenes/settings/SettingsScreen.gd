@@ -53,7 +53,7 @@ func _on_track_changed(_title: String) -> void:
 # ---------------------------------------------------------------- Построение
 
 func _build_screen_section() -> void:
-	screen_box.add_child(_section_header("Экран", "monitor"))
+	screen_box.add_child(_section_header(Loc.t("Экран"), "monitor"))
 
 	_lang_option = OptionButton.new()
 	for code in Loc.LANGS:
@@ -61,18 +61,18 @@ func _build_screen_section() -> void:
 		_lang_option.set_item_metadata(_lang_option.item_count - 1, code)
 	_lang_option.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_lang_option.item_selected.connect(_on_language)
-	screen_box.add_child(_row("Язык / Language", _lang_option))
+	screen_box.add_child(_row(Loc.t("Язык / Language"), _lang_option))
 
 	_mode_option = OptionButton.new()
 	for key in Settings.WINDOW_MODES:
 		_mode_option.add_item(Settings.WINDOW_MODES[key])
 		_mode_option.set_item_metadata(_mode_option.item_count - 1, key)
 	_mode_option.item_selected.connect(func(i): Settings.set_value("window_mode", _mode_option.get_item_metadata(i)))
-	screen_box.add_child(_row("Режим окна", _mode_option))
+	screen_box.add_child(_row(Loc.t("Режим окна"), _mode_option))
 
 	_res_option = OptionButton.new()
 	_res_option.item_selected.connect(func(i): Settings.set_value("resolution", _res_values[i]))
-	screen_box.add_child(_row("Разрешение окна", _res_option))
+	screen_box.add_child(_row(Loc.t("Разрешение окна"), _res_option))
 
 	var scale_box := HBoxContainer.new()
 	scale_box.add_theme_constant_override("separation", 12)
@@ -94,10 +94,10 @@ func _build_screen_section() -> void:
 		Settings.set_value("ui_scale", _scale_slider.value / 100.0))
 	scale_box.add_child(_scale_slider)
 	scale_box.add_child(_scale_label)
-	screen_box.add_child(_row("Масштаб интерфейса", scale_box))
+	screen_box.add_child(_row(Loc.t("Масштаб интерфейса"), scale_box))
 
 	_vsync_check = CheckBox.new()
-	_vsync_check.text = "Вертикальная синхронизация (VSync)"
+	_vsync_check.text = Loc.t("Вертикальная синхронизация (VSync)")
 	_vsync_check.toggled.connect(func(on): Settings.set_value("vsync", on))
 	screen_box.add_child(_vsync_check)
 
@@ -109,8 +109,8 @@ func _build_screen_section() -> void:
 
 
 func _build_sound_section() -> void:
-	sound_box.add_child(_section_header("Звук", "volume-2"))
-	for item in [["master_volume", "Общая громкость"], ["music_volume", "Музыка"], ["sfx_volume", "Звуки интерфейса"]]:
+	sound_box.add_child(_section_header(Loc.t("Звук"), "volume-2"))
+	for item in [["master_volume", Loc.t("Общая громкость")], ["music_volume", Loc.t("Музыка")], ["sfx_volume", Loc.t("Звуки интерфейса")]]:
 		var key: String = item[0]
 		var box := HBoxContainer.new()
 		box.add_theme_constant_override("separation", 12)
@@ -133,12 +133,12 @@ func _build_sound_section() -> void:
 		sound_box.add_child(_row(item[1], box))
 
 	_music_check = CheckBox.new()
-	_music_check.text = "Фоновая музыка"
+	_music_check.text = Loc.t("Фоновая музыка")
 	_music_check.toggled.connect(func(on): Settings.set_value("music_enabled", on))
 	sound_box.add_child(_music_check)
 
 	_ui_sounds_check = CheckBox.new()
-	_ui_sounds_check.text = "Звуки интерфейса (клики, уведомления, награды)"
+	_ui_sounds_check.text = Loc.t("Звуки интерфейса (клики, уведомления, награды)")
 	_ui_sounds_check.toggled.connect(func(on): Settings.set_value("ui_sounds", on))
 	sound_box.add_child(_ui_sounds_check)
 
@@ -152,7 +152,7 @@ func _build_sound_section() -> void:
 	_track_label.clip_text = true
 	track_row.add_child(_track_label)
 	var next_btn := Button.new()
-	next_btn.text = "Следующий трек"
+	next_btn.text = Loc.t("Следующий трек")
 	next_btn.icon = Palette.icon("skip-forward")
 	next_btn.pressed.connect(func():
 		if not Settings.get_value("music_enabled"):
@@ -180,7 +180,7 @@ func _build_controls_section() -> void:
 	_controls_box = VBoxContainer.new()
 	_controls_box.add_theme_constant_override("separation", 8)
 	panel.add_child(_controls_box)
-	_controls_box.add_child(_section_header("Управление в вылазках", "gamepad-2"))
+	_controls_box.add_child(_section_header(Loc.t("Управление в вылазках"), "gamepad-2"))
 	for action in Settings.REBINDABLE:
 		var b := Button.new()
 		b.custom_minimum_size.x = 110
@@ -199,9 +199,9 @@ func _build_controls_section() -> void:
 	_sens_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_sens_slider.value_changed.connect(func(v): Settings.set_value("mouse_sensitivity", v))
 	sens_box.add_child(_sens_slider)
-	_controls_box.add_child(_row("Чувствительность камеры", sens_box))
+	_controls_box.add_child(_row(Loc.t("Чувствительность камеры"), sens_box))
 	var hint := Label.new()
-	hint.text = "Нажми на клавишу действия, затем новую клавишу. Камера — правая кнопка мыши, колесо — приближение."
+	hint.text = Loc.t("Нажми на клавишу действия, затем новую клавишу. Камера — правая кнопка мыши, колесо — приближение.")
 	hint.theme_type_variation = &"DimLabel"
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -294,7 +294,7 @@ func _refresh() -> void:
 
 	_res_option.clear()
 	_res_values.clear()
-	_res_option.add_item("Авто (%s)" % Settings.resolution_to_string(Settings.auto_resolution()))
+	_res_option.add_item(Loc.t("Авто (%s)") % Settings.resolution_to_string(Settings.auto_resolution()))
 	_res_values.append("auto")
 	for r in Settings.available_resolutions():
 		_res_option.add_item(Settings.resolution_to_string(r).replace("x", " × "))
@@ -324,7 +324,7 @@ func _refresh() -> void:
 
 func _refresh_track() -> void:
 	var title := Audio.current_track_title()
-	_track_label.text = "♪ " + title if title != "" else "Музыка выключена"
+	_track_label.text = "♪ " + title if title != "" else Loc.t("Музыка выключена")
 
 
 func _refresh_window_info() -> void:
@@ -332,14 +332,14 @@ func _refresh_window_info() -> void:
 		return
 	var screen := Settings.usable_screen_rect().size
 	var win := get_window().size
-	var text := "Окно: %d × %d · экран: %d × %d · базовое разрешение интерфейса 1280 × 720" % [win.x, win.y, screen.x, screen.y]
+	var text := Loc.t("Окно: %d × %d · экран: %d × %d · базовое разрешение интерфейса 1280 × 720") % [win.x, win.y, screen.x, screen.y]
 	if Settings.is_embedded():
-		text += "\n\nИгра запущена внутри редактора (вкладка Game) — размером окна управляет редактор. " \
-			+ "На панели Game выбери режим «Keep Aspect» или «Stretch», либо отключи «Embed Game on Next Play», чтобы игра открывалась отдельным окном."
+		text += Loc.t("\n\nИгра запущена внутри редактора (вкладка Game) — размером окна управляет редактор. ") \
+			+ Loc.t("На панели Game выбери режим «Keep Aspect» или «Stretch», либо отключи «Embed Game on Next Play», чтобы игра открывалась отдельным окном.")
 		_window_info.add_theme_color_override("font_color", Palette.ENERGY)
 	_window_info.text = text
 
 
 func _on_reset() -> void:
 	Settings.reset_to_defaults()
-	EventBus.notify("Настройки сброшены", "info")
+	EventBus.notify(Loc.t("Настройки сброшены"), "info")

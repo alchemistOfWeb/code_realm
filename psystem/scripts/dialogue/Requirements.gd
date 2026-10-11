@@ -44,11 +44,11 @@ static func knowledge_met(req: Dictionary) -> bool:
 ## Подпись требования знания: «Python Backend · Очереди и фоновые задачи».
 static func knowledge_label(req: Dictionary) -> String:
 	if req.has("tree_test"):
-		return "%s · общий тест" % ContentParser.get_spec_name(req.tree_test)
+		return Loc.t("%s · общий тест") % ContentParser.get_spec_name(req.tree_test)
 	var spec: String = req.get("spec", "")
 	var name := ContentParser.get_spec_name(spec)
 	if req.has("min"):
-		return "%s · %d+ тем" % [name, req.min]
+		return Loc.t("%s · %d+ тем") % [name, req.min]
 	var node := find_topic_node(spec, req.get("topic", ""))
 	return "%s · %s" % [name, node.get("title", req.get("topic", ""))]
 
@@ -77,15 +77,15 @@ static func lock_reason(cond: Dictionary) -> String:
 	if cond.has("knowledge") and not knowledge_met(cond.knowledge):
 		var k: Dictionary = cond.knowledge
 		if k.has("min"):
-			return "Изучи ещё темы в дереве «%s» (нужно %d, изучено %d)" % [ContentParser.get_spec_name(k.spec), k.min, GameManager.count_learned(k.spec)]
+			return Loc.t("Изучи ещё темы в дереве «%s» (нужно %d, изучено %d)") % [ContentParser.get_spec_name(k.spec), k.min, GameManager.count_learned(k.spec)]
 		if k.has("tree_test"):
-			return "Пройди общий тест дерева «%s»" % ContentParser.get_spec_name(k.tree_test)
-		return "Нужно знание: изучи тему «%s» в дереве «%s»" % [find_topic_node(k.spec, k.topic).get("title", k.topic), ContentParser.get_spec_name(k.spec)]
+			return Loc.t("Пройди общий тест дерева «%s»") % ContentParser.get_spec_name(k.tree_test)
+		return Loc.t("Нужно знание: изучи тему «%s» в дереве «%s»") % [find_topic_node(k.spec, k.topic).get("title", k.topic), ContentParser.get_spec_name(k.spec)]
 	if cond.has("gold") and int(GameManager.player_data.gold) < int(cond.gold):
-		return "Нужно %d золота (у тебя %d)" % [cond.gold, GameManager.player_data.gold]
+		return Loc.t("Нужно %d золота (у тебя %d)") % [cond.gold, GameManager.player_data.gold]
 	if cond.has("item") and GameManager.item_count(cond.item) <= 0:
-		return "Нужен предмет: %s" % ITEM_NAMES.get(cond.item, cond.item)
-	return "Недоступно"
+		return Loc.t("Нужен предмет: %s") % Loc.t(ITEM_NAMES.get(cond.item, cond.item))
+	return Loc.t("Недоступно")
 
 
 ## Бонус к броску от знаний специализации: +1 за каждые 8 изученных тем, максимум +4.
@@ -117,9 +117,9 @@ static func roll_check(check: Dictionary) -> Dictionary:
 	var natural := ""
 	if roll == 20:
 		success = true
-		natural = "КРИТИЧЕСКИЙ УСПЕХ"
+		natural = Loc.t("КРИТИЧЕСКИЙ УСПЕХ")
 	elif roll == 1:
 		success = false
-		natural = "КРИТИЧЕСКИЙ ПРОВАЛ"
+		natural = Loc.t("КРИТИЧЕСКИЙ ПРОВАЛ")
 	return {"roll": roll, "attr_bonus": ab, "know_bonus": kb, "total": total, "dc": dc, "success": success,
 		"natural": natural, "attr": check.get("attr", "")}

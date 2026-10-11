@@ -26,7 +26,7 @@ const SECTIONS := [
 		["Эльфийские уши, клыки орков, рога тифлингов", "Claude (Blender)"],
 	]},
 	{"title": "Иконки", "lines": [
-		["game-icons.net — CC BY 3.0", "Lorc, Delapouite, Skoll, Faithtoken, Caro Asercion, Darkzaitzev, Carl Olsen, Cathelineau, Lord Berandas, Lucas, Sbed"],
+		["game-icons.net — CC BY 3.0", "Delapouite, Lorc, Skoll, Sbed, Caro Asercion, Darkzaitzev, Faithtoken, Viscious Speed, Zeromancer, Cathelineau, Lord Berandas, Lucas, Carl Olsen, Various Artists"],
 		["Lucide — ISC", "Lucide Contributors"],
 	]},
 	{"title": "Шрифты", "lines": [
@@ -77,7 +77,7 @@ func _ready() -> void:
 	top.custom_minimum_size.y = 520
 	box.add_child(top)
 	var title := Label.new()
-	title.text = "Титры"
+	title.text = Loc.t("Титры")
 	title.theme_type_variation = &"TitleLabel"
 	title.add_theme_font_size_override("font_size", 44)
 	title.add_theme_color_override("font_color", Color("#FFE9B0"))
@@ -118,7 +118,7 @@ func _ready() -> void:
 	box.add_child(bottom)
 
 	var back := Button.new()
-	back.text = "Назад"
+	back.text = Loc.t("Назад")
 	back.icon = Palette.icon("arrow-left")
 	back.position = Vector2(24, 20)
 	back.pressed.connect(EventBus.back)

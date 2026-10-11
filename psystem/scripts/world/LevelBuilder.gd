@@ -305,6 +305,7 @@ static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, 
 		trees_by_model[model].append(_xf(p, rng.randf() * TAU, rng.randf_range(0.9, 1.3) * (0.45 if model.begins_with("Twisted") else 1.0)))
 	for model in trees_by_model:
 		scatter(root, N + model + ".gltf", trees_by_model[model])
+	_canopy_colliders(root, trees_by_model, w, h)
 
 	# Кусты на кромке, трава и цветы на полянах
 	var edge_models := ["Bush_Common", "Bush_Common_Flowers", "Fern_1", "Plant_1_Big"]
@@ -337,6 +338,27 @@ static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, 
 		_ruins(root, data, dist, rng)
 	if kind == "forest" or kind == "riverside":
 		_fireflies(root, Vector3(w * 0.5, 1.5, h * 0.5), Vector3(w, 2.5, h))
+
+
+## Кроны деревьев — препятствие только для камеры (слой 4): пружина камеры не заходит в листву.
+static func _canopy_colliders(root: Node3D, trees_by_model: Dictionary, w: int, h: int) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 4
+	body.collision_mask = 0
+	root.add_child(body)
+	for model in trees_by_model:
+		for xf in trees_by_model[model]:
+			var p: Vector3 = xf.origin
+			if p.x < -6 or p.z < -6 or p.x > w + 6 or p.z > h + 6:
+				continue
+			var s: float = xf.basis.get_scale().x * (2.2 if model.begins_with("Twisted") else 1.0)
+			var cs := CollisionShape3D.new()
+			var cyl := CylinderShape3D.new()
+			cyl.radius = 1.9 * s
+			cyl.height = 6.0 * s
+			cs.shape = cyl
+			cs.position = p + Vector3(0, 4.2 * s, 0)
+			body.add_child(cs)
 
 
 static func _add(dict: Dictionary, model: String, xf: Transform3D) -> void:

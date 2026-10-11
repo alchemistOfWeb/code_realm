@@ -10,22 +10,26 @@ extends RefCounted
 const LANGS := {"ru": "Русский", "en": "English"}
 const EN_PATH := "res://locale/en.json"
 
-static var _loaded := false
+static var _tr_en: Translation
 static var _lang := "ru"
 
 
+## Английский словарь подключается только на время английского языка: иначе Godot
+## подставляет его как «запасной» (fallback) и русский интерфейс частично становится английским.
 static func setup(lang_code: String) -> void:
-	if not _loaded:
-		_loaded = true
+	if _tr_en == null:
+		_tr_en = Translation.new()
+		_tr_en.locale = "en"
 		var data = JSON.parse_string(FileAccess.get_file_as_string(EN_PATH)) if FileAccess.file_exists(EN_PATH) else {}
 		if data is Dictionary:
-			var tr_en := Translation.new()
-			tr_en.locale = "en"
 			for key in data:
 				if String(data[key]) != "":
-					tr_en.add_message(key, data[key])
-			TranslationServer.add_translation(tr_en)
+					_tr_en.add_message(key, data[key])
 	_lang = lang_code if LANGS.has(lang_code) else "ru"
+	if _lang == "en":
+		TranslationServer.add_translation(_tr_en)
+	else:
+		TranslationServer.remove_translation(_tr_en)
 	TranslationServer.set_locale(_lang)
 
 

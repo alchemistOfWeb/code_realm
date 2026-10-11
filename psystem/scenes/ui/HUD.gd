@@ -44,8 +44,8 @@ func _add_nav_buttons() -> void:
 	var row: HBoxContainer = %CharacterButton.get_parent()
 	var at: int = %CharacterButton.get_index()
 	var defs := [
-		["Карта мира", "treasure-map", "Карта мира: локации и вылазки", func(): EventBus.go("world_map")],
-		["Лавка", "shop", "Лавка снаряжения: оружие и броня", func(): EventBus.go("shop")],
+		[Loc.t("Карта мира"), "treasure-map", Loc.t("Карта мира: локации и вылазки"), func(): EventBus.go("world_map")],
+		[Loc.t("Лавка"), "shop", Loc.t("Лавка снаряжения: оружие и броня"), func(): EventBus.go("shop")],
 	]
 	for d in defs:
 		var b := Button.new()
@@ -61,11 +61,11 @@ func _add_nav_buttons() -> void:
 	# Музыка переключается в настройках — освобождаем место под кнопку меню; логотип — только иконка
 	%MusicButton.visible = false
 	%LogoButton.text = ""
-	%LogoButton.tooltip_text = "Древо знаний (главный экран)"
+	%LogoButton.tooltip_text = Loc.t("Древо знаний (главный экран)")
 	row.add_theme_constant_override("separation", 10)
 	var menu := Button.new()
 	menu.icon = Palette.game_icon("power-button")
-	menu.tooltip_text = "Меню: главное меню, титры, выход из игры (Esc)"
+	menu.tooltip_text = Loc.t("Меню: главное меню, титры, выход из игры (Esc)")
 	menu.add_theme_constant_override("icon_max_width", 20)
 	menu.pressed.connect(func(): EventBus.game_menu_requested.emit())
 	row.add_child(menu)
@@ -84,14 +84,14 @@ func _update_music_button() -> void:
 
 func refresh(animate: bool = true) -> void:
 	var p := GameManager.player_data
-	level_label.text = "УР %d" % p.level
+	level_label.text = Loc.t("УР %d") % p.level
 	xp_label.text = "%d / %d XP" % [p.xp, p.xp_to_next]
 	hp_label.text = "%d / %d" % [p.hp, p.max_hp]
 	energy_label.text = "%d / %d" % [p.energy, p.max_energy]
 	gold_label.text = str(p.gold)
 	points_badge.visible = p.attribute_points > 0
-	points_badge.text = "+%d очк." % p.attribute_points
-	points_badge.tooltip_text = "Нераспределённые очки атрибутов — открой экран персонажа"
+	points_badge.text = Loc.t("+%d очк.") % p.attribute_points
+	points_badge.tooltip_text = Loc.t("Нераспределённые очки атрибутов — открой экран персонажа")
 	energy_bar.max_value = p.max_energy
 	_update_chest(p.get("lootboxes", 0))
 	if animate and _shown_level >= 0:
@@ -184,8 +184,8 @@ func _pulse(ctrl: Control) -> void:
 func _open_notes_dialog() -> void:
 	if _notes_dialog == null:
 		_notes_dialog = AcceptDialog.new()
-		_notes_dialog.title = "Заметки для Claude"
-		_notes_dialog.ok_button_text = "Сохранить и экспортировать"
+		_notes_dialog.title = Loc.t("Заметки для Claude")
+		_notes_dialog.ok_button_text = Loc.t("Сохранить и экспортировать")
 		_notes_dialog.min_size = Vector2i(720, 460)
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 10)
@@ -193,12 +193,12 @@ func _open_notes_dialog() -> void:
 		var hint := Label.new()
 		hint.theme_type_variation = &"DimLabel"
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		hint.text = "Общие пожелания по приложению (баги, идеи, правки UI). Заметки к конкретным темам пиши на странице урока. Всё попадёт в NOTES_FOR_CLAUDE.md в корне проекта."
+		hint.text = Loc.t("Общие пожелания по приложению (баги, идеи, правки UI). Заметки к конкретным темам пиши на странице урока. Всё попадёт в NOTES_FOR_CLAUDE.md в корне проекта.")
 		box.add_child(hint)
 		_notes_edit = TextEdit.new()
 		_notes_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		_notes_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
-		_notes_edit.placeholder_text = "Например: добавить в дерево Python тему про dataclasses..."
+		_notes_edit.placeholder_text = Loc.t("Например: добавить в дерево Python тему про dataclasses...")
 		box.add_child(_notes_edit)
 		var stats := Label.new()
 		stats.name = "Stats"
@@ -208,7 +208,7 @@ func _open_notes_dialog() -> void:
 		get_tree().root.add_child(_notes_dialog)
 	_notes_edit.text = GameManager.get_note(ClaudeNotesExporter.GENERAL_KEY)
 	var count := GameManager.claude_notes.size()
-	_notes_dialog.find_child("Stats", true, false).text = "Всего заметок: %d  ·  файл: %s" % [count, ClaudeNotesExporter.target_path()]
+	_notes_dialog.find_child("Stats", true, false).text = Loc.t("Всего заметок: %d  ·  файл: %s") % [count, ClaudeNotesExporter.target_path()]
 	_notes_dialog.popup_centered()
 	_notes_edit.grab_focus()
 
@@ -218,4 +218,4 @@ func _save_general_notes() -> void:
 	SaveSystem.save_all()
 	var path := ClaudeNotesExporter.export_all()
 	if path != "":
-		EventBus.notify("Заметки экспортированы в NOTES_FOR_CLAUDE.md", "success")
+		EventBus.notify(Loc.t("Заметки экспортированы в NOTES_FOR_CLAUDE.md"), "success")

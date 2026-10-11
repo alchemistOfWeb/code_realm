@@ -61,7 +61,7 @@ func visible_choices() -> Array:
 			continue
 		if c.get("once", false) and GameManager.has_flag(_once_flag(i)):
 			continue
-		var text: String = c.text
+		var text: String = Loc.t(c.text)
 		var tag := ""
 		if text.begins_with("[") and "]" in text:
 			tag = text.substr(1, text.find("]") - 1)
@@ -70,14 +70,14 @@ func visible_choices() -> Array:
 		var req: Dictionary = c.get("require", {})
 		if req.has("knowledge"):
 			entry.tag_kind = "knowledge"
-			entry.tag = "ЗНАНИЕ · " + Requirements.knowledge_label(req.knowledge)
+			entry.tag = Loc.t("ЗНАНИЕ · ") + Requirements.knowledge_label(req.knowledge)
 			entry.spec = Requirements.knowledge_spec(req.knowledge)
 		elif req.has("gold") or req.has("item"):
 			entry.tag_kind = "trade"
 		if c.has("check"):
 			entry.tag_kind = "check"
 			var check: Dictionary = c.check
-			entry.tag = "%s · СЛ %d" % [Requirements.ATTR_NAMES.get(check.attr, check.attr), check.dc]
+			entry.tag = Loc.t("%s · СЛ %d") % [Loc.t(Requirements.ATTR_NAMES.get(check.attr, check.attr)), check.dc]
 			entry.chance = Requirements.check_chance(check)
 		if c.get("end", false) and entry.tag_kind == "":
 			entry.tag_kind = "end"
@@ -124,16 +124,16 @@ func apply_effects(effects: Array) -> Array:
 	for e in effects:
 		if e.has("gold"):
 			GameManager.add_gold(int(e.gold))
-			msgs.append("+%d золота" % e.gold)
+			msgs.append(Loc.t("+%d золота") % e.gold)
 		if e.has("take_gold"):
 			GameManager.add_gold(-int(e.take_gold))
-			msgs.append("−%d золота" % e.take_gold)
+			msgs.append(Loc.t("−%d золота") % e.take_gold)
 		if e.has("xp"):
 			GameManager.gain_xp(int(e.xp))
 			msgs.append("+%d XP" % e.xp)
 		if e.has("energy"):
 			GameManager.gain_energy(int(e.energy))
-			msgs.append("+%d энергии" % e.energy)
+			msgs.append(Loc.t("+%d энергии") % e.energy)
 		if e.has("heal"):
 			var healed := GameManager.heal_player(int(e.heal))
 			if healed > 0:
@@ -145,17 +145,17 @@ func apply_effects(effects: Array) -> Array:
 			msgs.append("−%d HP" % e.damage)
 		if e.has("card"):
 			GameManager.add_card_to_collection(e.card)
-			msgs.append("Получена карта «%s»" % CardDatabase.get_card(e.card).get("name", e.card))
+			msgs.append(Loc.t("Получена карта «%s»") % CardDatabase.get_card(e.card).get("name", e.card))
 		if e.has("random_card"):
 			var rc: Dictionary = e.random_card
 			var pool := CardDatabase.cards_for_spec(rc.get("spec", "")) if rc.has("spec") else CardDatabase.all_cards()
 			var card := CardDatabase.roll_card(pool, float(rc.get("difficulty", 1.5)))
 			if not card.is_empty():
 				GameManager.add_card_to_collection(card.id)
-				msgs.append("Получена карта «%s» (%s)" % [card.name, CardDatabase.RARITY_NAMES.get(card.rarity, card.rarity)])
+				msgs.append(Loc.t("Получена карта «%s» (%s)") % [card.name, Loc.t(CardDatabase.RARITY_NAMES.get(card.rarity, card.rarity))])
 		if e.has("item"):
 			GameManager.add_item(e.item)
-			msgs.append("Получен предмет: %s" % Requirements.ITEM_NAMES.get(e.item, e.item))
+			msgs.append(Loc.t("Получен предмет: %s") % Loc.t(Requirements.ITEM_NAMES.get(e.item, e.item)))
 		if e.has("take_item"):
 			GameManager.take_item(e.take_item)
 		if e.has("flag"):
@@ -163,14 +163,14 @@ func apply_effects(effects: Array) -> Array:
 		if e.has("quest"):
 			var q: Dictionary = e.quest
 			GameManager.set_quest(q.id, q.title, q.desc)
-			msgs.append("Новый квест: %s" % q.title)
+			msgs.append(Loc.t("Новый квест: %s") % Loc.t(q.title))
 		if e.has("quest_done"):
 			GameManager.complete_quest(e.quest_done)
-			msgs.append("Квест выполнен!")
+			msgs.append(Loc.t("Квест выполнен!"))
 		if e.has("lootbox"):
 			GameManager.player_data.lootboxes = GameManager.lootbox_count() + int(e.lootbox)
 			GameManager.player_changed.emit()
-			msgs.append("Получен сундук с картой")
+			msgs.append(Loc.t("Получен сундук с картой"))
 		if e.has("world"):
 			pending_world.append(e.duplicate())
 	return msgs

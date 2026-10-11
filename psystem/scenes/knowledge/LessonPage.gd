@@ -48,8 +48,8 @@ func _exit_tree() -> void:
 func setup(params: Dictionary) -> void:
 	node_data = ContentParser.get_node_data(params.get("node_id", ""))
 	if node_data.is_empty():
-		title_label.text = "Узел не найден"
-		content_label.text = "Узел «%s» отсутствует в контенте (возможно, раздел переименован)." % params.get("node_id", "")
+		title_label.text = Loc.t("Узел не найден")
+		content_label.text = Loc.t("Узел «%s» отсутствует в контенте (возможно, раздел переименован).") % params.get("node_id", "")
 		learn_btn.disabled = true
 		return
 	spec_id = node_data.spec_id
@@ -74,7 +74,7 @@ func setup(params: Dictionary) -> void:
 	purple_label.visible = node_data.get("is_purple", false)
 	var freq: int = node_data.get("frequency", 0)
 	freq_label.visible = freq > 0
-	freq_label.text = "%d/100 собесов" % freq
+	freq_label.text = Loc.t("%d/100 собесов") % freq
 	freq_label.add_theme_color_override("font_color", Palette.HP if freq >= 80 else (Palette.ENERGY if freq >= 50 else Palette.TEXT_DIM))
 
 	_render_content()
@@ -101,11 +101,11 @@ func _update_test_button() -> void:
 	var tip := "Тест по теме: %d вопроса, зачёт от %d%%.
 Зачёт отмечает тему изученной и даёт бонус XP (один раз)." % [count, roundi(XPCalculator.NODE_TEST_PASS_RATIO * 100)]
 	if rec.get("passes", 0) > 0:
-		btn.text = "Тест ✓"
+		btn.text = Loc.t("Тест ✓")
 		tip += "
 Лучший результат: %d / %d" % [rec.best, rec.total]
 	else:
-		btn.text = "Пройти тест"
+		btn.text = Loc.t("Пройти тест")
 	btn.tooltip_text = tip
 
 
@@ -117,9 +117,9 @@ func _render_content() -> void:
 	var md: String = node_data.get("content", "")
 	if md.strip_edges() == "":
 		if node_data.is_main and not node_data.subnodes.is_empty():
-			md = "_Раздел состоит из %d подтем — они перечислены справа. Изучи их и отметь раздел целиком._" % node_data.subnodes.size()
+			md = Loc.t("_Раздел состоит из %d подтем — они перечислены справа. Изучи их и отметь раздел целиком._") % node_data.subnodes.size()
 		else:
-			md = "_Контент этой темы пока пуст. Напиши в «Заметки для Claude», что сюда добавить._"
+			md = Loc.t("_Контент этой темы пока пуст. Напиши в «Заметки для Claude», что сюда добавить._")
 	content_label.text = MarkdownBBCode.to_bbcode(md, spec_color.lightened(0.25))
 	content_label.scroll_to_line(0)
 
@@ -133,15 +133,15 @@ func _update_status_display() -> void:
 	unlearn_btn.visible = learned
 	learn_btn.disabled = learned
 	if learned:
-		learn_btn.text = "Изучено"
-		status_label.text = "✓ Изучено"
+		learn_btn.text = Loc.t("Изучено")
+		status_label.text = Loc.t("✓ Изучено")
 		status_label.add_theme_color_override("font_color", Palette.MINT)
 	else:
 		if GameManager.rewarded_nodes.has(node_id):
-			learn_btn.text = "Отметить как изученное"
+			learn_btn.text = Loc.t("Отметить как изученное")
 		else:
-			learn_btn.text = "Отметить как изученное  (+%d XP)" % node_data.get("xp_reward", 5)
-		status_label.text = "В процессе" if status == GameManager.STATUS_IN_PROGRESS else "Не начато"
+			learn_btn.text = Loc.t("Отметить как изученное  (+%d XP)") % node_data.get("xp_reward", 5)
+		status_label.text = Loc.t("В процессе") if status == GameManager.STATUS_IN_PROGRESS else Loc.t("Не начато")
 		status_label.add_theme_color_override("font_color", Palette.ENERGY if status != "" else Palette.TEXT_DIM)
 
 
@@ -156,13 +156,13 @@ func _on_learn_pressed() -> void:
 	if xp > 0:
 		_show_xp_popup(xp)
 	else:
-		EventBus.notify("Отмечено как изученное (XP за эту тему уже был получен)", "info")
+		EventBus.notify(Loc.t("Отмечено как изученное (XP за эту тему уже был получен)"), "info")
 	# Подсказка: все подтемы раздела изучены
 	if not node_data.is_main:
 		var parent := ContentParser.get_parent_node(node_data.id)
 		var prog: Array = GameManager.subnode_progress(parent)
 		if prog[0] == prog[1] and not GameManager.is_learned(parent.id):
-			EventBus.notify("Все подтемы раздела «%s» изучены — отметь и сам раздел!" % parent.title, "success")
+			EventBus.notify(Loc.t("Все подтемы раздела «%s» изучены — отметь и сам раздел!") % parent.title, "success")
 
 
 func _on_unlearn_pressed() -> void:
@@ -250,16 +250,16 @@ func _build_related() -> void:
 	var items: Array = []
 	if node_data.is_main:
 		var prog: Array = GameManager.subnode_progress(node_data)
-		related_title.text = "Подтемы  %d/%d" % prog
+		related_title.text = Loc.t("Подтемы  %d/%d") % prog
 		items = node_data.subnodes
 		if items.is_empty():
 			var empty := Label.new()
-			empty.text = "У этого раздела нет подтем."
+			empty.text = Loc.t("У этого раздела нет подтем.")
 			empty.theme_type_variation = &"DimLabel"
 			related_list.add_child(empty)
 	else:
 		var parent := ContentParser.get_parent_node(node_data.id)
-		related_title.text = "Раздел"
+		related_title.text = Loc.t("Раздел")
 		related_list.add_child(_related_button(parent, false, true))
 		var sep := HSeparator.new()
 		related_list.add_child(sep)
@@ -307,4 +307,4 @@ func _save_notes() -> void:
 	SaveSystem.save_all()
 	ClaudeNotesExporter.export_all()
 	if is_instance_valid(saved_label):
-		saved_label.text = "Сохранено ✓"
+		saved_label.text = Loc.t("Сохранено ✓")

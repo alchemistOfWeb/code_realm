@@ -7,7 +7,7 @@ import re, glob, os, sys
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 LIT = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
 CYR = re.compile("[Ѐ-ӿ]")
-SKIP_FILES = {"smoke_test.gd", "Loc.gd"}
+SKIP_FILES = {"smoke_test.gd", "Loc.gd", "ContentParser.gd", "PythonRunner.gd", "QuizGenerator.gd", "ClaudeNotesExporter.gd", "model_viewer.gd"}
 dry = "--dry" in sys.argv
 total = 0
 for path in glob.glob(os.path.join(ROOT, "**", "*.gd"), recursive=True):
@@ -62,5 +62,5 @@ for path in glob.glob(os.path.join(ROOT, "**", "*.gd"), recursive=True):
         total += changed
         print(f"{changed:4d} {os.path.relpath(path, ROOT)}")
         if not dry:
-            open(path, "w", encoding="utf-8").write("\n".join(out))
+            open(path, "w", encoding="utf-8", newline="\n").write("\n".join(out))
 print("wrapped:", total)

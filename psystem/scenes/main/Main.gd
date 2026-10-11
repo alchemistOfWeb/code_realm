@@ -67,6 +67,8 @@ func _ready() -> void:
 	EventBus.game_menu_requested.connect(_toggle_game_menu)
 	GameManager.level_up.connect(_on_level_up)
 	var args := _dev_args()
+	if args.has("lang"):
+		Loc.setup(args.lang)   # dev: язык без сохранения в настройки
 	if args.has("screen") or args.has("demo"):
 		_dev_profile(args)
 		var screen: String = args.get("screen", "")
@@ -116,7 +118,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _push(key: String, params: Dictionary) -> void:
 	if not SCREENS.has(key):
-		push_error("Main: неизвестный экран " + key)
+		push_error(Loc.t("Main: неизвестный экран ") + key)
 		return
 	if is_instance_valid(_game_menu):
 		_game_menu.queue_free()
@@ -216,16 +218,16 @@ func _toggle_game_menu() -> void:
 	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
 	var title := Label.new()
-	title.text = "Меню"
+	title.text = Loc.t("Меню")
 	title.theme_type_variation = &"TitleLabel"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 	var items := [
-		["Продолжить", "chevron-right", _toggle_game_menu, "AccentButton"],
-		["Настройки", "settings", func(): EventBus.go("settings"), ""],
-		["Титры", "scroll-text", func(): EventBus.go("credits"), ""],
-		["Главное меню", "arrow-left", EventBus.go_main_menu, ""],
-		["Выйти из игры", "x", _quit, "GhostButton"],
+		[Loc.t("Продолжить"), "chevron-right", _toggle_game_menu, "AccentButton"],
+		[Loc.t("Настройки"), "settings", func(): EventBus.go("settings"), ""],
+		[Loc.t("Титры"), "scroll-text", func(): EventBus.go("credits"), ""],
+		[Loc.t("Главное меню"), "arrow-left", EventBus.go_main_menu, ""],
+		[Loc.t("Выйти из игры"), "x", _quit, "GhostButton"],
 	]
 	for it in items:
 		var b := Button.new()
@@ -354,7 +356,7 @@ func _on_level_up(new_level: int) -> void:
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(box)
 	var caption := Label.new()
-	caption.text = "НОВЫЙ УРОВЕНЬ"
+	caption.text = Loc.t("НОВЫЙ УРОВЕНЬ")
 	caption.theme_type_variation = &"MonoLabel"
 	caption.add_theme_color_override("font_color", Palette.ENERGY)
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -366,7 +368,7 @@ func _on_level_up(new_level: int) -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 	var sub := Label.new()
-	sub.text = "+1 очко атрибутов  ·  HP %d  ·  сундук с картой" % GameManager.player_data.max_hp
+	sub.text = Loc.t("+1 очко атрибутов  ·  HP %d  ·  сундук с картой") % GameManager.player_data.max_hp
 	sub.theme_type_variation = &"DimLabel"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
@@ -476,7 +478,8 @@ func _apply_dev_args(args: Dictionary) -> void:
 						sw._player.global_position = target + Vector3(-4.5, 0.3, 0)
 					elif args.look == "exit" and not sw.data.exits.is_empty():
 						target = Vector3(sw.data.exits[-1].cell.x + 0.5, 0, sw.data.exits[-1].cell.y + 0.5)
-						sw._player.global_position = target + Vector3(-3.5, 0.3, 2.0)
+						var toward_center: Vector3 = (Vector3(sw.data.w * 0.5, 0, sw.data.h * 0.5) - target).normalized()
+						sw._player.global_position = target + toward_center * 3.5 + Vector3(0, 0.3, 0)
 					var d: Vector3 = target - sw._player.global_position
 					sw._player.face_yaw(atan2(d.x, d.z))
 				if args.has("walk"):
@@ -509,7 +512,7 @@ func _apply_dev_args(args: Dictionary) -> void:
 ## Демо-прогресс для скриншотов/отладки. Пишет в user://demo_saves/, реальные сохранения не трогает.
 func _fill_demo_progress() -> void:
 	SaveSystem.use_dir("user://demo_saves/")
-	GameManager.create_hero("Демо", Appearance.default_look())
+	GameManager.create_hero(Loc.t("Демо"), Appearance.default_look())
 	GameManager.player_data.gold = 400
 	var count := {"python_developer": 14, "ai_developer": 9, "python_backend": 5, "game_designer": 3}
 	for spec_id in count:

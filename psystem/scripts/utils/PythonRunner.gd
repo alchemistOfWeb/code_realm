@@ -86,15 +86,23 @@ with open(OUT, "w", encoding="utf-8") as f:
 	if OS.is_process_running(pid):
 		OS.kill(pid)
 		_cleanup(script_path, out_path)
-		return {"ok": false, "error": "Превышено время выполнения — бесконечный цикл?", "method": "python"}
-	var result := {"ok": false, "error": "Python не вернул результат", "method": "python"}
+		return {"ok": false, "error": Loc.t("Превышено время выполнения — бесконечный цикл?"), "method": "python"}
+	var result := {"ok": false, "error": Loc.t("Python не вернул результат"), "method": "python"}
 	if FileAccess.file_exists(out_path):
 		var parsed = JSON.parse_string(FileAccess.get_file_as_string(out_path))
 		if parsed is Dictionary:
 			result.ok = parsed.get("ok", false)
-			result.error = parsed.get("error", "")
+			result.error = _localize_error(String(parsed.get("error", "")))
 	_cleanup(script_path, out_path)
 	return result
+
+
+## Сообщения из Python-обвязки приходят по-русски — переводим известные префиксы.
+static func _localize_error(err: String) -> String:
+	for prefix in ["Тест не пройден", "RecursionError: бесконечная рекурсия — нет базового случая?"]:
+		if err.begins_with(prefix):
+			return Loc.t(prefix) + err.substr(prefix.length())
+	return err
 
 
 static func _pattern_check(code: String, safe: Dictionary) -> Dictionary:
@@ -102,9 +110,9 @@ static func _pattern_check(code: String, safe: Dictionary) -> Dictionary:
 	for pattern in safe.get("checks", []):
 		re.compile(pattern)
 		if re.search(code) == null:
-			return {"ok": false, "error": "Ошибка всё ещё в коде (проверка по шаблону: Python не найден)", "method": "pattern"}
+			return {"ok": false, "error": Loc.t("Ошибка всё ещё в коде (проверка по шаблону: Python не найден)"), "method": "pattern"}
 	if code.strip_edges() == String(safe.get("code", "")).strip_edges():
-		return {"ok": false, "error": "Код не изменён", "method": "pattern"}
+		return {"ok": false, "error": Loc.t("Код не изменён"), "method": "pattern"}
 	return {"ok": true, "error": "", "method": "pattern"}
 
 

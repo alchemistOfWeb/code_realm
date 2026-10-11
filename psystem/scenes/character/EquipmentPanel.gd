@@ -60,13 +60,13 @@ func _ready() -> void:
 	_inv_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(_inv_title)
 	var shop := Button.new()
-	shop.text = "В лавку"
+	shop.text = Loc.t("В лавку")
 	shop.icon = Palette.game_icon("shop")
 	shop.add_theme_constant_override("icon_max_width", 20)
 	shop.pressed.connect(func(): EventBus.go("shop"))
 	head.add_child(shop)
 	var hint := Label.new()
-	hint.text = "Клик — надеть, клик по слоту — снять. ПКМ по кинжалу — во вторую руку."
+	hint.text = Loc.t("Клик — надеть, клик по слоту — снять. ПКМ по кинжалу — во вторую руку.")
 	hint.theme_type_variation = &"DimLabel"
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -112,7 +112,7 @@ func refresh() -> void:
 	_inv_title.text = Loc.t("Инвентарь (%d)") % inv.size()
 	if inv.is_empty():
 		var empty := Label.new()
-		empty.text = "Инвентарь пуст. Снаряжение продаётся в лавке и попадается в сундуках вылазок."
+		empty.text = Loc.t("Инвентарь пуст. Снаряжение продаётся в лавке и попадается в сундуках вылазок.")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.custom_minimum_size.x = 300
 		empty.theme_type_variation = &"DimLabel"

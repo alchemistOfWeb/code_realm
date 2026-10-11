@@ -62,36 +62,36 @@ func _build() -> void:
 	var header := HBoxContainer.new()
 	box.add_child(header)
 	var back := Button.new()
-	back.text = "Назад"
+	back.text = Loc.t("Назад")
 	back.icon = Palette.icon("arrow-left")
 	back.theme_type_variation = &"GhostButton"
 	back.pressed.connect(EventBus.back)
 	header.add_child(back)
 	var title := Label.new()
-	title.text = "Новый герой"
+	title.text = Loc.t("Новый герой")
 	title.theme_type_variation = &"TitleLabel"
 	title.add_theme_font_size_override("font_size", 24)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	header.add_child(title)
 
-	box.add_child(_caption("Имя"))
+	box.add_child(_caption(Loc.t("Имя")))
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 8)
 	box.add_child(name_row)
 	_name_edit = LineEdit.new()
 	_name_edit.max_length = 20
 	_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_name_edit.placeholder_text = "Имя героя"
+	_name_edit.placeholder_text = Loc.t("Имя героя")
 	name_row.add_child(_name_edit)
 	var dice := Button.new()
 	dice.icon = Palette.game_icon("rolling-dices")
-	dice.tooltip_text = "Случайное имя"
+	dice.tooltip_text = Loc.t("Случайное имя")
 	dice.add_theme_constant_override("icon_max_width", 20)
 	dice.pressed.connect(_randomize_name)
 	name_row.add_child(dice)
 
-	box.add_child(_caption("Пол"))
+	box.add_child(_caption(Loc.t("Пол")))
 	_gender_row = HBoxContainer.new()
 	_gender_row.add_theme_constant_override("separation", 8)
 	box.add_child(_gender_row)
@@ -104,7 +104,7 @@ func _build() -> void:
 		b.pressed.connect(_set_gender.bind(g))
 		_gender_row.add_child(b)
 
-	box.add_child(_caption("Раса"))
+	box.add_child(_caption(Loc.t("Раса")))
 	_race_grid = GridContainer.new()
 	_race_grid.columns = 3
 	_race_grid.add_theme_constant_override("h_separation", 6)
@@ -126,17 +126,17 @@ func _build() -> void:
 	_race_info.theme_type_variation = &"DimLabel"
 	box.add_child(_race_info)
 
-	box.add_child(_caption("Цвет кожи"))
+	box.add_child(_caption(Loc.t("Цвет кожи")))
 	_skin_row = HBoxContainer.new()
 	_skin_row.add_theme_constant_override("separation", 6)
 	box.add_child(_skin_row)
 
-	box.add_child(_caption("Причёска"))
+	box.add_child(_caption(Loc.t("Причёска")))
 	_hair_row = HBoxContainer.new()
 	_hair_row.add_theme_constant_override("separation", 6)
 	box.add_child(_hair_row)
 
-	box.add_child(_caption("Цвет волос"))
+	box.add_child(_caption(Loc.t("Цвет волос")))
 	_hair_color_row = HBoxContainer.new()
 	_hair_color_row.add_theme_constant_override("separation", 5)
 	box.add_child(_hair_color_row)
@@ -144,17 +144,17 @@ func _build() -> void:
 		_hair_color_row.add_child(_swatch(Color(Appearance.HAIR_COLORS[i]), _set_value.bind("hair_color", i), "hair_color", i))
 
 	_beard_check = CheckBox.new()
-	_beard_check.text = "Борода"
+	_beard_check.text = Loc.t("Борода")
 	_beard_check.toggled.connect(func(on): _set_value("beard", on))
 	box.add_child(_beard_check)
 
-	box.add_child(_caption("Расцветка одежды"))
+	box.add_child(_caption(Loc.t("Расцветка одежды")))
 	_outfit_row = HBoxContainer.new()
 	_outfit_row.add_theme_constant_override("separation", 6)
 	box.add_child(_outfit_row)
 	for i in Appearance.OUTFIT_VARIANTS:
 		var b := Button.new()
-		b.text = ["Льняная", "Крашеная"][i]
+		b.text = [Loc.t("Льняная"), Loc.t("Крашеная")][i]
 		b.toggle_mode = true
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.set_meta("value", i)
@@ -162,14 +162,14 @@ func _build() -> void:
 		_outfit_row.add_child(b)
 
 	var random := Button.new()
-	random.text = "Случайная внешность"
+	random.text = Loc.t("Случайная внешность")
 	random.icon = Palette.game_icon("rolling-dices")
 	random.add_theme_constant_override("icon_max_width", 20)
 	random.pressed.connect(_randomize_look)
 	box.add_child(random)
 
 	var create := Button.new()
-	create.text = "Начать приключение"
+	create.text = Loc.t("Начать приключение")
 	create.theme_type_variation = &"AccentButton"
 	create.custom_minimum_size.y = 50
 	create.add_theme_font_size_override("font_size", 18)
@@ -177,7 +177,7 @@ func _build() -> void:
 	box.add_child(create)
 
 	var hint := Label.new()
-	hint.text = "Перетащи героя мышью, чтобы повернуть"
+	hint.text = Loc.t("Перетащи героя мышью, чтобы повернуть")
 	hint.theme_type_variation = &"DimLabel"
 	hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	hint.offset_top = -40
@@ -308,7 +308,7 @@ func _gui_input(event: InputEvent) -> void:
 func _create() -> void:
 	var hero_name := _name_edit.text.strip_edges()
 	if hero_name == "":
-		EventBus.notify("Введи имя героя", "warning")
+		EventBus.notify(Loc.t("Введи имя героя"), "warning")
 		return
 	GameManager.create_hero(hero_name, look)
 	SaveSystem.create_profile(hero_name)

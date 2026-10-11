@@ -184,7 +184,7 @@ theme_override_constants/separation = 10
 layout_mode = 2
 theme_type_variation = &"DimLabel"
 theme_override_font_sizes/font_size = 13
-text = "Очко атрибутов даётся за каждый новый уровень. Атрибуты работают в карточном бою и подземелье (итерации 3–4)."
+text = "Очко атрибутов даётся за каждый новый уровень. Атрибуты работают в карточном бою и вылазках."
 autowrap_mode = 3
 
 [node name="Knowledge" type="PanelContainer" parent="Margin/VBox/Tabs/Stats"]

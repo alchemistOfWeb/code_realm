@@ -39,12 +39,12 @@ func _ready() -> void:
 	header.add_theme_constant_override("separation", 14)
 	root.add_child(header)
 	var back := Button.new()
-	back.text = "Назад"
+	back.text = Loc.t("Назад")
 	back.icon = Palette.icon("arrow-left")
 	back.pressed.connect(EventBus.back)
 	header.add_child(back)
 	var title := Label.new()
-	title.text = "Лавка «Медный молот»"
+	title.text = Loc.t("Лавка «Медный молот»")
 	title.theme_type_variation = &"TitleLabel"
 	title.add_theme_font_size_override("font_size", 26)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -73,7 +73,7 @@ func _ready() -> void:
 	lbox.add_child(_merchant)
 	_merchant.show_custom(MERCHANT_LOOK, MERCHANT_GEAR, "Idle_Talking")
 	var mname := Label.new()
-	mname.text = "Торин Медный Молот"
+	mname.text = Loc.t("Торин Медный Молот")
 	mname.add_theme_font_override("font", Palette.FONT_UI_BOLD)
 	mname.add_theme_color_override("font_color", Color("#E8C872"))
 	mname.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -96,7 +96,7 @@ func _ready() -> void:
 	center.add_child(_tabs)
 	for cat in ItemDatabase.CATEGORIES:
 		_tabs.add_child(_tab_button(ItemDatabase.CATEGORIES[cat].name, cat))
-	_tabs.add_child(_tab_button("Продать", "sell"))
+	_tabs.add_child(_tab_button(Loc.t("Продать"), "sell"))
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -166,7 +166,7 @@ func _show_category(cat: String) -> void:
 			items.append(ItemDatabase.get_item(id))
 		if items.is_empty():
 			var empty := Label.new()
-			empty.text = "В инвентаре нечего продать. Надетые вещи сначала сними во вкладке «Снаряжение»."
+			empty.text = Loc.t("В инвентаре нечего продать. Надетые вещи сначала сними во вкладке «Снаряжение».")
 			empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			empty.custom_minimum_size.x = 360
 			empty.theme_type_variation = &"DimLabel"
@@ -196,7 +196,7 @@ func _select(it: Dictionary) -> void:
 	if it.is_empty():
 		_hero.show_player()
 		var hint := Label.new()
-		hint.text = "Выбери предмет: наведи курсор, чтобы примерить." if not _selling else "Выбери предмет для продажи."
+		hint.text = Loc.t("Выбери предмет: наведи курсор, чтобы примерить.") if not _selling else Loc.t("Выбери предмет для продажи.")
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		hint.theme_type_variation = &"DimLabel"
 		_details.add_child(hint)
@@ -233,7 +233,7 @@ func _select(it: Dictionary) -> void:
 	buy.pressed.connect(_buy.bind(it, false))
 	row.add_child(buy)
 	var buy_eq := Button.new()
-	buy_eq.text = "Купить и надеть"
+	buy_eq.text = Loc.t("Купить и надеть")
 	buy_eq.theme_type_variation = &"AccentButton"
 	buy_eq.disabled = reason != ""
 	buy_eq.pressed.connect(_buy.bind(it, true))

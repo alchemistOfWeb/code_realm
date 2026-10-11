@@ -115,7 +115,7 @@ static func sort_by_rarity(card_ids: Array) -> Array:
 
 static func _load_list(path: String, key: String) -> Array:
 	if not FileAccess.file_exists(path):
-		push_warning("CardDatabase: нет файла " + path)
+		push_warning(Loc.t("CardDatabase: нет файла ") + path)
 		return []
 	var parsed = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if parsed is Dictionary:

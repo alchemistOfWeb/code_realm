@@ -1,6 +1,6 @@
 extends Node
-## Smoke-тест логики и навигации. Не трогает реальные сохранения (user://test_saves/)
-## и NOTES_FOR_CLAUDE.md (пишет в user://test_notes.md).
+## Smoke-тест логики и навигации. Не трогает реальные сохранения и профили (user://test_saves/,
+## user://test_profiles/) и NOTES_FOR_CLAUDE.md (пишет в user://test_notes.md).
 ## Запуск: Godot --headless --path <project> res://tools/SmokeTest.tscn
 ## Код выхода 0 — все проверки прошли.
 
@@ -41,8 +41,9 @@ func _auto_play_turn(cs: CombatState) -> void:
 		if cs.can_attack_with(c):
 			var targets := cs.valid_attack_targets(cs.enemy)
 			cs.creature_attack(c.uid, targets[0])
-	if not cs.over and cs.player.stamina >= cs.weapon_cost("sword"):
-		cs.weapon_attack("sword", cs.valid_attack_targets(cs.enemy)[0])
+	var w: String = cs.weapons[0]
+	if not cs.over and cs.player.stamina >= cs.weapon_cost(w):
+		cs.weapon_attack(w, cs.valid_attack_targets(cs.enemy)[0])
 
 
 func check(cond: bool, label: String) -> void:
@@ -60,8 +61,12 @@ func _run() -> void:
 	var cp := ContentParser
 	var bus := EventBus
 	var root := get_tree().root
-	ss.save_dir = "user://test_saves/"
+	ss.profiles_file = "user://test_profiles.json"
+	ss.profiles_dir = "user://test_profiles/"
+	ss.reload_profiles()
+	ss.use_dir("user://test_saves/")
 	ClaudeNotesExporter.override_path = ProjectSettings.globalize_path("user://test_notes.md")
+	Loc.setup("ru")
 	gm.reset_all()
 
 	print("== XP и уровни")
@@ -72,7 +77,7 @@ func _run() -> void:
 	check(gm.player_data.level == 3 and gm.player_data.xp == 35, "ещё 65 XP → уровень 3, 35 XP")
 
 	print("== Энергия")
-	check(gm.spend_energy(30) and gm.player_data.energy == 20, "вход в данж: 50 → 20")
+	check(gm.spend_energy(30) and gm.player_data.energy == 20, "трата энергии: 50 → 20")
 	check(not gm.spend_energy(30), "нельзя потратить больше, чем есть")
 
 	print("== Изучение узлов")
@@ -119,7 +124,10 @@ func _run() -> void:
 	root.add_child(main)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	check(main.current_screen_key() == "world", "стартовый экран — WorldTree")
+	check(main.current_screen_key() == "main_menu", "стартовый экран — главное меню")
+	bus.go("world", {"root": true})
+	await get_tree().process_frame
+	check(main.current_screen_key() == "world" and main._stack.size() == 1 and main.get_node("HUD").visible, "WorldTree — корень стека, HUD виден")
 	bus.go("mini_tree", {"spec_id": "ai_developer"})
 	await get_tree().process_frame
 	check(main.current_screen_key() == "mini_tree", "открыт MiniTree")
@@ -235,7 +243,7 @@ func _run() -> void:
 		await get_tree().process_frame
 	check(gm.lootbox_count() == 0, "сундук открыт через UI")
 	bus.back()
-	bus.go("character", {"tab": 1})
+	bus.go("character", {"tab": 2})
 	await get_tree().process_frame
 	check(main._stack[-1].cards_grid.get_child_count() > 0, "коллекция карт отображается")
 	main._stack[-1]._show_card_detail(gm.card_collection.keys()[0])
@@ -261,7 +269,7 @@ func _run() -> void:
 			var cs := CombatState.new()
 			var deck: Array = all_ids.duplicate()
 			deck.shuffle()
-			cs.start(enemy, deck.slice(0, 20), {"max_hp": 30, "hp": 30, "attributes": gm.player_data.attributes})
+			cs.start(enemy, deck.slice(0, 20), {"max_hp": 30, "hp": 30, "attributes": gm.player_data.attributes, "weapons": ["sword"]})
 			var guard := 0
 			while not cs.over and guard < 60:
 				guard += 1
@@ -277,10 +285,15 @@ func _run() -> void:
 				print("    бой не завершился: ", enemy.id)
 	check(fights == CardDatabase.all_enemies().size() * 3, "автобои: %d боёв, побед автоигрока %d, макс. ходов %d" % [fights, wins, max_turns])
 	var cs2 := CombatState.new()
-	cs2.start(CardDatabase.all_enemies()[0], ["sql_query", "sql_query", "sql_query", "git_commit", "try_except"], {"max_hp": 20, "hp": 20, "attributes": {"strength": 1, "agility": 1, "max_mana": 10, "max_stamina": 10}})
+	cs2.start(CardDatabase.all_enemies()[0], ["sql_query", "sql_query", "sql_query", "git_commit", "try_except"], {"max_hp": 20, "hp": 20, "attributes": {"strength": 1, "agility": 1, "max_mana": 10, "max_stamina": 10}, "weapons": ["sword"]})
 	var hp_before: int = cs2.enemy.hp
 	check(cs2.weapon_attack("sword", {"side": "enemy", "kind": "hero", "uid": -1}) and cs2.enemy.hp == hp_before - 4, "меч: 2 + 2×Сила = 4 урона")
 	check(cs2.use_rune("shield") and cs2.player.shield == 4 and cs2.player.mana == 7, "руна щита: +4 щита, −3 маны")
+	check(not cs2.weapon_attack("axe", {"side": "enemy", "kind": "hero", "uid": -1}), "топора нет в экипировке — атака им недоступна")
+	var cs3 := CombatState.new()
+	cs3.start(CardDatabase.all_enemies()[0], [], {"max_hp": 20, "hp": 20, "attributes": {"strength": 2, "agility": 1, "max_mana": 10, "max_stamina": 10}, "weapons": ["hammer"], "armor": 3, "damage_bonus": 1})
+	check(cs3.player.shield == 3 and cs3.weapon_damage("hammer") == 2 + 2 + 1, "броня = щит в начале боя, урон молота 2 + Сила + бонус оружия")
+	check(cs3.player.hand.is_empty() and not cs3.over, "бой с пустой колодой возможен (минимума колоды нет)")
 	var res: Dictionary = gm.apply_combat_result(CardDatabase.all_enemies()[0], true, "expedition", 12)
 	check(res.xp > 0 and res.gold > 0 and gm.player_data.hp == 12, "награды за бой и HP после боя")
 
@@ -334,34 +347,103 @@ func _run() -> void:
 	var pat_bad: Dictionary = PythonRunner._pattern_check(safe_info.code, safe_info)
 	var pat_good: Dictionary = PythonRunner._pattern_check(safe_info.solution, safe_info)
 	check(not pat_bad.ok and pat_good.ok, "запасная проверка сейфа по шаблону")
+	print("== Итерация 5: профили, снаряжение, мир")
+	var p_before: int = ss.list_profiles().size()
+	gm.create_hero("Тест", {"gender": "female", "race": "elf", "skin": 2, "hair": "Hair_Buns", "hair_color": 3})
+	var pid: String = ss.create_profile("Тест")
+	check(ss.list_profiles().size() == p_before + 1 and ss.get_profile(pid).name == "Тест", "профиль создан")
+	check(gm.player_data.attributes.agility == XPCalculator.ATTRIBUTES.agility.start + 1, "расовый бонус эльфа: +1 ловкость")
+	check(gm.equipped("weapon") == "sword_rusty" and gm.equipped("chest") == "shirt_linen", "стартовое снаряжение надето")
+	gm.player_data.gold = 500
+	check(gm.buy_item("shield_round") and gm.player_data.gold == 440 and "shield_round" in gm.player_data.inventory, "покупка щита за 60")
+	check(gm.equip("shield_round") and gm.equipped("offhand") == "shield_round", "щит надет")
+	check(gm.combat_stats().armor == 2, "броня щита идёт в бой")
+	check(gm.buy_item("bow_hunter") and gm.equip("bow_hunter"), "лук куплен и надет вместо меча")
+	check(gm.combat_weapons() == ["bow"] and "sword_rusty" in gm.player_data.inventory, "атака в бою — лук, меч вернулся в инвентарь")
+	check(gm.buy_item("dagger_simple") and gm.equip("dagger_simple", "offhand") and gm.combat_weapons() == ["bow", "dagger"], "кинжал во второй руке даёт вторую атаку")
+	var gold_before: int = gm.player_data.gold
+	check(gm.sell_item("shield_round") == 30 and gm.player_data.gold == gold_before + 30, "продажа за половину цены")
+	gm.player_data.gold = 0
+	check(gm.buy_block_reason("claymore") != "", "без золота купить нельзя")
+	var outfit := gm.hero_outfit()
+	check(outfit.outfit.body == "peasant" and outfit.weapon == "Bow_Wooden", "вид экипировки для модели героя")
+	ss.save_all()
+	gm.reset_all()
+	check(ss.select_profile(pid) and gm.player_data.name == "Тест" and gm.equipped("weapon") == "bow_hunter", "профиль загружен со снаряжением")
+	ss.delete_profile(pid)
+	check(ss.get_profile(pid).is_empty() and not ss.has_active_profile(), "профиль удалён")
+	ss.use_dir("user://test_saves/")
+	gm.reset_all()
+	gm.give_starter_kit()
+
+	var locs := WorldData.map_locations()
+	var playable := locs.filter(func(l): return WorldData.is_playable(l.id))
+	check(locs.size() == 100 and playable.size() == 2, "карта мира: 100 локаций, 2 доступны")
+	var wg := WorldData.location("whisper_grove")
+	var graph_ok := true
+	for id in wg.order:
+		for link in wg.nodes[id].links:
+			if not id in wg.nodes[link].links:
+				graph_ok = false
+	check(graph_ok and WorldData.start_node("whisper_grove") == "edge", "граф Шепчущей рощи двусторонний, старт — Опушка")
+	check(WorldData.node_status("whisper_grove", "edge") == "open" and WorldData.node_status("whisper_grove", "brook") == "hidden", "в начале открыта только стартовая подлокация")
+	WorldData.visit_node("whisper_grove", "edge", 2, 3)
+	check(WorldData.node_status("whisper_grove", "brook") == "known", "после посещения соседи видны, но закрыты")
+	WorldData.mark_exit("whisper_grove", "edge", "brook")
+	check(WorldData.is_open("whisper_grove", "brook") and WorldData.node_status("whisper_grove", "brook") == "open", "найденный проход открывает подлокацию")
+	check(WorldData.location_progress("whisper_grove") > 0.0, "процент исследования растёт (%d%%)" % roundi(WorldData.location_progress("whisper_grove") * 100))
+
+	var gen_bad := 0
+	for loc_id in ["whisper_grove", "ferrograd_ruins"]:
+		var loc := WorldData.location(loc_id)
+		for id in loc.order:
+			var nd: Dictionary = loc.nodes[id]
+			if WorldData.is_underground(nd):
+				continue
+			var nbs: Array = []
+			for l in nd.links:
+				nbs.append({"id": l, "name": loc.nodes[l].name, "kind": loc.nodes[l].kind})
+			for sd in 3:
+				var od := OutdoorGenerator.generate(nd, nbs, 500 + sd, "", {})
+				if od.exits.size() != nbs.size() or od.chests.size() != int(nd.features.get("chests", 2)):
+					gen_bad += 1
+				if nd.features.get("platforms", false) and od.platforms.is_empty():
+					gen_bad += 1
+				if od.grid[od.start.y * od.w + od.start.x] == OutdoorGenerator.BLOCK:
+					gen_bad += 1
+	check(gen_bad == 0, "генератор поверхности: выходы, сундуки, платформы и старт корректны")
+
+	print("== Вылазка")
 	gm.grant_starter_pack()
 	gm.player_data.energy = 50
-	bus.go("dungeon", {"seed": 4242})
+	bus.go("sortie", {"location_id": "ferrograd_ruins", "node_id": "rusty_galleries", "seed": 4242})
 	for i in 4:
 		await get_tree().process_frame
-	var dw = main._stack[-1]
-	check(main.current_screen_key() == "dungeon" and dw._world != null and dw._enemies.size() > 0, "экспедиция: этаж построен, врагов %d" % dw._enemies.size())
-	check(gm.player_data.energy == 20 and gm.player_data.dungeon_runs >= 1, "вход в экспедицию стоит 30 энергии")
-	bus.go("dialogue", {"npc_id": dw.data.npcs[0].id, "overlay": true})
+	var sw = main._stack[-1]
+	check(main.current_screen_key() == "sortie" and sw._world != null and sw._enemies.size() > 0 and not main.get_node("HUD").visible, "вылазка: подземелье построено, врагов %d, HUD скрыт" % sw._enemies.size())
+	check(gm.player_data.energy == 50 - XPCalculator.SORTIE_ENERGY_COST, "вылазка стоит %d энергии" % XPCalculator.SORTIE_ENERGY_COST)
+	check(sw.data.exits.size() == 2 and WorldData.node_state("ferrograd_ruins", "rusty_galleries").visited, "у подлокации 2 перехода, посещение записано")
+	bus.go("dialogue", {"npc_id": sw.data.npcs[0].id, "overlay": true})
 	await get_tree().process_frame
-	check(main.current_screen_key() == "dialogue" and dw._covered, "диалог открыт поверх мира, мир на паузе")
+	check(main.current_screen_key() == "dialogue" and sw._covered, "диалог открыт поверх мира, мир на паузе")
 	main._stack[-1]._finish()
 	await get_tree().process_frame
-	bus.go("riddle", {"riddle_id": dw.data.riddle_id, "overlay": true})
+	bus.go("riddle", {"riddle_id": sw.data.riddle_id, "overlay": true})
 	await get_tree().process_frame
 	check(main.current_screen_key() == "riddle", "экран загадки")
-	EventBus.riddle_finished.emit(dw.data.riddle_id, true)
+	EventBus.riddle_finished.emit(sw.data.riddle_id, true)
 	bus.back()
 	await get_tree().process_frame
-	check(dw._gates.is_empty(), "загадка решена — решётки подняты")
-	if not dw.data.safe.is_empty():
-		bus.go("safe", {"safe_id": dw.data.safe.id, "overlay": true})
+	check(sw._gates.is_empty(), "загадка решена — решётки подняты")
+	if not sw.data.safe.is_empty():
+		bus.go("safe", {"safe_id": sw.data.safe.id, "overlay": true})
 		await get_tree().process_frame
 		check(main.current_screen_key() == "safe", "экран сейфа с редактором кода")
 		bus.back()
 		await get_tree().process_frame
-	var enemy = dw._enemies[0]
-	dw._on_enemy_contact(enemy)
+	var enemy = sw._enemies[0]
+	var enemy_index: int = enemy.index
+	sw._on_enemy_contact(enemy)
 	await get_tree().process_frame
 	check(main.current_screen_key() == "combat", "касание врага → карточный бой")
 	var cscreen = main._stack[-1]
@@ -371,11 +453,42 @@ func _run() -> void:
 	EventBus.combat_finished.emit({"won": true, "enemy_id": enemy.enemy_data.id, "context": "expedition", "gold": 5, "hp_left": 10})
 	bus.back()
 	await get_tree().process_frame
-	check(main.current_screen_key() == "dungeon" and dw.run.fights == 1 and not dw._enemies.has(enemy), "победа: враг повержен, бой засчитан")
-	dw._end_run(true, true)
-	dw._return_to_camp()
+	check(main.current_screen_key() == "sortie" and sw.run.fights == 1 and enemy_index in WorldData.node_state("ferrograd_ruins", "rusty_galleries").kills, "победа: враг повержен и не вернётся")
+	# Переход в соседнюю подлокацию
+	var exit_it: Dictionary = sw._interactables.filter(func(it): return it.kind == "exit")[0]
+	var to_id: String = exit_it.exit.to
+	sw._player.global_position = exit_it.pos + Vector3(1.5, 0.2, 0)
+	sw._discover_exits()
+	check(WorldData.is_open("ferrograd_ruins", to_id), "подход к переходу открывает «%s» на карте" % to_id)
+	sw._use_exit(exit_it)
+	await get_tree().create_timer(1.0).timeout
+	check(sw.node_id == to_id and WorldData.node_state("ferrograd_ruins", to_id).visited, "переход в соседнюю подлокацию без новой траты энергии")
+	# Пауза (Space) и меню (Esc)
+	sw._toggle_pause()
+	check(sw._paused and sw._world.process_mode == Node.PROCESS_MODE_DISABLED and sw._menu == null, "Space — пауза без меню")
+	sw._toggle_pause()
+	sw._toggle_menu()
+	check(sw._menu != null, "Esc — меню вылазки")
+	sw._toggle_menu()
+	# Падение — гибель, потеря всей энергии
+	gm.player_data.energy = 30
+	sw._player.global_position = Vector3(5, -30, 5)
+	await get_tree().create_timer(1.3).timeout
+	check(sw._ended and gm.player_data.energy == 0, "падение в пропасть: гибель, энергия потеряна")
+	sw._return_to_camp()
 	await get_tree().process_frame
-	check(main.current_screen_key() != "dungeon", "возврат из экспедиции")
+	check(main.current_screen_key() != "sortie", "возврат из вылазки")
+
+	print("== Локализация")
+	Loc.setup("en")
+	check(Loc.t("Назад") == "Back" and Loc.t("Уровень %d") % 3 == "Level 3", "английский интерфейс")
+	check(CardDatabase.get_card("fstring").description == "Deal 2 damage." and CardDatabase.get_card("sql_query").description.begins_with("Deals 3 damage"), "описания карт на английском")
+	check(ItemDatabase.get_item("sword_iron").name == "Iron Sword" and WorldData.location_info("whisper_grove").name == "Whispering Grove", "предметы и локации на английском")
+	var en: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://locale/en.json"))
+	check(en.size() > 900 and en.values().all(func(v): return String(v) != ""), "словарь en.json: %d строк, все переведены" % en.size())
+	Loc.setup("ru")
+	check(Loc.t("Назад") == "Назад" and TranslationServer.translate("Назад") == "Назад", "русский снова без примеси английского")
+	check(CardDatabase.get_card("fstring").description == "Наносит 2 урона.", "описания карт снова на русском")
 
 	print("== Звук и настройки")
 	check(AudioServer.get_bus_index("Music") >= 0 and AudioServer.get_bus_index("SFX") >= 0, "шины Music и SFX созданы")
@@ -389,6 +502,10 @@ func _run() -> void:
 
 	ss.wipe()
 	await get_tree().process_frame   # дождаться отложенных автосохранений
+	for f in DirAccess.get_files_at("user://"):
+		if f.begins_with("test_profiles"):
+			DirAccess.remove_absolute("user://" + f)
+	DirAccess.remove_absolute("user://test_profiles")
 	for f in DirAccess.get_files_at(ss.save_dir):
 		DirAccess.remove_absolute(ss.save_dir + f)
 	DirAccess.remove_absolute(ss.save_dir)

@@ -48,12 +48,12 @@ func setup(params: Dictionary) -> void:
 	if mode == "node":
 		node = ContentParser.get_node_data(params.get("node_id", ""))
 		spec_id = node.get("spec_id", "")
-		subtitle.text = "Тест по теме · %s" % ContentParser.get_spec_name(spec_id)
+		subtitle.text = Loc.t("Тест по теме · %s") % ContentParser.get_spec_name(spec_id)
 		title_label.text = node.get("title", "?")
 		questions = QuizGenerator.for_node(node)
 	else:
 		spec_id = params.get("spec_id", "")
-		subtitle.text = "Общий тест дерева · зачёт от %d%%" % roundi(XPCalculator.TREE_TEST_PASS_RATIO * 100)
+		subtitle.text = Loc.t("Общий тест дерева · зачёт от %d%%") % roundi(XPCalculator.TREE_TEST_PASS_RATIO * 100)
 		title_label.text = ContentParser.get_spec_name(spec_id)
 		questions = QuizGenerator.for_tree(spec_id)
 	accent = ContentParser.get_spec_color(spec_id)
@@ -68,8 +68,8 @@ func _start() -> void:
 	correct_count = 0
 	result = {}
 	if questions.size() < 2:
-		_show_message("Недостаточно материала для теста",
-			"В этой теме мало текста для генерации вопросов. Добавь в контент выделенные **термины** или авторские вопросы `<!-- quiz: ... -->` — или оставь заметку для Claude.")
+		_show_message(Loc.t("Недостаточно материала для теста"),
+			Loc.t("В этой теме мало текста для генерации вопросов. Добавь в контент выделенные **термины** или авторские вопросы `<!-- quiz: ... -->` — или оставь заметку для Claude."))
 		return
 	_show_question()
 
@@ -80,16 +80,16 @@ func _show_question() -> void:
 	_clear_content()
 	_answered = false
 	var q: Dictionary = questions[index]
-	progress_label.text = "Вопрос %d / %d" % [index + 1, questions.size()]
-	score_label.text = "Верно: %d" % correct_count
+	progress_label.text = Loc.t("Вопрос %d / %d") % [index + 1, questions.size()]
+	score_label.text = Loc.t("Верно: %d") % correct_count
 	_animate_progress(float(index) / questions.size())
 	next_btn.disabled = true
-	next_btn.text = "Дальше"
+	next_btn.text = Loc.t("Дальше")
 	footer.visible = true
-	hint_label.text = "Клавиши 1–%d — выбрать ответ, Enter — дальше" % q.options.size()
+	hint_label.text = Loc.t("Клавиши 1–%d — выбрать ответ, Enter — дальше") % q.options.size()
 
 	var kind := Label.new()
-	kind.text = KIND_NAMES.get(q.kind, "Вопрос").to_upper()
+	kind.text = KIND_NAMES.get(q.kind, Loc.t("Вопрос")).to_upper()
 	kind.theme_type_variation = &"MonoLabel"
 	kind.add_theme_font_size_override("font_size", 12)
 	kind.add_theme_color_override("font_color", accent.lightened(0.3))
@@ -138,7 +138,7 @@ func _on_answer(choice: int) -> void:
 		Audio.play("confirm", 0.0)
 	else:
 		Audio.play("error", 0.0)
-	score_label.text = "Верно: %d" % correct_count
+	score_label.text = Loc.t("Верно: %d") % correct_count
 	for i in _option_buttons.size():
 		var btn := _option_buttons[i]
 		btn.disabled = true
@@ -158,7 +158,7 @@ func _on_answer(choice: int) -> void:
 	fb_text.fit_content = true
 	fb_text.scroll_active = false
 	fb_text.add_theme_font_size_override("normal_font_size", 15)
-	var head := "[b][color=%s]%s[/color][/b]\n" % [Palette.hex(color), "Верно!" if ok else "Неверно"]
+	var head := "[b][color=%s]%s[/color][/b]\n" % [Palette.hex(color), Loc.t("Верно!") if ok else Loc.t("Неверно")]
 	fb_text.text = head + MarkdownBBCode.to_bbcode(q.get("explanation", ""), accent.lightened(0.3))
 	feedback.add_child(fb_text)
 	content.add_child(feedback)
@@ -166,7 +166,7 @@ func _on_answer(choice: int) -> void:
 	feedback.create_tween().tween_property(feedback, "modulate:a", 1.0, 0.25)
 
 	next_btn.disabled = false
-	next_btn.text = "Результаты" if index == questions.size() - 1 else "Дальше"
+	next_btn.text = Loc.t("Результаты") if index == questions.size() - 1 else Loc.t("Дальше")
 	next_btn.grab_focus()
 
 
@@ -224,7 +224,7 @@ func _finish() -> void:
 
 func _show_result() -> void:
 	_clear_content()
-	progress_label.text = "Тест завершён"
+	progress_label.text = Loc.t("Тест завершён")
 	var passed: bool = result.passed
 	var total := questions.size()
 	var ratio := XPCalculator.NODE_TEST_PASS_RATIO if mode == "node" else XPCalculator.TREE_TEST_PASS_RATIO
@@ -236,7 +236,7 @@ func _show_result() -> void:
 	center.add_theme_constant_override("separation", 6)
 	content.add_child(center)
 	var verdict := Label.new()
-	verdict.text = "ТЕСТ ПРОЙДЕН" if passed else "ТЕСТ НЕ СДАН"
+	verdict.text = Loc.t("ТЕСТ ПРОЙДЕН") if passed else Loc.t("ТЕСТ НЕ СДАН")
 	verdict.theme_type_variation = &"MonoLabel"
 	verdict.add_theme_color_override("font_color", color)
 	verdict.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -248,7 +248,7 @@ func _show_result() -> void:
 	score.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center.add_child(score)
 	var sub := Label.new()
-	sub.text = "Для зачёта нужно %d верных ответов из %d" % [need, total]
+	sub.text = Loc.t("Для зачёта нужно %d верных ответов из %d") % [need, total]
 	sub.theme_type_variation = &"DimLabel"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center.add_child(sub)
@@ -276,9 +276,9 @@ func _show_result() -> void:
 		if child.has_meta("result_btn"):
 			child.queue_free()
 	if passed and mode == "tree" and not result.get("cards", []).is_empty():
-		_footer_button("Открыть награду", "AccentButton", _open_reward).set_meta("sfx", "scroll_open")
-	_footer_button("Пройти ещё раз", "", _retry)
-	_footer_button("К уроку" if mode == "node" else "К дереву", "", EventBus.back)
+		_footer_button(Loc.t("Открыть награду"), "AccentButton", _open_reward).set_meta("sfx", "scroll_open")
+	_footer_button(Loc.t("Пройти ещё раз"), "", _retry)
+	_footer_button(Loc.t("К уроку") if mode == "node" else Loc.t("К дереву"), "", EventBus.back)
 
 	if passed:
 		Audio.play_jingle("reward" if mode == "node" or result.get("cards", []).is_empty() else "fanfare")
@@ -289,26 +289,26 @@ func _show_result() -> void:
 
 func _rewards_text() -> String:
 	if not result.passed:
-		return "[color=%s]Награда не получена. Перечитай темы с ошибками и попробуй снова.[/color]" % Palette.hex(Palette.TEXT_DIM)
+		return Loc.t("[color=%s]Награда не получена. Перечитай темы с ошибками и попробуй снова.[/color]") % Palette.hex(Palette.TEXT_DIM)
 	var parts: PackedStringArray = []
 	if result.get("xp", 0) > 0:
 		parts.append("[color=%s]+%d XP[/color]" % [Palette.hex(Palette.MINT), result.xp])
 	if result.get("energy", 0) > 0:
-		parts.append("[color=%s]+%d энергии[/color]" % [Palette.hex(Palette.ENERGY), result.energy])
+		parts.append(Loc.t("[color=%s]+%d энергии[/color]") % [Palette.hex(Palette.ENERGY), result.energy])
 	if not result.get("cards", []).is_empty():
-		parts.append("[color=%s]карт: %d[/color]" % [Palette.hex(Palette.GOLD), result.cards.size()])
+		parts.append(Loc.t("[color=%s]карт: %d[/color]") % [Palette.hex(Palette.GOLD), result.cards.size()])
 	if result.get("nodes_marked", 0) > 0:
-		parts.append("изучено тем: %d" % result.nodes_marked)
+		parts.append(Loc.t("изучено тем: %d") % result.nodes_marked)
 	if result.get("learned_now", false):
-		parts.append("тема отмечена изученной")
+		parts.append(Loc.t("тема отмечена изученной"))
 	var text := "   ·   ".join(parts)
 	if result.get("cooldown_left", 0) > 0:
 		var hours := ceili(result.cooldown_left / 3600.0)
-		text += ("\n" if text != "" else "") + "[color=%s]Повторная награда за дерево будет доступна через %d ч.[/color]" % [Palette.hex(Palette.TEXT_DIM), hours]
+		text += ("\n" if text != "" else "") + Loc.t("[color=%s]Повторная награда за дерево будет доступна через %d ч.[/color]") % [Palette.hex(Palette.TEXT_DIM), hours]
 	elif mode == "tree" and not result.get("first", false) and text != "":
-		text += "\n[color=%s]Повторное прохождение — уменьшенная награда.[/color]" % Palette.hex(Palette.TEXT_DIM)
+		text += Loc.t("\n[color=%s]Повторное прохождение — уменьшенная награда.[/color]") % Palette.hex(Palette.TEXT_DIM)
 	elif mode == "node" and not result.get("first", false) and not result.get("learned_now", false):
-		text += "\n[color=%s]Бонус за этот тест уже был получен.[/color]" % Palette.hex(Palette.TEXT_DIM)
+		text += Loc.t("\n[color=%s]Бонус за этот тест уже был получен.[/color]") % Palette.hex(Palette.TEXT_DIM)
 	return text
 
 
@@ -316,7 +316,7 @@ func _review_list() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	var head := Label.new()
-	head.text = "Разбор ответов"
+	head.text = Loc.t("Разбор ответов")
 	head.theme_type_variation = &"HeaderLabel"
 	head.add_theme_font_size_override("font_size", 15)
 	box.add_child(head)
@@ -334,7 +334,7 @@ func _review_list() -> Control:
 		var mark := "[color=%s]%s[/color]" % [Palette.hex(Palette.MINT if ok else Palette.HP), "✓" if ok else "✗"]
 		var line := "%s  %s" % [mark, MarkdownBBCode.to_bbcode(qtext)]
 		if not ok:
-			line += "\n      [color=%s]Ответ: %s[/color]" % [Palette.hex(Palette.MINT), q.options[q.correct].replace("[", "[lb]")]
+			line += Loc.t("\n      [color=%s]Ответ: %s[/color]") % [Palette.hex(Palette.MINT), q.options[q.correct].replace("[", "[lb]")]
 		row.text = line
 		box.add_child(row)
 	return box
@@ -376,7 +376,7 @@ func _show_message(title: String, md: String) -> void:
 	body.text = MarkdownBBCode.to_bbcode(md)
 	content.add_child(body)
 	next_btn.visible = false
-	_footer_button("Назад", "", EventBus.back)
+	_footer_button(Loc.t("Назад"), "", EventBus.back)
 
 
 func _clear_content() -> void:

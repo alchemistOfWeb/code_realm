@@ -153,7 +153,7 @@ func _build_front() -> void:
 	type_icon.modulate = rcolor
 	type_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_front.add_child(type_icon)
-	var type_text := "%s · %s" % [CardDatabase.TYPE_NAMES.get(card.get("type", ""), ""), CardDatabase.RARITY_NAMES.get(rarity, rarity)]
+	var type_text := "%s · %s" % [Loc.t(CardDatabase.TYPE_NAMES.get(card.get("type", ""), "")), Loc.t(CardDatabase.RARITY_NAMES.get(rarity, rarity))]
 	_front.add_child(_label(type_text, Vector2(32, 150), Vector2(156, 18), 11, rcolor, Palette.FONT_UI_BOLD))
 
 	# Описание
@@ -209,7 +209,7 @@ func _build_front() -> void:
 		var q := _label("?", Vector2(0, 60), Vector2(200, 100), 64, Color(1, 1, 1, 0.55), Palette.FONT_DISPLAY)
 		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_front.add_child(q)
-		tooltip_text = "Карта ещё не получена"
+		tooltip_text = Loc.t("Карта ещё не получена")
 	else:
 		tooltip_text = ""
 	_front.visible = face_up

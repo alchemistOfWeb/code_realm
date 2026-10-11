@@ -40,24 +40,24 @@ func _build() -> void:
 	bar.add_theme_constant_override("separation", 8)
 	add_child(bar)
 	_search = LineEdit.new()
-	_search.placeholder_text = "Поиск карты…"
+	_search.placeholder_text = Loc.t("Поиск карты…")
 	_search.custom_minimum_size.x = 190
 	_search.clear_button_enabled = true
 	_search.text_changed.connect(func(_t): _refresh_collection())
 	bar.add_child(_search)
-	_rarity_filter = _option(bar, [["Все редкости", ""]] + [["legendary", "legendary"], ["rare", "rare"], ["uncommon", "uncommon"], ["common", "common"]], true)
-	_type_filter = _option(bar, [["Все типы", ""], ["Существа", "creature"], ["Заклинания", "spell"], ["Артефакты", "artifact"]])
-	_cost_filter = _option(bar, [["Любая цена", Vector2i(0, 99)], ["0–2", Vector2i(0, 2)], ["3–4", Vector2i(3, 4)], ["5–6", Vector2i(5, 6)], ["7+", Vector2i(7, 99)]])
+	_rarity_filter = _option(bar, [[Loc.t("Все редкости"), ""]] + [["legendary", "legendary"], ["rare", "rare"], ["uncommon", "uncommon"], ["common", "common"]], true)
+	_type_filter = _option(bar, [[Loc.t("Все типы"), ""], [Loc.t("Существа"), "creature"], [Loc.t("Заклинания"), "spell"], [Loc.t("Артефакты"), "artifact"]])
+	_cost_filter = _option(bar, [[Loc.t("Любая цена"), Vector2i(0, 99)], ["0–2", Vector2i(0, 2)], ["3–4", Vector2i(3, 4)], ["5–6", Vector2i(5, 6)], ["7+", Vector2i(7, 99)]])
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(spacer)
 	var auto := Button.new()
-	auto.text = "Автосборка"
-	auto.tooltip_text = "Собрать колоду автоматически из лучших карт коллекции"
+	auto.text = Loc.t("Автосборка")
+	auto.tooltip_text = Loc.t("Собрать колоду автоматически из лучших карт коллекции")
 	auto.pressed.connect(func(): GameManager.auto_build_deck())
 	bar.add_child(auto)
 	var clear := Button.new()
-	clear.text = "Очистить"
+	clear.text = Loc.t("Очистить")
 	clear.theme_type_variation = &"GhostButton"
 	clear.pressed.connect(func(): GameManager.clear_deck())
 	bar.add_child(clear)
@@ -148,7 +148,7 @@ func _build() -> void:
 		_enemy_select.set_item_metadata(_enemy_select.item_count - 1, e.id)
 	train_row.add_child(_enemy_select)
 	_train_btn = Button.new()
-	_train_btn.text = "Тренировка"
+	_train_btn.text = Loc.t("Тренировка")
 	_train_btn.icon = Palette.game_icon("crossed-swords")
 	_train_btn.add_theme_constant_override("icon_max_width", 20)
 	_train_btn.theme_type_variation = &"AccentButton"
@@ -201,7 +201,7 @@ func _refresh_collection() -> void:
 		shown += 1
 	if shown == 0:
 		var empty := Label.new()
-		empty.text = "Коллекция пуста. Возьми стартовый набор, проходи тесты деревьев и открывай сундуки." if ids.is_empty() else "Нет карт по выбранным фильтрам."
+		empty.text = Loc.t("Коллекция пуста. Возьми стартовый набор, проходи тесты деревьев и открывай сундуки.") if ids.is_empty() else Loc.t("Нет карт по выбранным фильтрам.")
 		empty.theme_type_variation = &"DimLabel"
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.custom_minimum_size.x = 400
@@ -282,7 +282,7 @@ func _refresh_deck() -> void:
 	_deck_status.text = Loc.t("Готова к вылазке ✓ (колода любого размера)") if not deck.is_empty() else Loc.t("Колода пуста — в бою останутся только оружие и руны")
 	_deck_status.add_theme_color_override("font_color", Palette.MINT if not deck.is_empty() else Palette.ENERGY)
 	_train_btn.disabled = deck.is_empty()
-	_train_btn.tooltip_text = "Тренировочный бой текущей колодой: без наград и потерь"
+	_train_btn.tooltip_text = Loc.t("Тренировочный бой текущей колодой: без наград и потерь")
 	var counts := {}
 	var types := {"creature": 0, "spell": 0, "artifact": 0}
 	for id in deck:
@@ -303,7 +303,7 @@ func _refresh_deck() -> void:
 		_deck_grid.add_child(_deck_cell(id, counts[id]))
 	if unique.is_empty():
 		var empty := Label.new()
-		empty.text = "Перетащи карты сюда или кликни по карте в коллекции"
+		empty.text = Loc.t("Перетащи карты сюда или кликни по карте в коллекции")
 		empty.theme_type_variation = &"DimLabel"
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.custom_minimum_size.x = 320

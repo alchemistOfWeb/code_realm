@@ -88,9 +88,9 @@ func setup(creature: Dictionary, owner_side: String) -> void:
 	if creature.get("frozen", 0) > 0:
 		tags.append("❄ %d" % creature.frozen)
 	if creature.get("divine_shield", false):
-		tags.append("ЩИТ")
+		tags.append(Loc.t("ЩИТ"))
 	if creature.get("controlled", 0) > 0:
-		tags.append("ПОД КОНТРОЛЕМ")
+		tags.append(Loc.t("ПОД КОНТРОЛЕМ"))
 	_status.text = " · ".join(tags) if not tags.is_empty() else " "
 	_status.add_theme_color_override("font_color", Palette.ENERGY)
 	tooltip_text = _tooltip()

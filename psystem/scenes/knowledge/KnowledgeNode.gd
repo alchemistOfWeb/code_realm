@@ -42,7 +42,7 @@ func setup_mini(data: Dictionary, sid: String) -> void:
 	var freq: int = data.get("frequency", 0)
 	freq_label.visible = freq > 0
 	freq_label.text = "%d%%" % freq
-	freq_label.tooltip_text = "Частота вопроса на собеседованиях"
+	freq_label.tooltip_text = Loc.t("Частота вопроса на собеседованиях")
 	tooltip_text = data.get("title", "")
 	refresh()
 
@@ -79,7 +79,7 @@ func refresh() -> void:
 	if is_main and not node_data.get("subnodes", []).is_empty():
 		var prog: Array = GameManager.subnode_progress(node_data)
 		info_label.text = "%d/%d" % prog
-		info_label.tooltip_text = "Изучено подтем"
+		info_label.tooltip_text = Loc.t("Изучено подтем")
 	else:
 		info_label.text = "✓" if learned else "+%d XP" % node_data.get("xp_reward", 0)
 	info_label.add_theme_color_override("font_color", Palette.MINT if learned else Palette.TEXT_DIM)
@@ -116,7 +116,7 @@ func _make_custom_tooltip(_for_text: String) -> Object:
 	box.add_child(title)
 	var meta := Label.new()
 	meta.text = "%s   +%d XP%s" % [XPCalculator.stars(node_data.get("difficulty", 1)), node_data.get("xp_reward", 0),
-		"   · дополнительный" if node_data.get("is_purple", false) else ""]
+		Loc.t("   · дополнительный") if node_data.get("is_purple", false) else ""]
 	meta.add_theme_color_override("font_color", Palette.ENERGY)
 	meta.add_theme_font_size_override("font_size", 13)
 	box.add_child(meta)

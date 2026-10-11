@@ -33,8 +33,8 @@ var camera: Camera3D
 var _spring: SpringArm3D
 var _pitch_node: Node3D
 var cam_yaw := 0.0
-var _cam_pitch := deg_to_rad(-38.0)
-var _cam_dist := 7.0
+var _cam_pitch := deg_to_rad(-48.0)
+var _cam_dist := 8.0
 var _cam_drag := false
 
 var _coyote := 0.0

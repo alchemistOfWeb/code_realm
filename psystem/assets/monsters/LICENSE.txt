@@ -1,0 +1,3 @@
+Монстры — Quaternius (https://quaternius.com), лицензия CC0 1.0:
+  Bestiary - Dungeon Monsters (Imp, Puglin), Monster Pack Animated (Bat, Dragon, Skeleton, Slime),
+  Easy Animated Enemy Pack (Frog, Rat, Snake, Spider, Wasp). Конвертированы из FBX в GLB в Blender.

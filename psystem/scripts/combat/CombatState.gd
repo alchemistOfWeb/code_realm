@@ -58,7 +58,7 @@ func start(enemy_info: Dictionary, deck_ids: Array, player_stats: Dictionary) ->
 	enemy_data = enemy_info
 	attributes = player_stats.get("attributes", {})
 	player.is_player = true
-	player.name = "Ты"
+	player.name = Loc.t("Ты")
 	player.max_hp = player_stats.get("max_hp", 20)
 	player.hp = clampi(player_stats.get("hp", player.max_hp), 1, player.max_hp)
 	player.max_mana = attributes.get("max_mana", 10)
@@ -78,7 +78,7 @@ func start(enemy_info: Dictionary, deck_ids: Array, player_stats: Dictionary) ->
 	player.deck.shuffle()
 
 	enemy.is_player = false
-	enemy.name = enemy_info.get("name", "Враг")
+	enemy.name = enemy_info.get("name", Loc.t("Враг"))
 	enemy.max_hp = enemy_info.get("hp", 15)
 	enemy.hp = enemy.max_hp
 	enemy.attack = enemy_info.get("attack", 3)
@@ -91,7 +91,7 @@ func start(enemy_info: Dictionary, deck_ids: Array, player_stats: Dictionary) ->
 
 	_draw(player, XPCalculator.START_HAND)
 	_draw(enemy, 2)
-	_log("Бой начался: %s (%d HP, атака %d)" % [enemy.name, enemy.hp, enemy.attack])
+	_log(Loc.t("Бой начался: %s (%d HP, атака %d)") % [enemy.name, enemy.hp, enemy.attack])
 	_start_turn(player)
 
 
@@ -131,17 +131,17 @@ func can_play(index: int) -> Dictionary:
 		return {"ok": false, "reason": ""}
 	var card: Dictionary = player.hand[index]
 	if card_cost(player, card) > player.crystals:
-		return {"ok": false, "reason": "Недостаточно кристаллов"}
+		return {"ok": false, "reason": Loc.t("Недостаточно кристаллов")}
 	if card.get("type") == "creature" and player.board.size() >= XPCalculator.BOARD_MAX:
-		return {"ok": false, "reason": "На поле нет места"}
+		return {"ok": false, "reason": Loc.t("На поле нет места")}
 	var tt := target_type(card)
 	if tt == "friendly_creature" and player.board.is_empty():
-		return {"ok": false, "reason": "Нужно своё существо на поле"}
+		return {"ok": false, "reason": Loc.t("Нужно своё существо на поле")}
 	if tt == "enemy_creature" and enemy.board.is_empty():
-		return {"ok": false, "reason": "У врага нет существ"}
+		return {"ok": false, "reason": Loc.t("У врага нет существ")}
 	var ctrl = card.get("effect", {}).get("control_enemy_creature")
 	if ctrl is Dictionary and enemy.board.filter(func(c): return c.attack <= ctrl.get("max_attack", 99)).is_empty():
-		return {"ok": false, "reason": "Нет подходящего существа врага"}
+		return {"ok": false, "reason": Loc.t("Нет подходящего существа врага")}
 	return {"ok": true, "reason": ""}
 
 
@@ -185,13 +185,13 @@ func is_valid_target(target: Dictionary, type: String) -> bool:
 
 func enemy_intent() -> String:
 	if enemy.flags.get("stunned", 0) > 0:
-		return "Оглушён — пропустит атаку"
+		return Loc.t("Оглушён — пропустит атаку")
 	var times := 2 if enemy_data.get("special", "") == "double_attack" else 1
-	var text := "Атакует: %d урона%s" % [enemy.attack, " ×2" if times == 2 else ""]
+	var text := Loc.t("Атакует: %d урона%s") % [enemy.attack, " ×2" if times == 2 else ""]
 	if _has_effect(player, "reveal_enemy_hand") and not enemy.hand.is_empty():
 		var affordable := enemy.hand.filter(func(c): return card_cost(enemy, c) <= mini(enemy.max_crystals + 1, XPCalculator.MAX_CRYSTALS))
 		if not affordable.is_empty():
-			text += " · готовит «%s»" % affordable[0].name
+			text += Loc.t(" · готовит «%s»") % affordable[0].name
 	return text
 
 
@@ -205,7 +205,7 @@ func play_card(index: int, target: Dictionary = {}) -> bool:
 	var card: Dictionary = player.hand[index]
 	var tt := target_type(card)
 	if tt != "" and not is_valid_target(target, tt):
-		_log("Нужно выбрать цель")
+		_log(Loc.t("Нужно выбрать цель"))
 		return false
 	return _play(player, enemy, index, target)
 
@@ -215,11 +215,11 @@ func weapon_attack(weapon_id: String, target: Dictionary) -> bool:
 		return false
 	var cost := weapon_cost(weapon_id)
 	if player.stamina < cost:
-		_log("Недостаточно выносливости")
+		_log(Loc.t("Недостаточно выносливости"))
 		return false
 	var allowed := valid_attack_targets(enemy, weapon_id == "bow")
 	if not _ref_in(target, allowed):
-		_log("Сначала нужно победить существо с Taunt")
+		_log(Loc.t("Сначала нужно победить существо с Taunt"))
 		return false
 	player.stamina -= cost
 	if player.flags.get("free_weapon", 0) > 0:
@@ -257,10 +257,10 @@ func use_rune(rune_id: String, target: Dictionary = {}) -> bool:
 		return false
 	var rune: Dictionary = XPCalculator.RUNES[rune_id]
 	if player.mana < rune.cost:
-		_log("Недостаточно маны")
+		_log(Loc.t("Недостаточно маны"))
 		return false
 	if rune.has("damage") and target.get("side") != "enemy":
-		_log("Выбери вражескую цель")
+		_log(Loc.t("Выбери вражескую цель"))
 		return false
 	player.mana -= rune.cost
 	_push("rune", {"rune": rune_id, "target": target})
@@ -281,7 +281,7 @@ func creature_attack(uid: int, target: Dictionary) -> bool:
 	if c.is_empty() or not can_attack_with(c):
 		return false
 	if not _ref_in(target, valid_attack_targets(enemy)):
-		_log("Сначала нужно атаковать существо с Taunt")
+		_log(Loc.t("Сначала нужно атаковать существо с Taunt"))
 		return false
 	_creature_strike(player, enemy, c, target)
 	c.can_attack = false
@@ -346,7 +346,7 @@ func _start_turn(side: Fighter) -> void:
 		if need > 0:
 			_draw(side, need)
 		_push("turn", {"side": "player", "turn": turn})
-		_log("— Твой ход %d —" % turn)
+		_log(Loc.t("— Твой ход %d —") % turn)
 	else:
 		_draw(side, 1)
 	for c in side.board:
@@ -363,7 +363,7 @@ func _end_turn(side: Fighter, other: Fighter) -> void:
 			var targets := valid_attack_targets(other)
 			if targets.is_empty() or c.attack <= 0:
 				break
-			_log("%s атакует в конце хода" % c.name)
+			_log(Loc.t("%s атакует в конце хода") % c.name)
 			_creature_strike(side, other, c, targets.pick_random())
 			if _check_over():
 				return
@@ -381,12 +381,12 @@ func _end_turn(side: Fighter, other: Fighter) -> void:
 				c.erase("controlled")
 				c.can_attack = false
 				other.board.append(c)
-				_log("%s возвращается к врагу" % c.name)
+				_log(Loc.t("%s возвращается к врагу") % c.name)
 
 
 func _enemy_turn() -> void:
 	_push("turn", {"side": "enemy"})
-	_log("— Ход врага —")
+	_log(Loc.t("— Ход врага —"))
 	var special: String = enemy_data.get("special", "")
 	_start_turn(enemy)
 	# Особенности врага
@@ -396,11 +396,11 @@ func _enemy_turn() -> void:
 				var stolen: Dictionary = player.hand.pick_random()
 				player.hand.erase(stolen)
 				player.discard.append(stolen)
-				_log("%s крадёт карту «%s»" % [enemy.name, stolen.name])
+				_log(Loc.t("%s крадёт карту «%s»") % [enemy.name, stolen.name])
 				_push("steal", {"card": stolen.name})
 		"grow":
 			enemy.attack += 1
-			_log("%s разрастается: атака %d" % [enemy.name, enemy.attack])
+			_log(Loc.t("%s разрастается: атака %d") % [enemy.name, enemy.attack])
 		"regen":
 			_heal(enemy, 2)
 		"summon":
@@ -443,10 +443,10 @@ func _enemy_turn() -> void:
 			break
 		if enemy.flags.get("stunned", 0) > 0:
 			enemy.flags.stunned -= 1
-			_log("%s оглушён и пропускает атаку" % enemy.name)
+			_log(Loc.t("%s оглушён и пропускает атаку") % enemy.name)
 			break
 		if enemy.flags.get("isolated", 0) > 0:
-			_log("%s изолирован и не может атаковать" % enemy.name)
+			_log(Loc.t("%s изолирован и не может атаковать") % enemy.name)
 			break
 		var target := _ai_attack_target(enemy.attack, 999)
 		_push("enemy_attack", {"target": target})
@@ -541,7 +541,7 @@ func _apply_effect(side: Fighter, other: Fighter, card: Dictionary, target: Dict
 	if e.has("execute_below"):
 		var t := _resolve(target)
 		if not t.is_empty() and t.hp < e.execute_below:
-			_log("Добивание!")
+			_log(Loc.t("Добивание!"))
 			_damage_target(side, target, 999)
 	if e.has("damage_all"):
 		_damage_target(side, _hero_ref(other), e.damage_all)
@@ -584,7 +584,7 @@ func _apply_effect(side: Fighter, other: Fighter, card: Dictionary, target: Dict
 		if not c.is_empty():
 			c.temp_attack = c.get("temp_attack", 0) + e.buff_attack
 			c.attack = _creature_attack_value(side, c)
-			_log("%s: атака %d" % [c.name, c.attack])
+			_log(Loc.t("%s: атака %d") % [c.name, c.attack])
 	if e.has("set_all_attack"):
 		for s in [side, other]:
 			for c in s.board:
@@ -593,13 +593,13 @@ func _apply_effect(side: Fighter, other: Fighter, card: Dictionary, target: Dict
 				c.attack = _creature_attack_value(s, c)
 	if e.has("stun_enemy"):
 		other.flags["stunned"] = other.flags.get("stunned", 0) + e.stun_enemy
-		_log("%s оглушён" % other.name)
+		_log(Loc.t("%s оглушён") % other.name)
 	if e.has("freeze_enemy_creature"):
 		var c := _creature_from_ref(target)
 		if not c.is_empty():
 			c.frozen = e.freeze_enemy_creature
 			c.can_attack = false
-			_log("%s заморожен на %d хода" % [c.name, c.frozen])
+			_log(Loc.t("%s заморожен на %d хода") % [c.name, c.frozen])
 	if e.has("limit_enemy_attacks"):
 		side.flags["limit_enemy_attacks"] = e.limit_enemy_attacks
 	if e.has("control_enemy_creature"):
@@ -610,11 +610,11 @@ func _apply_effect(side: Fighter, other: Fighter, card: Dictionary, target: Dict
 			c.controlled = spec.get("duration", 1)
 			c.can_attack = true
 			side.board.append(c)
-			_log("%s переходит под твой контроль" % c.name)
+			_log(Loc.t("%s переходит под твой контроль") % c.name)
 			_push("control", {"uid": c.uid})
 	if e.get("checkpoint", false):
 		side.flags["checkpoint"] = 1
-		_log("Чекпоинт сохранён")
+		_log(Loc.t("Чекпоинт сохранён"))
 	if e.has("free_weapon_attack"):
 		side.flags["free_weapon"] = side.flags.get("free_weapon", 0) + e.free_weapon_attack
 	if e.has("return_spells"):
@@ -624,13 +624,13 @@ func _apply_effect(side: Fighter, other: Fighter, card: Dictionary, target: Dict
 			var s: Dictionary = spells[spells.size() - 1 - i]
 			side.discard.erase(s)
 			_add_to_hand(side, s)
-		_log("Возвращено заклинаний: %d" % n)
+		_log(Loc.t("Возвращено заклинаний: %d") % n)
 	if e.has("max_crystal_bonus"):
 		side.crystal_bonus += e.max_crystal_bonus
 	if e.has("isolate_enemy"):
 		if other.board.is_empty():
 			other.flags["isolated"] = other.flags.get("isolated", 0) + e.isolate_enemy
-			_log("%s изолирован" % other.name)
+			_log(Loc.t("%s изолирован") % other.name)
 		else:
 			var strongest: Dictionary = other.board[0]
 			for c in other.board:
@@ -638,7 +638,7 @@ func _apply_effect(side: Fighter, other: Fighter, card: Dictionary, target: Dict
 					strongest = c
 			strongest.frozen = e.isolate_enemy
 			strongest.can_attack = false
-			_log("%s изолирован" % strongest.name)
+			_log(Loc.t("%s изолирован") % strongest.name)
 	if e.has("aura_attack") or e.has("hand_size"):
 		for c in side.board:
 			c.attack = _creature_attack_value(side, c)
@@ -725,7 +725,7 @@ func _damage_target(source: Fighter, target: Dictionary, amount: int) -> void:
 			return
 		if c.get("divine_shield", false):
 			c.divine_shield = false
-			_log("%s: божественный щит поглотил удар" % c.name)
+			_log(Loc.t("%s: божественный щит поглотил удар") % c.name)
 			_push("block", {"target": target})
 			return
 		c.defense -= amount
@@ -741,7 +741,7 @@ func _damage_hero(side: Fighter, amount: int, self_inflicted: bool) -> void:
 	if side.is_player and not self_inflicted:
 		var dodge := XPCalculator.dodge_chance(attributes.get("agility", 0), dodge_bonus)
 		if randi() % 100 < dodge:
-			_log("Уклонение!")
+			_log(Loc.t("Уклонение!"))
 			_push("dodge", {"target": ref})
 			return
 	if side.shield > 0:
@@ -754,7 +754,7 @@ func _damage_hero(side: Fighter, amount: int, self_inflicted: bool) -> void:
 	side.hp -= amount
 	if side.is_player and side.flags.get("checkpoint", 0) > 0 and side.hp < 1:
 		side.hp = 1
-		_log("Чекпоинт удержал тебя на 1 HP")
+		_log(Loc.t("Чекпоинт удержал тебя на 1 HP"))
 	_push("damage", {"target": ref, "amount": amount})
 
 
@@ -770,7 +770,7 @@ func _creature_death(side: Fighter, c: Dictionary) -> void:
 	if c.get("resurrect", 0) > 0:
 		c.resurrect -= 1
 		c.defense = 1
-		_log("%s возрождается с 1 HP" % c.name)
+		_log(Loc.t("%s возрождается с 1 HP") % c.name)
 		_push("resurrect", {"uid": c.uid})
 		return
 	side.board.erase(c)
@@ -780,7 +780,7 @@ func _creature_death(side: Fighter, c: Dictionary) -> void:
 			owner = enemy if side.is_player else player
 		owner.discard.append(c.card)
 	_push("death", {"side": "player" if side.is_player else "enemy", "uid": c.uid, "name": c.name})
-	_log("%s уничтожен" % c.name)
+	_log(Loc.t("%s уничтожен") % c.name)
 
 
 # ---------------------------------------------------------------- Колода
@@ -802,7 +802,7 @@ func _add_to_hand(side: Fighter, card: Dictionary) -> void:
 	if side.hand.size() >= limit:
 		side.discard.append(card)
 		if side.is_player:
-			_log("Рука полна: «%s» сгорает" % card.name)
+			_log(Loc.t("Рука полна: «%s» сгорает") % card.name)
 		return
 	side.hand.append(card)
 	if side.is_player:
@@ -816,7 +816,7 @@ func _reshuffle(side: Fighter) -> void:
 	side.discard.clear()
 	side.deck.shuffle()
 	if side.is_player:
-		_log("Колода перемешана")
+		_log(Loc.t("Колода перемешана"))
 
 
 # ---------------------------------------------------------------- Конец боя
@@ -827,13 +827,13 @@ func _check_over() -> bool:
 	if enemy.hp <= 0:
 		over = true
 		winner = "player"
-		_log("Победа!")
+		_log(Loc.t("Победа!"))
 		_push("over", {"winner": "player"})
 	elif player.hp <= 0:
 		over = true
 		winner = "enemy"
 		player.hp = 0
-		_log("Поражение…")
+		_log(Loc.t("Поражение…"))
 		_push("over", {"winner": "enemy"})
 	return over
 

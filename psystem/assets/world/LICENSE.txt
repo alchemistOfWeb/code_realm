@@ -1,0 +1,5 @@
+Окружение — Quaternius (https://quaternius.com), лицензия CC0 1.0:
+  nature/  — Stylized Nature MegaKit
+  props/   — Fantasy Props MegaKit
+  village/ — Medieval Village MegaKit
+Текстуры уменьшены (цвет 1024 px, нормали/ORM 512 px).

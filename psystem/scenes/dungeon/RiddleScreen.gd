@@ -65,20 +65,20 @@ func _build() -> void:
 	icon.modulate = bronze.lightened(0.2)
 	head.add_child(icon)
 	var title := Label.new()
-	title.text = "Дверь-механизм"
+	title.text = Loc.t("Дверь-механизм")
 	title.theme_type_variation = &"TitleLabel"
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", bronze.lightened(0.3))
 	head.add_child(title)
 	var inscription := Label.new()
-	inscription.text = riddle.get("inscription", "")
+	inscription.text = Loc.t(riddle.get("inscription", ""))
 	inscription.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inscription.add_theme_font_size_override("font_size", 18)
 	inscription.add_theme_color_override("font_color", Color("#EADBC0"))
 	inscription.add_theme_font_override("font", Palette.italic_font())
 	box.add_child(inscription)
 	var q := Label.new()
-	q.text = riddle.get("question", "")
+	q.text = Loc.t(riddle.get("question", ""))
 	q.add_theme_font_override("font", Palette.FONT_TEXT_BOLD)
 	q.add_theme_font_size_override("font_size", 17)
 	box.add_child(q)
@@ -90,9 +90,9 @@ func _build() -> void:
 	hint.fit_content = true
 	var spec_color := Palette.hex(ContentParser.get_spec_color(req.spec).lightened(0.25))
 	if knows:
-		hint.text = "[color=%s][b][ЗНАНИЕ · %s][/b][/color] Ты узнаёшь это: два неверных варианта отсечены." % [spec_color, Requirements.knowledge_label(req)]
+		hint.text = Loc.t("[color=%s][b][ЗНАНИЕ · %s][/b][/color] Ты узнаёшь это: два неверных варианта отсечены.") % [spec_color, Requirements.knowledge_label(req)]
 	else:
-		hint.text = "[color=#8C8CB0]Знание темы [color=%s]«%s»[/color] подсказало бы ответ.[/color]" % [spec_color, Requirements.knowledge_label(req)]
+		hint.text = Loc.t("[color=#8C8CB0]Знание темы [color=%s]«%s»[/color] подсказало бы ответ.[/color]") % [spec_color, Requirements.knowledge_label(req)]
 	box.add_child(hint)
 
 	_options_box = VBoxContainer.new()
@@ -102,7 +102,7 @@ func _build() -> void:
 	var opts: Array = riddle.get("options", [])
 	var correct: int = riddle.get("correct", 0)
 	for i in opts.size():
-		options.append({"text": opts[i], "ok": i == correct})
+		options.append({"text": Loc.t(opts[i]), "ok": i == correct})
 	if knows:
 		var wrong := options.filter(func(o): return not o.ok)
 		wrong.shuffle()
@@ -125,7 +125,7 @@ func _build() -> void:
 	_result.fit_content = true
 	box.add_child(_result)
 	var leave := Button.new()
-	leave.text = "Отойти от двери"
+	leave.text = Loc.t("Отойти от двери")
 	leave.theme_type_variation = &"GhostButton"
 	leave.pressed.connect(_close)
 	box.add_child(leave)
@@ -137,7 +137,7 @@ func _answer(btn: Button, ok: bool) -> void:
 	if ok:
 		_solved = true
 		btn.add_theme_stylebox_override("normal", Palette.box(Color(Palette.MINT, 0.2), Palette.MINT, 2, 8, 16, 9))
-		_result.text = "[color=#00D4AA][b]Механизм щёлкает — решётка поднимается![/b][/color]\n[color=#8C8CB0]%s[/color]" % riddle.get("explanation", "")
+		_result.text = Loc.t("[color=#00D4AA][b]Механизм щёлкает — решётка поднимается![/b][/color]\n[color=#8C8CB0]%s[/color]") % Loc.t(riddle.get("explanation", ""))
 		Audio.play("gate")
 		Audio.play_jingle("reward")
 		GameManager.gain_xp(10)
@@ -152,7 +152,7 @@ func _answer(btn: Button, ok: bool) -> void:
 		GameManager.damage_player(WRONG_DAMAGE)
 		if GameManager.player_data.hp <= 0:
 			GameManager.player_data.hp = 1
-		_result.text = "[color=#FF6B6B]Разряд! Механизм бьёт током (−%d HP). Попробуй ещё раз.[/color]" % WRONG_DAMAGE
+		_result.text = Loc.t("[color=#FF6B6B]Разряд! Механизм бьёт током (−%d HP). Попробуй ещё раз.[/color]") % WRONG_DAMAGE
 		Audio.play("hit_heavy")
 		var tw := btn.create_tween()
 		for d in [8.0, -8.0, 4.0, 0.0]:
