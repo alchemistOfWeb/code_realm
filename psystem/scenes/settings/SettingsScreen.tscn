@@ -93,5 +93,5 @@ theme_override_constants/separation = 14
 layout_mode = 2
 theme_type_variation = &"DimLabel"
 theme_override_font_sizes/font_size = 12
-text = "Звуки, 3D-модели: Kenney (CC0). Фанфары: Spring Spring (CC-BY 4.0 / CC0). Музыка: isaiah658, Cleyton Kauffman, «Heartfelt Battle» — OpenGameArt (CC0). Иконки карт и мира: Lorc, Delapouite, Skoll, Faithtoken, Caro Asercion, Darkzaitzev — game-icons.net (CC BY 3.0). Иконки UI: Lucide (ISC). Шрифты: JetBrains Mono, Inter, Unbounded (OFL)."
+text = "Авторы моделей, анимаций, иконок, шрифтов, звуков и музыки — в разделе «Титры» (главное меню или Esc → Титры)."
 autowrap_mode = 3

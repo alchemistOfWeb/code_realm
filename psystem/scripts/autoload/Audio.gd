@@ -244,6 +244,10 @@ func _on_setting_changed(key: String) -> void:
 # ---------------------------------------------------------------- Автоозвучка UI
 
 func _on_node_added(node: Node) -> void:
+	# reparent() снова вызывает node_added — не подключаемся дважды
+	if node.has_meta("_ui_sfx"):
+		return
+	node.set_meta("_ui_sfx", true)
 	if node is BaseButton:
 		node.pressed.connect(_on_button_pressed.bind(node))
 		node.mouse_entered.connect(_on_button_hover.bind(node))

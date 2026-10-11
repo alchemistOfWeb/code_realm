@@ -1,24 +1,37 @@
 extends Node
-## Сохранение/загрузка состояния в user://saves/*.json.
-## Запись атомарная (через .tmp), числа после JSON приводятся обратно к int.
+## Профили и сохранения. Каждый профиль — папка user://profiles/<id>/ с четырьмя JSON-файлами,
+## список профилей — user://profiles.json. Запись атомарная (через .tmp), числа после JSON приводятся к int.
+##
+## Пока профиль не выбран (главное меню), автосохранение выключено.
 
 signal saved()
 signal loaded()
+signal profiles_changed()
 
-const SAVE_DIR := "user://saves/"
-## Текущая папка сохранений (тесты подменяют её, чтобы не трогать реальный прогресс).
-var save_dir: String = SAVE_DIR
-const SAVE_VERSION := 2
+const LEGACY_DIR := "user://saves/"
+const PROFILES_FILE := "user://profiles.json"
+const PROFILES_DIR := "user://profiles/"
+const SAVE_VERSION := 3
 const PLAYER_FILE := "player_save.json"
 const KNOWLEDGE_FILE := "knowledge_progress.json"
 const CARDS_FILE := "card_collection.json"
 const WORLD_FILE := "world_state.json"
+const FILES := [PLAYER_FILE, KNOWLEDGE_FILE, CARDS_FILE, WORLD_FILE]
 
+## Текущая папка сохранений (тесты и dev-режим подменяют её через use_dir()).
+var save_dir: String = ""
+## id выбранного профиля ("" — временная папка dev/тестов или профиль не выбран).
+var profile_id := ""
+## [{id, name, created, last_played, level, look}]
+var profiles: Array = []
+
+var _active := false
 var _save_queued := false
 
 
 func _ready() -> void:
-	load_all()
+	_load_profiles()
+	_migrate_legacy()
 	# Автосохранение при любом изменении состояния
 	GameManager.player_changed.connect(request_save)
 	GameManager.knowledge_unlocked.connect(func(_id): request_save())
@@ -27,9 +40,143 @@ func _ready() -> void:
 	GameManager.world_changed.connect(request_save)
 
 
+func has_active_profile() -> bool:
+	return _active
+
+
+# ---------------------------------------------------------------- Профили
+
+func list_profiles() -> Array:
+	var list := profiles.duplicate()
+	list.sort_custom(func(a, b): return String(a.get("last_played", "")) > String(b.get("last_played", "")))
+	return list
+
+
+func get_profile(id: String) -> Dictionary:
+	for p in profiles:
+		if p.id == id:
+			return p
+	return {}
+
+
+func last_profile_id() -> String:
+	var list := list_profiles()
+	return list[0].id if not list.is_empty() else ""
+
+
+## Создать профиль: состояние GameManager уже подготовлено экраном создания героя.
+func create_profile(hero_name: String) -> String:
+	var id := "p%d%03d" % [int(Time.get_unix_time_from_system()), randi() % 1000]
+	profiles.append({"id": id, "name": hero_name, "created": Time.get_datetime_string_from_system(),
+		"last_played": Time.get_datetime_string_from_system(), "level": 1, "look": GameManager.player_data.get("look", {}),
+		"outfit": GameManager.hero_outfit()})
+	profile_id = id
+	save_dir = PROFILES_DIR + id + "/"
+	_active = true
+	save_all()
+	_save_profiles()
+	return id
+
+
+func select_profile(id: String) -> bool:
+	if get_profile(id).is_empty():
+		return false
+	profile_id = id
+	save_dir = PROFILES_DIR + id + "/"
+	_active = true
+	load_all()
+	_touch_profile()
+	return true
+
+
+## Выйти в главное меню: сохранить и сбросить состояние в памяти.
+func close_profile() -> void:
+	if _active:
+		save_all()
+	_active = false
+	profile_id = ""
+	GameManager.reset_all()
+
+
+func delete_profile(id: String) -> void:
+	if id == profile_id:
+		_active = false
+		profile_id = ""
+		GameManager.reset_all()
+	var dir := PROFILES_DIR + id + "/"
+	if DirAccess.dir_exists_absolute(dir):
+		for f in DirAccess.get_files_at(dir):
+			DirAccess.remove_absolute(dir + f)
+		DirAccess.remove_absolute(dir)
+	profiles = profiles.filter(func(p): return p.id != id)
+	_save_profiles()
+
+
+func rename_profile(id: String, new_name: String) -> void:
+	var p := get_profile(id)
+	if not p.is_empty():
+		p.name = new_name
+		_save_profiles()
+
+
+## Временная папка без профиля (dev-скриншоты, демо, тесты).
+func use_dir(dir: String, load_now: bool = false) -> void:
+	save_dir = dir
+	profile_id = ""
+	_active = true
+	if load_now:
+		load_all()
+
+
+func _touch_profile() -> void:
+	var p := get_profile(profile_id)
+	if p.is_empty():
+		return
+	p.last_played = Time.get_datetime_string_from_system()
+	p.level = int(GameManager.player_data.get("level", 1))
+	p.name = String(GameManager.player_data.get("name", p.name))
+	p.look = GameManager.player_data.get("look", {})
+	p.outfit = GameManager.hero_outfit()
+	_save_profiles()
+
+
+func _load_profiles() -> void:
+	profiles = []
+	if not FileAccess.file_exists(PROFILES_FILE):
+		return
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string(PROFILES_FILE))
+	if parsed is Dictionary:
+		profiles = _coerce_ints(parsed.get("profiles", []))
+
+
+func _save_profiles() -> void:
+	var f := FileAccess.open(PROFILES_FILE, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify({"profiles": profiles}, "\t"))
+	profiles_changed.emit()
+
+
+## Сохранения до появления профилей (user://saves/) переносятся в профиль «Странник».
+func _migrate_legacy() -> void:
+	if FileAccess.file_exists(PROFILES_FILE) or not FileAccess.file_exists(LEGACY_DIR + PLAYER_FILE):
+		return
+	var id := "p_legacy"
+	var dir := PROFILES_DIR + id + "/"
+	DirAccess.make_dir_recursive_absolute(dir)
+	for f in FILES:
+		if FileAccess.file_exists(LEGACY_DIR + f):
+			DirAccess.copy_absolute(LEGACY_DIR + f, dir + f)
+	var player: Dictionary = _load_json_at(dir + PLAYER_FILE)
+	profiles.append({"id": id, "name": "Странник", "created": player.get("created_at", ""),
+		"last_played": Time.get_datetime_string_from_system(), "level": int(player.get("level", 1)), "look": {}})
+	_save_profiles()
+
+
+# ---------------------------------------------------------------- Сохранение
+
 ## Отложенное сохранение: несколько вызовов за кадр → одна запись.
 func request_save() -> void:
-	if _save_queued:
+	if _save_queued or not _active:
 		return
 	_save_queued = true
 	_flush_save.call_deferred()
@@ -41,6 +188,8 @@ func _flush_save() -> void:
 
 
 func save_all() -> void:
+	if not _active or save_dir == "":
+		return
 	DirAccess.make_dir_recursive_absolute(save_dir)
 	var player := GameManager.player_data.duplicate(true)
 	player["save_version"] = SAVE_VERSION
@@ -60,6 +209,10 @@ func save_all() -> void:
 		"collection": GameManager.card_collection,
 		"deck": GameManager.combat_deck,
 	})
+	if profile_id != "":
+		var p := get_profile(profile_id)
+		if not p.is_empty() and (p.level != GameManager.player_data.level or p.name != GameManager.player_data.get("name", p.name)):
+			_touch_profile()
 	saved.emit()
 
 
@@ -88,20 +241,26 @@ func load_all() -> void:
 	world.erase("save_version")
 	_merge_defaults(world, GameManager.default_world())
 	GameManager.world = world
+	GameManager.after_load()
 	loaded.emit()
+	GameManager.player_changed.emit()
 
 
-## Удалить все сохранения и начать заново.
+## Удалить сохранения текущего профиля и начать заново (имя и внешность героя сохраняются).
 func wipe() -> void:
-	for file_name in [PLAYER_FILE, KNOWLEDGE_FILE, CARDS_FILE, WORLD_FILE]:
+	var hero_name: String = GameManager.player_data.get("name", "Странник")
+	var look: Dictionary = GameManager.player_data.get("look", {})
+	for file_name in FILES:
 		if FileAccess.file_exists(save_dir + file_name):
 			DirAccess.remove_absolute(save_dir + file_name)
 	GameManager.reset_all()
+	GameManager.player_data.name = hero_name
+	GameManager.player_data.look = look
 	save_all()
 
 
 func get_save_dir_absolute() -> String:
-	return ProjectSettings.globalize_path(save_dir)
+	return ProjectSettings.globalize_path(save_dir if save_dir != "" else PROFILES_DIR)
 
 
 func _save_json(file_name: String, data: Dictionary) -> void:
@@ -119,7 +278,10 @@ func _save_json(file_name: String, data: Dictionary) -> void:
 
 
 func _load_json(file_name: String) -> Dictionary:
-	var path := save_dir + file_name
+	return _load_json_at(save_dir + file_name)
+
+
+func _load_json_at(path: String) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		return {}
 	var parsed = JSON.parse_string(FileAccess.get_file_as_string(path))

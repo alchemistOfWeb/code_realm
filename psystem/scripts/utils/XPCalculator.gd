@@ -6,9 +6,14 @@ const START_ENERGY := 50
 const MAX_ENERGY := 50
 const LEARN_ENERGY_REWARD := 5
 const TREE_TEST_ENERGY_REWARD := 20
-const DUNGEON_ENERGY_COST := 30
-const MIN_DECK_SIZE := 10
-const MAX_DECK_SIZE := 20
+## Вылазка в локацию (раньше экспедиция стоила 30).
+const SORTIE_ENERGY_COST := 10
+## Колода может быть любого размера (ограничения снизу нет).
+const MIN_DECK_SIZE := 0
+const MAX_DECK_SIZE := 30
+## Вылазки: выносливость бега (в секундах бега) и её восстановление.
+const RUN_STAMINA := 6.0
+const RUN_STAMINA_REGEN := 1.6
 
 # Карточный бой
 const START_HAND := 4
@@ -20,14 +25,23 @@ const STAMINA_REGEN := 2
 const COMBAT_WIN_ENERGY := 10
 const MAX_COPIES := 3           # копий одной карты в колоде
 const MAX_LEGENDARY_COPIES := 1
-## Оружие: урон = base + per_attr × атрибут, стоимость в выносливости.
+## Оружие: урон = base + per × атрибут (+ урон снаряжения), стоимость в выносливости.
+## Доступные в бою атаки зависят от экипированного оружия (без оружия — кулаки).
 const WEAPONS := {
+	"fists": {"name": "Кулаки", "icon": "fist", "attr": "strength", "base": 1, "per": 1, "cost": 1,
+		"desc": "Без оружия: урон 1 + Сила."},
 	"sword": {"name": "Меч", "icon": "ancient-sword", "attr": "strength", "base": 2, "per": 2, "cost": 3,
 		"desc": "Урон 2 + 2×Сила. Цель — враг или его существо."},
 	"dagger": {"name": "Кинжал", "icon": "broad-dagger", "attr": "agility", "base": 1, "per": 1, "cost": 1,
 		"desc": "Урон 1 + Ловкость. Дешёвый быстрый удар."},
-	"bow": {"name": "Лук", "icon": "bow-arrow", "attr": "strength", "base": 1, "per": 1, "cost": 2,
-		"desc": "Урон 1 + Сила. Стреляет через Taunt прямо во врага."},
+	"bow": {"name": "Лук", "icon": "bow-arrow", "attr": "agility", "base": 1, "per": 1, "cost": 2,
+		"desc": "Урон 1 + Ловкость. Стреляет через Taunt прямо во врага."},
+	"axe": {"name": "Топор", "icon": "battle-axe", "attr": "strength", "base": 3, "per": 2, "cost": 4,
+		"desc": "Урон 3 + 2×Сила. Тяжёлый удар."},
+	"hammer": {"name": "Молот", "icon": "flat-hammer", "attr": "strength", "base": 2, "per": 1, "cost": 3,
+		"desc": "Урон 2 + Сила. Сначала сбивает щит и божественный щит цели."},
+	"spear": {"name": "Копьё", "icon": "barbed-spear", "attr": "agility", "base": 2, "per": 1, "cost": 2,
+		"desc": "Урон 2 + Ловкость. Удар по существу задевает и героя за ним (1 урон)."},
 }
 ## Руны: тратят ману (мана не восстанавливается в бою).
 const RUNES := {
@@ -93,9 +107,9 @@ static func lootboxes_for_level(level: int) -> int:
 	return 2 if level % 5 == 0 else 1
 
 
-## Уклонение в процентах от ловкости.
-static func dodge_chance(agility: int) -> int:
-	return agility * 3
+## Уклонение в процентах от ловкости (+ бонус снаряжения), не больше 60%.
+static func dodge_chance(agility: int, bonus: int = 0) -> int:
+	return mini(agility * 3 + bonus, 60)
 
 
 static func stars(difficulty: int) -> String:

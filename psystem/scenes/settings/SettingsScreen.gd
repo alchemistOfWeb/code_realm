@@ -19,6 +19,11 @@ var _volume_sliders: Dictionary = {}   # key -> [HSlider, Label]
 var _music_check: CheckBox
 var _ui_sounds_check: CheckBox
 var _track_label: Label
+var _lang_option: OptionButton
+var _controls_box: VBoxContainer
+var _bind_buttons: Dictionary = {}     # action → Button
+var _waiting_action := ""
+var _sens_slider: HSlider
 
 
 func _ready() -> void:
@@ -26,6 +31,7 @@ func _ready() -> void:
 	%ResetButton.pressed.connect(_on_reset)
 	_build_screen_section()
 	_build_sound_section()
+	_build_controls_section()
 	Settings.changed.connect(_on_settings_changed)
 	Audio.track_changed.connect(_on_track_changed)
 	get_window().size_changed.connect(_refresh_window_info)
@@ -48,6 +54,14 @@ func _on_track_changed(_title: String) -> void:
 
 func _build_screen_section() -> void:
 	screen_box.add_child(_section_header("Экран", "monitor"))
+
+	_lang_option = OptionButton.new()
+	for code in Loc.LANGS:
+		_lang_option.add_item(Loc.LANGS[code])
+		_lang_option.set_item_metadata(_lang_option.item_count - 1, code)
+	_lang_option.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_lang_option.item_selected.connect(_on_language)
+	screen_box.add_child(_row("Язык / Language", _lang_option))
 
 	_mode_option = OptionButton.new()
 	for key in Settings.WINDOW_MODES:
@@ -149,6 +163,86 @@ func _build_sound_section() -> void:
 	sound_box.add_child(track_row)
 
 
+func _build_controls_section() -> void:
+	# Правая колонка: «Звук» и под ним «Управление»
+	var sound_panel: Control = sound_box.get_parent()
+	var columns: Control = sound_panel.get_parent()
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 18)
+	columns.add_child(col)
+	columns.move_child(col, sound_panel.get_index())
+	sound_panel.reparent(col)
+	var panel := PanelContainer.new()
+	panel.theme_type_variation = &"CardPanel"
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_child(panel)
+	_controls_box = VBoxContainer.new()
+	_controls_box.add_theme_constant_override("separation", 8)
+	panel.add_child(_controls_box)
+	_controls_box.add_child(_section_header("Управление в вылазках", "gamepad-2"))
+	for action in Settings.REBINDABLE:
+		var b := Button.new()
+		b.custom_minimum_size.x = 110
+		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		b.pressed.connect(_start_rebind.bind(action))
+		_bind_buttons[action] = b
+		var row := _row(Settings.REBINDABLE[action], b)
+		b.size_flags_horizontal = Control.SIZE_SHRINK_END
+		_controls_box.add_child(row)
+	var sens_box := HBoxContainer.new()
+	_sens_slider = HSlider.new()
+	_sens_slider.min_value = 0.3
+	_sens_slider.max_value = 2.5
+	_sens_slider.step = 0.1
+	_sens_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sens_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_sens_slider.value_changed.connect(func(v): Settings.set_value("mouse_sensitivity", v))
+	sens_box.add_child(_sens_slider)
+	_controls_box.add_child(_row("Чувствительность камеры", sens_box))
+	var hint := Label.new()
+	hint.text = "Нажми на клавишу действия, затем новую клавишу. Камера — правая кнопка мыши, колесо — приближение."
+	hint.theme_type_variation = &"DimLabel"
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size.x = 260
+	_controls_box.add_child(hint)
+
+
+func _start_rebind(action: String) -> void:
+	_waiting_action = action
+	_bind_buttons[action].text = Loc.t("Нажми клавишу…")
+
+
+func _input(event: InputEvent) -> void:
+	if _waiting_action == "" or not event is InputEventKey or not event.pressed:
+		return
+	get_viewport().set_input_as_handled()
+	if event.physical_keycode != KEY_ESCAPE:
+		Settings.rebind(_waiting_action, event.physical_keycode)
+	_waiting_action = ""
+	_refresh_controls()
+
+
+func _refresh_controls() -> void:
+	for action in _bind_buttons:
+		_bind_buttons[action].text = Settings.action_key_name(action)
+	if _sens_slider:
+		_sens_slider.set_value_no_signal(float(Settings.get_value("mouse_sensitivity")))
+
+
+func _on_language(i: int) -> void:
+	var code: String = _lang_option.get_item_metadata(i)
+	if code == Loc.lang():
+		return
+	Settings.set_value("language", code)
+	# Пересобрать экраны на новом языке
+	if SaveSystem.has_active_profile():
+		EventBus.go("world", {"root": true})
+	else:
+		EventBus.go("main_menu", {"root": true})
+
+
 func _section_header(text: String, icon_name: String) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -220,6 +314,10 @@ func _refresh() -> void:
 		_volume_sliders[key][1].text = "%d%%" % v
 	_music_check.set_pressed_no_signal(Settings.get_value("music_enabled"))
 	_ui_sounds_check.set_pressed_no_signal(Settings.get_value("ui_sounds"))
+	for i in _lang_option.item_count:
+		if _lang_option.get_item_metadata(i) == Loc.lang():
+			_lang_option.select(i)
+	_refresh_controls()
 	_refresh_track()
 	_refresh_window_info()
 

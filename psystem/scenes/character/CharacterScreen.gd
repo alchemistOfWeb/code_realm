@@ -1,6 +1,6 @@
 extends Control
 ## Экран персонажа. Вкладки: Статистика (HP/XP/энергия, атрибуты, прогресс знаний),
-## Коллекция карт, Колода.
+## Снаряжение (кукла + инвентарь), Коллекция карт, Колода.
 
 @onready var tabs: TabContainer = %Tabs
 @onready var level_label: Label = %LevelLabel
@@ -19,9 +19,14 @@ func _ready() -> void:
 	%BackButton.pressed.connect(EventBus.back)
 	%SaveDirButton.pressed.connect(func(): OS.shell_open(SaveSystem.get_save_dir_absolute()))
 	%WipeButton.pressed.connect(_confirm_wipe)
+	var equipment := preload("res://scenes/character/EquipmentPanel.gd").new()
+	equipment.name = "Equipment"
+	tabs.add_child(equipment)
+	tabs.move_child(equipment, 1)
 	tabs.set_tab_title(0, "Статистика")
-	tabs.set_tab_title(1, "Коллекция карт")
-	tabs.set_tab_title(2, "Колода")
+	tabs.set_tab_title(1, "Снаряжение")
+	tabs.set_tab_title(2, "Коллекция карт")
+	tabs.set_tab_title(3, "Колода")
 	GameManager.player_changed.connect(_refresh_stats)
 	_refresh_all()
 
@@ -45,7 +50,7 @@ func _refresh_all() -> void:
 
 func _refresh_stats() -> void:
 	var p := GameManager.player_data
-	level_label.text = "Уровень %d" % p.level
+	level_label.text = "%s · %s" % [p.get("name", ""), Loc.t("Уровень %d") % p.level]
 	total_xp_label.text = "Всего опыта: %d" % p.get("total_xp", 0)
 	(avatar_orb.material as ShaderMaterial).set_shader_parameter("progress", float(p.xp) / maxf(p.xp_to_next, 1))
 
@@ -55,7 +60,9 @@ func _refresh_stats() -> void:
 	_add_bar_row("Опыт", "XPBar", p.xp, p.xp_to_next, "%d / %d" % [p.xp, p.xp_to_next])
 	_add_bar_row("Энергия", "EnergyBar", p.energy, p.max_energy, "%d / %d" % [p.energy, p.max_energy])
 	_add_text_row("Золото", str(p.gold), Palette.GOLD)
-	_add_text_row("Уклонение", "%d%%" % XPCalculator.dodge_chance(p.attributes.get("agility", 0)), Palette.TEXT)
+	var eq := GameManager.equipment_stats()
+	_add_text_row("Уклонение", "%d%%" % XPCalculator.dodge_chance(GameManager.effective_attributes().get("agility", 0), int(eq.get("dodge", 0))), Palette.TEXT)
+	_add_text_row("Броня", str(int(eq.get("armor", 0))), Palette.TEXT)
 
 	attr_points_label.text = "Очки атрибутов: %d" % p.attribute_points
 	attr_points_label.add_theme_color_override("font_color", Palette.MINT if p.attribute_points > 0 else Palette.TEXT_DIM)

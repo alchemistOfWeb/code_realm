@@ -1,6 +1,6 @@
 class_name DungeonGenerator
 extends RefCounted
-## Процедурная генерация этажа экспедиции (BSP). Только данные — 3D строит DungeonWorld.
+## Процедурная генерация подземной подлокации (BSP). Только данные — 3D строит LevelBuilder (вылазка SortieWorld).
 ##
 ## Сетка клеток (1 клетка = 1 м): 0 — стена, 1 — пол комнаты, 2 — коридор.
 ## Комнаты — листья BSP-дерева; соседние поддеревья соединяются L-образными коридорами шириной 2.
@@ -15,8 +15,10 @@ const WALL := 0
 const FLOOR := 1
 const CORRIDOR := 2
 
-## used: {"riddles": [], "safes": []} — что уже было в этой экспедиции (без повторов).
-static func generate(floor_num: int, seed_value: int, used: Dictionary = {}) -> Dictionary:
+## used: {"riddles": [], "safes": []} — что уже было в этой вылазке (без повторов).
+## opts (подземная подлокация из data/locations.json): npcs, enemies, pool, chests, safe, riddle_gate,
+## warden, boss, neighbors [{id, name, kind}], entry (id соседа, откуда пришли). Пустой opts — старый режим.
+static func generate(floor_num: int, seed_value: int, used: Dictionary = {}, opts: Dictionary = {}) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var w := 30 + floor_num * 6
@@ -62,8 +64,11 @@ static func generate(floor_num: int, seed_value: int, used: Dictionary = {}) -> 
 					gates.append(Vector2i(x, y))
 					break
 
+	var gated: bool = opts.is_empty() or opts.get("riddle_gate", false) or opts.get("warden", false)
+	if not gated:
+		gates.clear()
 	var result := {
-		"w": w, "h": h, "grid": grid, "rooms": rooms, "floor": floor_num,
+		"w": w, "h": h, "grid": grid, "rooms": rooms, "floor": floor_num, "underground": true, "exits": [],
 		"name": FLOOR_NAMES[clampi(floor_num - 1, 0, FLOOR_NAMES.size() - 1)],
 		"start": start_room.center, "exit": exit_room.center, "exit_room": exit_room.id,
 		"gates": gates, "gate_mode": "riddle", "riddle_id": "", "warden_cell": Vector2i(-1, -1),
@@ -82,7 +87,8 @@ static func generate(floor_num: int, seed_value: int, used: Dictionary = {}) -> 
 	if riddles.is_empty():
 		riddles = RiddleIds.list()
 	result.riddle_id = riddles[rng.randi() % riddles.size()]
-	if floor_num >= 2 and rng.randf() < 0.45 and not gates.is_empty():
+	var want_warden: bool = opts.get("warden", false) if not opts.is_empty() else (floor_num >= 2 and rng.randf() < 0.45)
+	if want_warden and not gates.is_empty():
 		result.gate_mode = "warden"
 		var g: Vector2i = gates[0]
 		for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
@@ -96,7 +102,9 @@ static func generate(floor_num: int, seed_value: int, used: Dictionary = {}) -> 
 	# --- NPC (по одному на комнату)
 	var npcs: Array = NPC_POOL.duplicate()
 	_shuffle(npcs, rng)
-	var npc_count := mini(2, pool.size())
+	if opts.has("npcs"):
+		npcs = opts.npcs.duplicate()
+	var npc_count := mini(2 if not opts.has("npcs") else npcs.size(), pool.size())
 	for i in npc_count:
 		var room: Dictionary = pool[i]
 		var cell := _free_cell(room.rect, rng, occupied)
@@ -104,7 +112,8 @@ static func generate(floor_num: int, seed_value: int, used: Dictionary = {}) -> 
 
 	# --- Сейф (обязательно, если на этаже Грета)
 	var has_greta: bool = result.npcs.any(func(n): return n.id == "greta")
-	if has_greta or rng.randf() < 0.75:
+	var want_safe: bool = opts.get("safe", false) if not opts.is_empty() else (has_greta or rng.randf() < 0.75)
+	if want_safe or has_greta:
 		var safes: Array = SafeIds.list().filter(func(id): return not id in used.get("safes", []))
 		if safes.is_empty():
 			safes = SafeIds.list()
@@ -114,24 +123,48 @@ static func generate(floor_num: int, seed_value: int, used: Dictionary = {}) -> 
 
 	# --- Враги
 	var tier := CardDatabase.all_enemies().filter(func(e): return _regular_enemy(e, floor_num))
+	if opts.has("pool"):
+		tier = CardDatabase.all_enemies().filter(func(e): return e.id in opts.pool)
 	var strong := tier.filter(func(e): return int(e.get("floor", 1)) == floor_num)
-	var enemy_count := mini(2 + floor_num, maxi(1, pool.size() + 1))
+	var enemy_count := mini(int(opts.get("enemies", 2 + floor_num)), maxi(1, pool.size() * 2 + 1))
 	for i in enemy_count:
 		var room: Dictionary = pool[(i + 1) % pool.size()] if not pool.is_empty() else start_room
 		if room.id == start_room.id and pool.size() > 0:
 			continue
+		if tier.is_empty():
+			break
 		var list: Array = strong if (rng.randf() < 0.6 and not strong.is_empty()) else tier
 		var e: Dictionary = list[rng.randi() % list.size()]
 		result.enemies.append({"id": e.id, "cell": _free_cell(room.rect, rng, occupied), "room": room.id})
 
 	# --- Босс / мини-босс в комнате выхода
-	if floor_num >= MAX_FLOORS:
+	if not opts.is_empty():
+		if opts.get("boss", "") != "":
+			result.boss = {"id": opts.boss, "cell": _free_cell(er, rng, occupied)}
+	elif floor_num >= MAX_FLOORS:
 		result.boss = {"id": "corrupted_compiler", "cell": _free_cell(er, rng, occupied)}
 	elif floor_num == 2:
 		result.boss = {"id": "data_breach", "cell": _free_cell(er, rng, occupied)}
 
+	# --- Выходы в соседние подлокации: «назад» — в стартовой комнате, главный — лестница в комнате выхода
+	var neighbors: Array = opts.get("neighbors", [])
+	var entry: String = opts.get("entry", "")
+	var forward := neighbors.filter(func(n): return n.id != entry)
+	for n in neighbors.filter(func(n): return n.id == entry):
+		var cell := _free_cell(start_room.rect, rng, occupied)
+		result.exits.append(_exit(n, cell))
+	var other_rooms := pool.duplicate()
+	other_rooms.reverse()
+	for i in forward.size():
+		var cell: Vector2i = result.exit if i == 0 else _free_cell(other_rooms[(i - 1) % maxi(other_rooms.size(), 1)].rect, rng, occupied) if not other_rooms.is_empty() else result.exit
+		result.exits.append(_exit(forward[i], cell))
+	if entry != "":
+		for e in result.exits:
+			if e.to == entry:
+				result.start = e.cell + Vector2i(1, 0) if _walkable(grid, w, h, e.cell + Vector2i(1, 0)) else start_room.center
+
 	# --- Сундуки
-	var chest_count := 1 + (1 if rng.randf() < 0.5 else 0)
+	var chest_count: int = int(opts.get("chests", 1 + (1 if rng.randf() < 0.5 else 0)))
 	for i in chest_count:
 		if pool.is_empty():
 			break
@@ -247,6 +280,12 @@ static func _carve_line(grid: PackedByteArray, w: int, a: Vector2i, b: Vector2i)
 
 
 # ---------------------------------------------------------------- Утилиты
+
+static func _exit(n: Dictionary, cell: Vector2i) -> Dictionary:
+	var under: bool = WorldData.NODE_KINDS.get(n.get("kind", ""), {}).get("underground", false)
+	return {"to": n.id, "to_name": n.get("name", ""), "to_kind": n.get("kind", ""), "cell": cell,
+		"kind": "stairs_down" if under else "stairs_up", "sealed": false}
+
 
 static func _regular_enemy(e: Dictionary, floor_num: int) -> bool:
 	return int(e.get("floor", 1)) <= floor_num and not e.get("is_boss", false) and not e.get("is_miniboss", false)

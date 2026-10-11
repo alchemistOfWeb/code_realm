@@ -12,6 +12,7 @@ signal knowledge_reset(spec_id: String)
 signal player_changed()
 signal deck_changed()
 signal world_changed()
+signal equipment_changed()
 
 ## Стартовый набор «Странника» (выдаётся один раз при первом открытии колоды)
 const STARTER_PACK := ["sql_query", "git_commit", "try_except", "list_comprehension", "async_coroutine",
@@ -56,11 +57,46 @@ static func default_player_data() -> Dictionary:
 		"dungeon_runs": 0,
 		"lootboxes": 0,
 		"created_at": Time.get_datetime_string_from_system(),
+		"name": "Странник",
+		"look": Appearance.default_look(),
+		"inventory": [],        # id предметов (повторы — несколько экземпляров)
+		"equipment": {},        # слот → id предмета
 	}
 
 
 static func default_world() -> Dictionary:
-	return {"flags": {}, "items": {}, "quests": {}, "stats": {"fights_won": 0, "riddles": 0, "safes": 0, "expeditions": 0, "deepest_floor": 0}}
+	return {"flags": {}, "items": {}, "quests": {}, "locations": {},
+		"stats": {"fights_won": 0, "riddles": 0, "safes": 0, "expeditions": 0, "deepest_floor": 0, "falls": 0}}
+
+
+## Вызывается SaveSystem после загрузки: миграции и пересчёт производных значений.
+func after_load() -> void:
+	if player_data.equipment.is_empty() and not world.flags.get("starter_kit", false):
+		give_starter_kit()
+	recalc_max_hp()
+
+
+## Новый герой: имя, внешность, расовый бонус, стартовое снаряжение.
+func create_hero(hero_name: String, look: Dictionary) -> void:
+	reset_all()
+	player_data.name = hero_name
+	player_data.look = look.duplicate()
+	var bonus: Dictionary = Appearance.race(look.get("race", "human")).get("bonus", {})
+	for key in bonus:
+		if key == "attribute_points":
+			player_data.attribute_points += int(bonus[key])
+		elif player_data.attributes.has(key):
+			player_data.attributes[key] += int(bonus[key])
+	give_starter_kit()
+	recalc_max_hp()
+	player_data.hp = player_data.max_hp
+
+
+func give_starter_kit() -> void:
+	world.flags["starter_kit"] = true
+	for slot in ItemDatabase.STARTER:
+		player_data.equipment[slot] = ItemDatabase.STARTER[slot]
+	equipment_changed.emit()
 
 
 func reset_all() -> void:
@@ -91,7 +127,7 @@ func gain_xp(amount: int) -> void:
 
 func _level_up() -> void:
 	player_data.level += 1
-	player_data.max_hp = XPCalculator.max_hp_for_level(player_data.level)
+	recalc_max_hp()
 	player_data.hp = player_data.max_hp
 	player_data.xp_to_next = XPCalculator.xp_to_next(player_data.level)
 	player_data.attribute_points += 1
@@ -405,6 +441,7 @@ func auto_build_deck() -> void:
 	player_changed.emit()
 
 
+## Ограничения на минимальный размер колоды нет: в вылазку можно идти с любой колодой.
 func deck_ready() -> bool:
 	return combat_deck.size() >= XPCalculator.MIN_DECK_SIZE
 
@@ -514,6 +551,155 @@ func active_quests() -> Array:
 
 func add_stat(key: String, n: int = 1) -> void:
 	world.stats[key] = world.stats.get(key, 0) + n
+
+
+# ---------------------------------------------------------------- Снаряжение и инвентарь
+
+func equipped(slot: String) -> String:
+	return String(player_data.equipment.get(slot, ""))
+
+
+func owns_item(item_id: String) -> bool:
+	return item_id in player_data.inventory or item_id in player_data.equipment.values()
+
+
+## Причина, по которой нельзя купить ("" — можно).
+func buy_block_reason(item_id: String) -> String:
+	var item := ItemDatabase.get_item(item_id)
+	if item.is_empty() or item.get("price", 0) <= 0:
+		return Loc.t("Не продаётся")
+	if player_data.gold < item.price:
+		return Loc.t("Не хватает золота")
+	return ""
+
+
+func buy_item(item_id: String) -> bool:
+	if buy_block_reason(item_id) != "":
+		return false
+	add_gold(-int(ItemDatabase.get_item(item_id).price))
+	player_data.inventory.append(item_id)
+	equipment_changed.emit()
+	player_changed.emit()
+	return true
+
+
+## Продать предмет из инвентаря (не надетый). Возвращает полученное золото.
+func sell_item(item_id: String) -> int:
+	var i: int = player_data.inventory.find(item_id)
+	if i < 0:
+		return 0
+	player_data.inventory.remove_at(i)
+	var gold := ItemDatabase.sell_price(ItemDatabase.get_item(item_id))
+	add_gold(gold)
+	equipment_changed.emit()
+	return gold
+
+
+## Надеть предмет из инвентаря (slot "" — родной слот предмета). Старый предмет возвращается в инвентарь.
+func equip(item_id: String, slot: String = "") -> bool:
+	var item := ItemDatabase.get_item(item_id)
+	if item.is_empty():
+		return false
+	if slot == "":
+		slot = item.slot
+	if not ItemDatabase.fits(item, slot):
+		return false
+	var i: int = player_data.inventory.find(item_id)
+	if i < 0:
+		return false
+	player_data.inventory.remove_at(i)
+	var old := equipped(slot)
+	if old != "":
+		player_data.inventory.append(old)
+	player_data.equipment[slot] = item_id
+	_after_equipment_change()
+	return true
+
+
+func unequip(slot: String) -> void:
+	var old := equipped(slot)
+	if old == "":
+		return
+	player_data.equipment.erase(slot)
+	player_data.inventory.append(old)
+	_after_equipment_change()
+
+
+func _after_equipment_change() -> void:
+	var before: int = player_data.max_hp
+	recalc_max_hp()
+	if player_data.max_hp > before:
+		player_data.hp += player_data.max_hp - before
+	player_data.hp = clampi(player_data.hp, 1, player_data.max_hp)
+	equipment_changed.emit()
+	player_changed.emit()
+
+
+## Сумма характеристик надетых предметов.
+func equipment_stats() -> Dictionary:
+	var total := {}
+	for slot in player_data.equipment:
+		var item := ItemDatabase.get_item(player_data.equipment[slot])
+		var stats: Dictionary = item.get("stats", {})
+		for key in stats:
+			total[key] = int(total.get(key, 0)) + int(stats[key])
+	return total
+
+
+## Атрибуты с учётом снаряжения.
+func effective_attributes() -> Dictionary:
+	var attrs: Dictionary = player_data.attributes.duplicate()
+	var eq := equipment_stats()
+	for key in attrs:
+		attrs[key] = maxi(0, int(attrs[key]) + int(eq.get(key, 0)))
+	return attrs
+
+
+func recalc_max_hp() -> void:
+	player_data.max_hp = XPCalculator.max_hp_for_level(player_data.level) + int(equipment_stats().get("hp", 0))
+	player_data.hp = clampi(int(player_data.get("hp", player_data.max_hp)), 0, player_data.max_hp)
+
+
+## Атаки оружием в бою по экипировке (без оружия — кулаки).
+func combat_weapons() -> Array:
+	var list: Array = []
+	for slot in ["weapon", "offhand"]:
+		var item := ItemDatabase.get_item(equipped(slot))
+		var wt: String = item.get("weapon_type", "")
+		if wt != "" and not wt in list:
+			list.append(wt)
+	if list.is_empty():
+		list.append("fists")
+	return list
+
+
+## Параметры героя для CombatState.start().
+func combat_stats() -> Dictionary:
+	var eq := equipment_stats()
+	return {"max_hp": player_data.max_hp, "hp": player_data.hp, "attributes": effective_attributes(),
+		"weapons": combat_weapons(), "damage_bonus": int(eq.get("damage", 0)), "armor": int(eq.get("armor", 0)),
+		"dodge_bonus": int(eq.get("dodge", 0))}
+
+
+## Как экипировка выглядит на модели героя (для HeroRig.apply_equipment).
+func hero_outfit() -> Dictionary:
+	var outfit := HeroRig.DEFAULT_OUTFIT.duplicate()
+	var variants := {}
+	for slot in ["chest", "hands", "legs", "feet", "head", "shoulders"]:
+		var item := ItemDatabase.get_item(equipped(slot))
+		var visual: Dictionary = item.get("visual", {})
+		for part in visual:
+			outfit[part] = visual[part]
+			var set_name: String = visual[part]
+			if slot == "chest" or not variants.has(set_name):
+				variants[set_name] = int(item.get("variant", 0))
+	if equipped("head") == "":
+		outfit.head = ""
+	if equipped("shoulders") == "":
+		outfit.shoulders = ""
+	var weapon := ItemDatabase.get_item(equipped("weapon"))
+	var offhand := ItemDatabase.get_item(equipped("offhand"))
+	return {"outfit": outfit, "variants": variants, "weapon": weapon.get("model", ""), "offhand": offhand.get("model", "")}
 
 
 # ---------------------------------------------------------------- Карты

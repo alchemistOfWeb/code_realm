@@ -49,11 +49,13 @@ func _ready() -> void:
 func setup(params: Dictionary) -> void:
 	context = params.get("context", "training")
 	enemy_data = _find_enemy(params.get("enemy_id", "syntax_error"))
-	var p := GameManager.player_data
-	var hp: int = p.max_hp if context == "training" else maxi(1, p.hp)
+	var stats := GameManager.combat_stats()
+	if context == "training":
+		stats.hp = stats.max_hp
+	stats.hp = maxi(1, stats.hp)
 	var deck: Array = params.get("deck", GameManager.combat_deck)
 	state = CombatState.new()
-	state.start(enemy_data, deck, {"max_hp": p.max_hp, "hp": hp, "attributes": p.attributes})
+	state.start(enemy_data, deck, stats)
 	_build()
 	Audio.push_music(Audio.BATTLE_MUSIC)
 	Audio.play("draw", 0.0)
@@ -207,7 +209,7 @@ func _build() -> void:
 	_end_btn.set_meta("sfx", "")
 	_end_btn.pressed.connect(_on_end_turn)
 	player_row.add_child(_end_btn)
-	for id in XPCalculator.WEAPONS:
+	for id in state.weapons:
 		_weapons_box.add_child(_action_button(XPCalculator.WEAPONS[id], "weapon", id))
 	for id in XPCalculator.RUNES:
 		_runes_box.add_child(_action_button(XPCalculator.RUNES[id], "rune", id))
@@ -322,7 +324,7 @@ func _refresh() -> void:
 		if kind == "weapon":
 			var cost := state.weapon_cost(id)
 			b.text = "%d" % state.weapon_damage(id)
-			b.tooltip_text = "%s: %d урона, %d выносл.\n%s" % [XPCalculator.WEAPONS[id].name, state.weapon_damage(id), cost, XPCalculator.WEAPONS[id].desc]
+			b.tooltip_text = Loc.t("%s: %d урона, %d выносл.\n%s") % [Loc.t(XPCalculator.WEAPONS[id].name), state.weapon_damage(id), cost, Loc.t(XPCalculator.WEAPONS[id].desc)]
 			b.disabled = _busy or state.over or p.stamina < cost
 		else:
 			var rune: Dictionary = XPCalculator.RUNES[id]

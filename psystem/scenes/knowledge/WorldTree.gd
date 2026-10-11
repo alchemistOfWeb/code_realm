@@ -135,94 +135,23 @@ func _on_spec_pressed(spec_id: String) -> void:
 	EventBus.go("mini_tree", {"spec_id": spec_id})
 
 
-# ---------------------------------------------------------------- Экспедиция
+# ---------------------------------------------------------------- Карта мира
 
 func _build_expedition_button() -> void:
 	var btn := Button.new()
-	btn.text = "Экспедиция в руины"
-	btn.icon = Palette.game_icon("portal")
+	btn.text = "Карта мира"
+	btn.icon = Palette.game_icon("treasure-map")
 	btn.theme_type_variation = &"AccentButton"
 	btn.add_theme_constant_override("icon_max_width", 26)
 	btn.add_theme_font_size_override("font_size", 16)
 	btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	btn.offset_left = -270
+	btn.offset_left = -250
 	btn.offset_top = -66
 	btn.offset_right = -18
 	btn.offset_bottom = -18
-	btn.tooltip_text = "Исследуй сломанный механический город: диалоги, загадки, сейфы с Python-кодом и карточные бои"
-	btn.pressed.connect(_open_expedition_prep)
+	btn.tooltip_text = "Сотня локаций: леса, руины, пещеры и гробницы. Вылазка стоит %d энергии." % XPCalculator.SORTIE_ENERGY_COST
+	btn.pressed.connect(func(): EventBus.go("world_map"))
 	add_child(btn)
-
-
-func _open_expedition_prep() -> void:
-	var overlay := Control.new()
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(overlay)
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.7)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(dim)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.add_child(center)
-	var panel := PanelContainer.new()
-	var brass := Color("#C9A24A")
-	panel.add_theme_stylebox_override("panel", Palette.glow_box(Color("#120F0A", 0.97), brass, Color(brass, 0.3), 16, 14))
-	center.add_child(panel)
-	var box := VBoxContainer.new()
-	box.custom_minimum_size.x = 600
-	box.add_theme_constant_override("separation", 12)
-	panel.add_child(box)
-	var title := Label.new()
-	title.text = "Руины Феррограда"
-	title.theme_type_variation = &"TitleLabel"
-	title.add_theme_color_override("font_color", brass.lightened(0.3))
-	box.add_child(title)
-	var lore := Label.new()
-	lore.text = "Великий Механизм остановился, и порча свела автоматонов с ума. В руинах тебя ждут жители, которым пригодятся твои знания, двери-загадки, сейфы с испорченным Python-кодом и порченые машины. Три этажа вниз — к Сердцу Механизма."
-	lore.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lore.add_theme_color_override("font_color", Color("#E8DCC0"))
-	box.add_child(lore)
-	var p := GameManager.player_data
-	var energy_ok: bool = p.energy >= XPCalculator.DUNGEON_ENERGY_COST
-	var deck_ok := GameManager.deck_ready()
-	var req := RichTextLabel.new()
-	req.bbcode_enabled = true
-	req.fit_content = true
-	req.text = "%s Энергия: %d / %d (нужно %d — учи темы: +5 за каждую)\n%s Колода: %d карт (нужно минимум %d — собери в «Персонаж → Колода»)\n[color=#8C8CB0]HP в экспедиции: %d. Поражение в бою — возврат в лагерь и потеря 20%% золота.[/color]" % [
-		"[color=#00D4AA]✓[/color]" if energy_ok else "[color=#FF6B6B]✗[/color]", p.energy, p.max_energy, XPCalculator.DUNGEON_ENERGY_COST,
-		"[color=#00D4AA]✓[/color]" if deck_ok else "[color=#FF6B6B]✗[/color]", GameManager.combat_deck.size(), XPCalculator.MIN_DECK_SIZE, p.max_hp]
-	box.add_child(req)
-	var stats: Dictionary = GameManager.world.get("stats", {})
-	if stats.get("expeditions", 0) > 0:
-		var st := Label.new()
-		st.text = "Экспедиций: %d · глубина: %d · побед: %d · загадок: %d · сейфов: %d" % [stats.get("expeditions", 0), stats.get("deepest_floor", 0), stats.get("fights_won", 0), stats.get("riddles", 0), stats.get("safes", 0)]
-		st.theme_type_variation = &"DimLabel"
-		box.add_child(st)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	box.add_child(row)
-	var go := Button.new()
-	go.text = "Отправиться (−%d энергии)" % XPCalculator.DUNGEON_ENERGY_COST
-	go.theme_type_variation = &"AccentButton"
-	go.disabled = not (energy_ok and deck_ok)
-	go.pressed.connect(func():
-		overlay.queue_free()
-		EventBus.go("dungeon"))
-	row.add_child(go)
-	if not deck_ok:
-		var deck_btn := Button.new()
-		deck_btn.text = "Собрать колоду"
-		deck_btn.pressed.connect(func():
-			overlay.queue_free()
-			EventBus.go("character", {"tab": 2}))
-		row.add_child(deck_btn)
-	var cancel := Button.new()
-	cancel.text = "Не сейчас"
-	cancel.theme_type_variation = &"GhostButton"
-	cancel.pressed.connect(overlay.queue_free)
-	row.add_child(cancel)
 
 
 # ---------------------------------------------------------------- Туториал «Путь новичка»
@@ -235,8 +164,8 @@ func _refresh_quests() -> void:
 	var steps := [
 		["Изучи первый узел Python Developer → получи XP", first_learned],
 		["Получи первую карту — пройди общий тест дерева", GameManager.collection_size() > 0],
-		["Собери колоду из %d+ карт" % XPCalculator.MIN_DECK_SIZE, GameManager.combat_deck.size() >= XPCalculator.MIN_DECK_SIZE],
-		["Войди в подземелье (стоит %d энергии)" % XPCalculator.DUNGEON_ENERGY_COST, GameManager.player_data.get("dungeon_runs", 0) > 0],
+		[Loc.t("Загляни в лавку и подбери снаряжение"), GameManager.player_data.inventory.size() > 0 or GameManager.world.flags.get("visited_shop", false)],
+		[Loc.t("Отправься в вылазку с карты мира (стоит %d энергии)") % XPCalculator.SORTIE_ENERGY_COST, GameManager.player_data.get("dungeon_runs", 0) > 0],
 	]
 	var current_found := false
 	var all_done := true

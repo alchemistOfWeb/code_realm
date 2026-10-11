@@ -1,0 +1,67 @@
+{
+	"_doc": "Реализованные локации: граф подлокаций. kind — тип уровня (meadow/forest/riverside/ruins — поверхность; cave/tomb/dungeon — подземелье). links — переходы. features: enemies (число), pool (id врагов), chests, npcs, safe, riddle_gate, boss, platforms (прыжки по движущимся платформам), floor (сложность подземелья 1..3).",
+	"locations": {
+		"whisper_grove": {
+			"biome": "forest", "sky": "day", "music": 0,
+			"desc": "Светлый лес у лагеря искателей. Говорят, в его глубине пробудилось древнее Сердце рощи, а звери стали странно себя вести: в них проросли баги.",
+			"desc_en": "A bright forest near the seekers' camp. They say the ancient Heart of the Grove has awakened deep inside, and the beasts behave strangely: bugs have sprouted in them.",
+			"nodes": [
+				{"id": "edge", "name": "Опушка", "name_en": "Forest Edge", "kind": "meadow", "pos": [0.10, 0.60], "links": ["firefly_path", "brook"], "start": true,
+					"desc": "Залитая солнцем опушка. Отсюда начинаются все тропы рощи.", "desc_en": "A sunlit edge of the woods. All the grove's trails begin here.",
+					"features": {"enemies": 3, "pool": ["forest_rat", "spam_wasp"], "chests": 2, "npcs": ["lio"]}},
+				{"id": "firefly_path", "name": "Тропа светлячков", "name_en": "Firefly Path", "kind": "forest", "pos": [0.30, 0.36], "links": ["edge", "old_shrine", "mushroom_cave"],
+					"desc": "Узкая тропа под густыми кронами. Светлячки мерцают даже днём.", "desc_en": "A narrow path under dense crowns. Fireflies glow even by day.",
+					"features": {"enemies": 4, "pool": ["forest_rat", "spam_wasp", "web_crawler"], "chests": 2}},
+				{"id": "brook", "name": "Звонкий ручей", "name_en": "Ringing Brook", "kind": "riverside", "pos": [0.32, 0.80], "links": ["edge", "druid_glade"],
+					"desc": "Мост смыло — через ручей придётся прыгать по качающимся плотам. Упадёшь — течение унесёт тебя к лагерю.", "desc_en": "The bridge is gone: cross the brook by jumping across swaying rafts. Fall in and the current carries you back to camp.",
+					"features": {"enemies": 3, "pool": ["recursive_frog", "python_constrictor"], "chests": 2, "platforms": true}},
+				{"id": "old_shrine", "name": "Старое святилище", "name_en": "Old Shrine", "kind": "ruins", "pos": [0.52, 0.18], "links": ["firefly_path", "root_tomb"],
+					"desc": "Обвитые лозой колонны древнего храма. Дверь в гробницу запечатана загадкой.", "desc_en": "Vine-covered columns of an ancient temple. The door to the tomb is sealed by a riddle.",
+					"features": {"enemies": 3, "pool": ["deprecated_knight", "spam_wasp"], "chests": 2, "riddle_gate": true, "npcs": ["oracle"]}},
+				{"id": "mushroom_cave", "name": "Грибная пещера", "name_en": "Mushroom Cave", "kind": "cave", "pos": [0.52, 0.50], "links": ["firefly_path", "spider_den"], "floor": 1,
+					"desc": "Сырая пещера, светящиеся грибы и гулкое эхо.", "desc_en": "A damp cave with glowing mushrooms and a booming echo.",
+					"features": {"enemies": 4, "pool": ["memory_leak", "forest_rat", "segfault"], "chests": 3, "safe": true}},
+				{"id": "druid_glade", "name": "Поляна друидов", "name_en": "Druids' Glade", "kind": "meadow", "pos": [0.58, 0.82], "links": ["brook", "spider_den"],
+					"desc": "Каменный круг и старый друид, который знает толк в Python.", "desc_en": "A stone circle and an old druid who knows his Python.",
+					"features": {"enemies": 2, "pool": ["recursive_frog", "scraper_goblin"], "chests": 2, "npcs": ["greta"]}},
+				{"id": "root_tomb", "name": "Гробница корней", "name_en": "Tomb of Roots", "kind": "tomb", "pos": [0.76, 0.24], "links": ["old_shrine", "heart_oak"], "floor": 2,
+					"desc": "Корни пробили своды склепа. Внизу шепчутся устаревшие рыцари.", "desc_en": "Roots have broken through the crypt's vaults. Deprecated knights whisper below.",
+					"features": {"enemies": 5, "pool": ["deprecated_knight", "segfault", "null_pointer"], "chests": 3, "safe": true}},
+				{"id": "spider_den", "name": "Логово Королевы Вебхуков", "name_en": "Webhook Queen's Den", "kind": "cave", "pos": [0.78, 0.62], "links": ["mushroom_cave", "druid_glade", "heart_oak"], "floor": 2,
+					"desc": "Паутина, кости и тихий стрекот. Здесь живёт Королева Вебхуков.", "desc_en": "Webs, bones and quiet chittering. The Webhook Queen lives here.",
+					"features": {"enemies": 4, "pool": ["web_crawler", "race_condition"], "chests": 3, "boss": "webhook_queen"}},
+				{"id": "heart_oak", "name": "Сердце рощи", "name_en": "Heart of the Grove", "kind": "forest", "pos": [0.93, 0.42], "links": ["root_tomb", "spider_den"],
+					"desc": "Исполинский дуб и пробудившийся Древний Монолит — источник порчи.", "desc_en": "A giant oak and the awakened Ancient Monolith, the source of the corruption.",
+					"features": {"enemies": 3, "pool": ["bug_gremlin", "deprecated_knight"], "chests": 2, "boss": "ancient_monolith", "platforms": true}}
+			]
+		},
+		"ferrograd_ruins": {
+			"biome": "ruins", "sky": "sunset", "music": 1,
+			"desc": "Сломанный механический город. Великий Механизм остановился, порча свела автоматонов с ума. Жителям пригодятся твои знания.",
+			"desc_en": "A broken clockwork city. The Great Mechanism has stopped and corruption has driven the automatons mad. The townsfolk need your knowledge.",
+			"nodes": [
+				{"id": "outskirts", "name": "Предместья", "name_en": "Outskirts", "kind": "ruins", "pos": [0.10, 0.52], "links": ["market", "broken_bridge"], "start": true,
+					"desc": "Покосившиеся дома и тишина. Где-то тикают часы.", "desc_en": "Crooked houses and silence. Somewhere a clock is ticking.",
+					"features": {"enemies": 3, "pool": ["syntax_error", "null_pointer", "scraper_goblin"], "chests": 2, "npcs": ["rzhavchik"]}},
+				{"id": "market", "name": "Пустой рынок", "name_en": "Empty Market", "kind": "ruins", "pos": [0.30, 0.30], "links": ["outskirts", "rusty_galleries"],
+					"desc": "Брошенные прилавки. Торговка Грета ищет свой клапан.", "desc_en": "Abandoned stalls. Greta the trader is looking for her valve.",
+					"features": {"enemies": 3, "pool": ["memory_leak", "race_condition"], "chests": 3, "npcs": ["greta", "cipher"]}},
+				{"id": "broken_bridge", "name": "Обрушенный мост", "name_en": "Broken Bridge", "kind": "ruins", "pos": [0.32, 0.76], "links": ["outskirts", "flooded_works"],
+					"desc": "Мост через пропасть рухнул. Остались только движущиеся платформы старого подъёмника.", "desc_en": "The bridge over the chasm has collapsed. Only the moving platforms of an old lift remain.",
+					"features": {"enemies": 2, "pool": ["infinite_loop", "syntax_error"], "chests": 2, "platforms": true}},
+				{"id": "rusty_galleries", "name": "Ржавые галереи", "name_en": "Rusty Galleries", "kind": "dungeon", "pos": [0.52, 0.28], "links": ["market", "boiler_depths"], "floor": 1,
+					"desc": "Первый ярус подземного города: трубы, шестерни и запертые решётки.", "desc_en": "The first tier of the underground city: pipes, gears and locked gates.",
+					"features": {"enemies": 4, "pool": ["syntax_error", "null_pointer", "memory_leak", "race_condition"], "chests": 3, "safe": true, "riddle_gate": true, "npcs": ["lio", "oracle"]}},
+				{"id": "flooded_works", "name": "Затопленный цех", "name_en": "Flooded Works", "kind": "dungeon", "pos": [0.55, 0.74], "links": ["broken_bridge", "boiler_depths"], "floor": 2,
+					"desc": "Вода по колено, искрящие станки и Бесконечные Циклы.", "desc_en": "Knee-deep water, sparking machines and Infinite Loops.",
+					"features": {"enemies": 5, "pool": ["infinite_loop", "deadlock", "segfault"], "chests": 3, "safe": true}},
+				{"id": "boiler_depths", "name": "Котельные глубины", "name_en": "Boiler Depths", "kind": "dungeon", "pos": [0.72, 0.50], "links": ["rusty_galleries", "flooded_works", "mechanism_heart"], "floor": 2,
+					"desc": "Жар котлов и пар. Путь вниз охраняет Страж Моста.", "desc_en": "The heat of the boilers and steam. The Bridge Warden guards the way down.",
+					"features": {"enemies": 5, "pool": ["legacy_code", "infinite_loop", "deadlock", "segfault"], "chests": 3, "safe": true, "warden": true, "npcs": ["cipher"]}},
+				{"id": "mechanism_heart", "name": "Сердце Механизма", "name_en": "Heart of the Mechanism", "kind": "dungeon", "pos": [0.90, 0.50], "links": ["boiler_depths"], "floor": 3,
+					"desc": "Здесь бьётся остановленное сердце города и ждёт Порченый Компилятор.", "desc_en": "The stopped heart of the city beats here, and the Corrupted Compiler awaits.",
+					"features": {"enemies": 5, "pool": ["legacy_code", "data_breach", "deadlock"], "chests": 3, "safe": true, "boss": "corrupted_compiler"}}
+			]
+		}
+	}
+}

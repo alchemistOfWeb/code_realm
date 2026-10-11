@@ -80,7 +80,7 @@ show_percentage = false
 
 [node name="HPBox" type="HBoxContainer" parent="Row"]
 layout_mode = 2
-tooltip_text = "Здоровье = уровень персонажа"
+tooltip_text = "Здоровье: растёт с уровнем и снаряжением"
 theme_override_constants/separation = 8
 
 [node name="HPIcon" type="TextureRect" parent="Row/HPBox"]
@@ -100,7 +100,7 @@ text = "1 / 1"
 
 [node name="EnergyBox" type="HBoxContainer" parent="Row"]
 layout_mode = 2
-tooltip_text = "Энергия: +5 за изученный узел. Нужна для входа в подземелье (30)."
+tooltip_text = "Энергия: +5 за изученный узел. Вылазка в локацию стоит 10."
 theme_override_constants/separation = 8
 
 [node name="EnergyIcon" type="TextureRect" parent="Row/EnergyBox"]

@@ -1,19 +1,28 @@
 extends Control
-## Корневая сцена: фон, стек экранов (навигация), HUD, уведомления, баннер уровня.
+## Корневая сцена: фон, стек экранов (навигация), HUD, уведомления, баннер уровня, игровое меню.
 ##
+## Старт — главное меню (выбор профиля). После выбора профиля корнем стека становится WorldTree.
 ## Навигация: EventBus.go("screen_key", params) кладёт экран на стек, EventBus.back() снимает.
+## params.root = true — очистить стек и сделать экран корневым.
 ## Экран может реализовать setup(params) и on_resume() (вызывается при возврате на него).
 ## params.replace = true — заменить верхний экран вместо добавления.
 ## params.overlay = true — экран-оверлей: предыдущий экран остаётся видимым под ним.
 ##
 ## Dev-аргументы (после "--" в командной строке):
-##   --screen=world | mini:<spec_id> | lesson:<node_id> | character[:tab] | settings
+##   --screen=menu | creator | credits | shop | map | location:<id> | sortie:<loc>:<node> | world | mini:<spec_id> | lesson:<node_id> | character[:tab] | settings
 ##            test:<spec_id> [--answer=N [--finish]] | reward:<spec_id> | lootbox [--open]
 ##            combat:<enemy_id> [--auto=N] | dungeon[:seed] [--walk=N] | dialogue:<npc> [--pick=N] | riddle:<id> | safe:<id>
 ##   --shot=<abs_path.png> [--shot-delay=1.5]  — сделать скриншот и выйти (пишет в user://dev_saves/)
 ##   --demo  — демо-прогресс (user://demo_saves/), --levelup, --toast=<текст>
 
 const SCREENS := {
+	"main_menu": "res://scenes/menu/MainMenu.tscn",
+	"creator": "res://scenes/menu/CharacterCreator.tscn",
+	"credits": "res://scenes/menu/Credits.tscn",
+	"shop": "res://scenes/shop/ShopScreen.tscn",
+	"world_map": "res://scenes/world/WorldMap.tscn",
+	"location": "res://scenes/world/LocationMap.tscn",
+	"sortie": "res://scenes/world/SortieWorld.tscn",
 	"world": "res://scenes/knowledge/WorldTree.tscn",
 	"mini_tree": "res://scenes/knowledge/MiniTree.tscn",
 	"lesson": "res://scenes/knowledge/LessonPage.tscn",
@@ -23,12 +32,14 @@ const SCREENS := {
 	"reward": "res://scenes/rewards/RewardScroll.tscn",
 	"lootbox": "res://scenes/rewards/LootBox.tscn",
 	"combat": "res://scenes/combat/CombatScreen.tscn",
-	"dungeon": "res://scenes/dungeon/DungeonWorld.tscn",
 	"dialogue": "res://scenes/dialogue/DialogueScreen.tscn",
 	"riddle": "res://scenes/dungeon/RiddleScreen.tscn",
 	"safe": "res://scenes/dungeon/SafeScreen.tscn",
 }
 const RAYS := preload("res://shaders/rays.gdshader")
+## Экраны на всё окно: без верхней панели HUD.
+const FULLSCREEN := ["main_menu", "creator", "credits", "sortie"]
+const HUD_HEIGHT := 64.0
 
 const TOAST_ICONS := {
 	"info": "info", "success": "check", "warning": "info", "error": "x", "xp": "sparkles",
@@ -44,6 +55,7 @@ const TOAST_COLORS := {
 
 var _stack: Array[Control] = []
 var _level_banner: Control
+var _game_menu: Control
 
 
 func _ready() -> void:
@@ -51,24 +63,52 @@ func _ready() -> void:
 	EventBus.navigate_back.connect(_pop)
 	EventBus.navigate_home.connect(_home)
 	EventBus.toast.connect(_show_toast)
+	EventBus.quit_requested.connect(_quit)
+	EventBus.game_menu_requested.connect(_toggle_game_menu)
 	GameManager.level_up.connect(_on_level_up)
-	_push("world", {})
-	_apply_dev_args()
+	var args := _dev_args()
+	if args.has("screen") or args.has("demo"):
+		_dev_profile(args)
+		var screen: String = args.get("screen", "")
+		if screen in ["menu", "creator", "credits"]:
+			_push("main_menu", {})
+		else:
+			_push("world", {})
+		_apply_dev_args(args)
+	else:
+		_push("main_menu", {})
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		SaveSystem.save_all()
-		if not GameManager.claude_notes.is_empty():
-			ClaudeNotesExporter.export_all()
+		_save_before_exit()
+
+
+func _save_before_exit() -> void:
+	SaveSystem.save_all()
+	if SaveSystem.has_active_profile() and not GameManager.claude_notes.is_empty():
+		ClaudeNotesExporter.export_all()
+
+
+func _quit() -> void:
+	_save_before_exit()
+	get_tree().quit()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	var back := event.is_action_pressed("ui_cancel")
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_XBUTTON1:
 		back = true
-	if back and _stack.size() > 1:
+	if not back:
+		return
+	if is_instance_valid(_game_menu):
+		_toggle_game_menu()
+		get_viewport().set_input_as_handled()
+	elif _stack.size() > 1:
 		_pop()
+		get_viewport().set_input_as_handled()
+	elif current_screen_key() == "world" and event.is_action_pressed("ui_cancel"):
+		_toggle_game_menu()
 		get_viewport().set_input_as_handled()
 
 
@@ -78,6 +118,11 @@ func _push(key: String, params: Dictionary) -> void:
 	if not SCREENS.has(key):
 		push_error("Main: неизвестный экран " + key)
 		return
+	if is_instance_valid(_game_menu):
+		_game_menu.queue_free()
+	if params.get("root", false):
+		while not _stack.is_empty():
+			_stack.pop_back().queue_free()
 	if params.get("replace", false) and _stack.size() > 1:
 		_stack.pop_back().queue_free()
 	if not _stack.is_empty() and _stack[-1].has_method("on_cover"):
@@ -93,6 +138,7 @@ func _push(key: String, params: Dictionary) -> void:
 	_stack.append(screen)
 	if screen.has_method("setup"):
 		screen.setup(params)
+	_update_chrome()
 	_fade_in(screen)
 
 
@@ -113,6 +159,7 @@ func _home() -> void:
 
 
 func _resume_top() -> void:
+	_update_chrome()
 	var top := _stack[-1]
 	var was_visible := top.visible   # под оверлеем экран оставался видимым
 	top.show()
@@ -128,8 +175,67 @@ func _fade_in(screen: Control) -> void:
 	tw.tween_property(screen, "modulate:a", 1.0, 0.18)
 
 
+## HUD скрыт на полноэкранных экранах (меню, создание героя, вылазка).
+func _update_chrome() -> void:
+	if _stack.is_empty():
+		return
+	var full := current_screen_key() in FULLSCREEN
+	$HUD.visible = not full
+	screen_root.offset_top = 0.0 if full else HUD_HEIGHT
+
+
 func current_screen_key() -> String:
 	return _stack[-1].get_meta("screen_key", "") if not _stack.is_empty() else ""
+
+
+# ---------------------------------------------------------------- Игровое меню (Esc)
+
+func _toggle_game_menu() -> void:
+	if is_instance_valid(_game_menu):
+		_game_menu.queue_free()
+		_game_menu = null
+		return
+	Audio.play("open")
+	var layer := Control.new()
+	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.add_child(layer)
+	_game_menu = layer
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(center)
+	var panel := PanelContainer.new()
+	panel.theme_type_variation = &"GlassPanel"
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.custom_minimum_size.x = 320
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = "Меню"
+	title.theme_type_variation = &"TitleLabel"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var items := [
+		["Продолжить", "chevron-right", _toggle_game_menu, "AccentButton"],
+		["Настройки", "settings", func(): EventBus.go("settings"), ""],
+		["Титры", "scroll-text", func(): EventBus.go("credits"), ""],
+		["Главное меню", "arrow-left", EventBus.go_main_menu, ""],
+		["Выйти из игры", "x", _quit, "GhostButton"],
+	]
+	for it in items:
+		var b := Button.new()
+		b.text = it[0]
+		b.icon = Palette.icon(it[1])
+		b.custom_minimum_size.y = 42
+		if it[3] != "":
+			b.theme_type_variation = StringName(it[3])
+		b.pressed.connect(it[2])
+		box.add_child(b)
 
 
 # ---------------------------------------------------------------- Уведомления
@@ -180,6 +286,8 @@ func _show_toast(text: String, kind: String) -> void:
 
 
 func _on_level_up(new_level: int) -> void:
+	if "--shot" in " ".join(OS.get_cmdline_user_args()) and not "--levelup" in " ".join(OS.get_cmdline_user_args()):
+		return   # скриншоты без баннера
 	# Несколько уровней подряд — показываем один баннер с последним уровнем
 	if is_instance_valid(_level_banner):
 		_level_banner.queue_free()
@@ -276,15 +384,31 @@ func _on_level_up(new_level: int) -> void:
 
 # ---------------------------------------------------------------- Dev-аргументы
 
-func _apply_dev_args() -> void:
+func _dev_args() -> Dictionary:
 	var args := {}
 	for arg in OS.get_cmdline_user_args():
 		var kv := arg.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else ""
-	if args.has("shot"):
-		SaveSystem.save_dir = "user://dev_saves/"   # скриншоты не меняют реальные сохранения
+	return args
+
+
+## Dev-запуск: профиль не выбирается вручную. --demo → демо-прогресс, --shot → user://dev_saves/,
+## иначе — последний профиль (или dev_saves, если профилей нет).
+func _dev_profile(args: Dictionary) -> void:
 	if args.has("demo"):
 		_fill_demo_progress()
+	elif args.has("shot") or SaveSystem.last_profile_id() == "":
+		SaveSystem.use_dir("user://dev_saves/", true)
+	else:
+		SaveSystem.select_profile(SaveSystem.last_profile_id())
+
+
+func _apply_dev_args(args: Dictionary) -> void:
+	if args.has("autodeck"):
+		GameManager.grant_starter_pack()
+		for i in 12:
+			GameManager.add_card_to_collection(CardDatabase.roll_card([], 2.0).id)
+		GameManager.auto_build_deck()
 	if args.has("screen"):
 		var parts: PackedStringArray = args.screen.split(":", true, 1)
 		match parts[0]:
@@ -330,16 +454,38 @@ func _apply_dev_args() -> void:
 					for i in args.auto.to_int():
 						cs._on_end_turn()
 						await get_tree().create_timer(2.5).timeout
-			"dungeon":
+			"creator", "credits", "shop":
+				EventBus.go(parts[0])
+			"map":
+				EventBus.go("world_map")
+			"location":
+				EventBus.go("world_map")
+				EventBus.go("location", {"location_id": parts[1] if parts.size() > 1 else "whisper_grove"})
+			"sortie":
 				GameManager.grant_starter_pack()
-				EventBus.go("dungeon", {"free": true, "seed": parts[1].to_int() if parts.size() > 1 else 7})
+				var bits: PackedStringArray = (parts[1] if parts.size() > 1 else "whisper_grove:edge").split(":")
+				EventBus.go("sortie", {"free": true, "location_id": bits[0], "node_id": bits[1] if bits.size() > 1 else "",
+					"seed": bits[2].to_int() if bits.size() > 2 else 7})
+				if args.has("look"):
+					# Dev: поставить героя у переправы (platforms) или у выхода (exit) для скриншота
+					await get_tree().create_timer(0.8).timeout
+					var sw = _stack[-1]
+					var target := Vector3.ZERO
+					if args.look == "platforms" and not sw.data.platforms.is_empty():
+						target = sw.data.platforms[0].a
+						sw._player.global_position = target + Vector3(-4.5, 0.3, 0)
+					elif args.look == "exit" and not sw.data.exits.is_empty():
+						target = Vector3(sw.data.exits[-1].cell.x + 0.5, 0, sw.data.exits[-1].cell.y + 0.5)
+						sw._player.global_position = target + Vector3(-3.5, 0.3, 2.0)
+					var d: Vector3 = target - sw._player.global_position
+					sw._player.face_yaw(atan2(d.x, d.z))
 				if args.has("walk"):
-					var dw = _stack[-1]
 					var steps: int = args.walk.to_int()
+					await get_tree().create_timer(1.0).timeout
 					for i in steps:
-						Input.action_press("move_right")
+						Input.action_press("move_forward")
 						await get_tree().create_timer(0.1).timeout
-					Input.action_release("move_right")
+					Input.action_release("move_forward")
 			"dialogue", "riddle", "safe":
 				var key: String = {"dialogue": "npc_id", "riddle": "riddle_id", "safe": "safe_id"}[parts[0]]
 				EventBus.go(parts[0], {key: parts[1], "overlay": true})
@@ -362,8 +508,9 @@ func _apply_dev_args() -> void:
 
 ## Демо-прогресс для скриншотов/отладки. Пишет в user://demo_saves/, реальные сохранения не трогает.
 func _fill_demo_progress() -> void:
-	SaveSystem.save_dir = "user://demo_saves/"
-	GameManager.reset_all()
+	SaveSystem.use_dir("user://demo_saves/")
+	GameManager.create_hero("Демо", Appearance.default_look())
+	GameManager.player_data.gold = 400
 	var count := {"python_developer": 14, "ai_developer": 9, "python_backend": 5, "game_designer": 3}
 	for spec_id in count:
 		var flat := ContentParser.get_flat_nodes(spec_id)

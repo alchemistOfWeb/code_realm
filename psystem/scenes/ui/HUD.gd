@@ -31,11 +31,44 @@ func _ready() -> void:
 	%ChestButton.set_meta("sfx", "chest_creak")
 	%ChestButton.pressed.connect(func(): EventBus.go("lootbox", {"overlay": true}))
 	_add_xp_shine()
+	_add_nav_buttons()
 	%MusicButton.pressed.connect(func(): Settings.set_value("music_enabled", not Settings.get_value("music_enabled")))
 	%MusicButton.set_meta("sfx", "toggle")
 	Settings.changed.connect(_on_settings_changed)
 	_update_music_button()
 	refresh(false)
+
+
+## Кнопки «Карта мира», «Лавка» и «Меню» (главное меню, титры, выход из игры).
+func _add_nav_buttons() -> void:
+	var row: HBoxContainer = %CharacterButton.get_parent()
+	var at: int = %CharacterButton.get_index()
+	var defs := [
+		["Карта мира", "treasure-map", "Карта мира: локации и вылазки", func(): EventBus.go("world_map")],
+		["Лавка", "shop", "Лавка снаряжения: оружие и броня", func(): EventBus.go("shop")],
+	]
+	for d in defs:
+		var b := Button.new()
+		b.icon = Palette.game_icon(d[1])
+		b.tooltip_text = d[2]
+		b.add_theme_constant_override("h_separation", 0)
+		b.expand_icon = false
+		b.add_theme_constant_override("icon_max_width", 20)
+		b.pressed.connect(d[3])
+		row.add_child(b)
+		row.move_child(b, at)
+		at += 1
+	# Музыка переключается в настройках — освобождаем место под кнопку меню; логотип — только иконка
+	%MusicButton.visible = false
+	%LogoButton.text = ""
+	%LogoButton.tooltip_text = "Древо знаний (главный экран)"
+	row.add_theme_constant_override("separation", 10)
+	var menu := Button.new()
+	menu.icon = Palette.game_icon("power-button")
+	menu.tooltip_text = "Меню: главное меню, титры, выход из игры (Esc)"
+	menu.add_theme_constant_override("icon_max_width", 20)
+	menu.pressed.connect(func(): EventBus.game_menu_requested.emit())
+	row.add_child(menu)
 
 
 func _on_settings_changed(key: String) -> void:

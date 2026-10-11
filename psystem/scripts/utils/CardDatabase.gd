@@ -11,11 +11,22 @@ const TYPE_NAMES := {"spell": "Заклинание", "creature": "Сущест�
 static var _cards: Array = []
 static var _cards_by_id: Dictionary = {}
 static var _enemies: Array = []
+static var _lang := ""
+
+
+## Смена языка — перечитать каталоги с полями *_en.
+static func _check_lang() -> void:
+	if _lang != Loc.lang():
+		_lang = Loc.lang()
+		_cards.clear()
+		_cards_by_id.clear()
+		_enemies.clear()
 
 
 static func all_cards() -> Array:
+	_check_lang()
 	if _cards.is_empty():
-		_cards = _load_list(CARDS_FILE, "cards")
+		_cards = _load_list(CARDS_FILE, "cards").map(func(c): return Loc.localized(c, ["name", "description", "flavor_text"]))
 		for card in _cards:
 			_cards_by_id[card.id] = card
 	return _cards
@@ -82,8 +93,9 @@ static func roll_tree_cards(spec_id: String, count: int = -1) -> Array:
 
 
 static func all_enemies() -> Array:
+	_check_lang()
 	if _enemies.is_empty():
-		_enemies = _load_list(ENEMIES_FILE, "enemies")
+		_enemies = _load_list(ENEMIES_FILE, "enemies").map(func(e): return Loc.localized(e, ["name", "title", "description"]))
 	return _enemies
 
 

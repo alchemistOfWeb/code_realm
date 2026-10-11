@@ -612,6 +612,1834 @@
 			"from_specialization": "level_designer",
 			"art_color": "#F39C12",
 			"icon": "treasure-map"
+		},
+		{
+			"id": "fstring",
+			"name": "f-string",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"damage": 2
+			},
+			"flavor_text": "f\"{урон}\" — и враг подставлен",
+			"flavor_text_en": "f\"{damage}\" — and the enemy is interpolated",
+			"from_specialization": "python_developer",
+			"art_color": "#3E7BBF",
+			"icon": "quill-ink",
+			"description": "Наносит 2 урона.",
+			"description_en": "Deal 2 damage."
+		},
+		{
+			"id": "lambda_fn",
+			"name": "Lambda",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"draw": 1,
+				"next_spell_discount": 1
+			},
+			"flavor_text": "Безымянная, но полезная",
+			"flavor_text_en": "Nameless, but useful",
+			"from_specialization": "python_developer",
+			"art_color": "#4A90D9",
+			"icon": "lambda",
+			"description": "Даёт взять 1 карту, удешевляет следующее заклинание на 1.",
+			"description_en": "Draw 1 card, make your next spell cost 1 less."
+		},
+		{
+			"id": "virtualenv",
+			"name": "Virtualenv",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"shield": 5
+			},
+			"flavor_text": "Твои зависимости — только твои",
+			"flavor_text_en": "Your dependencies are yours alone",
+			"from_specialization": "python_developer",
+			"art_color": "#5DADE2",
+			"icon": "bubble-field",
+			"description": "Даёт +5 щита.",
+			"description_en": "Gain 5 shield."
+		},
+		{
+			"id": "pip_install",
+			"name": "pip install",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"draw": 2,
+				"self_damage": 1
+			},
+			"flavor_text": "Collecting... Installing... Ouch",
+			"flavor_text_en": "Collecting... Installing... Ouch",
+			"from_specialization": "python_developer",
+			"art_color": "#3776AB",
+			"icon": "cardboard-box",
+			"description": "Даёт взять 2 карты, ранит тебя на 1.",
+			"description_en": "Draw 2 cards, deal 1 damage to yourself."
+		},
+		{
+			"id": "docstring",
+			"name": "Docstring",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"heal": 3
+			},
+			"flavor_text": "\"\"\"Лечит. Возвращает надежду.\"\"\"",
+			"flavor_text_en": "\"\"\"Heals. Returns hope.\"\"\"",
+			"from_specialization": "python_developer",
+			"art_color": "#6FA8DC",
+			"icon": "scroll-quill",
+			"description": "Восстанавливает 3 HP.",
+			"description_en": "Restore 3 HP."
+		},
+		{
+			"id": "type_hint",
+			"name": "Type Hint",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"buff_attack": 2
+			},
+			"flavor_text": "-> Победа",
+			"flavor_text_en": "-> Victory",
+			"from_specialization": "python_developer",
+			"art_color": "#2E86C1",
+			"icon": "pointing",
+			"description": "Даёт твоему существу +2 к атаке на этот ход.",
+			"description_en": "Give a friendly creature +2 attack this turn."
+		},
+		{
+			"id": "unit_test",
+			"name": "Unit Test",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"taunt": true
+			},
+			"flavor_text": "Ловит баги собой",
+			"flavor_text_en": "Catches bugs with its body",
+			"from_specialization": "python_developer",
+			"art_color": "#1F618D",
+			"icon": "test-tubes",
+			"attack": 1,
+			"defense": 4,
+			"description": "Taunt.",
+			"description_en": "Taunt."
+		},
+		{
+			"id": "assert_stmt",
+			"name": "assert",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"execute_below": 4
+			},
+			"flavor_text": "AssertionError: враг жив",
+			"flavor_text_en": "AssertionError: enemy alive",
+			"from_specialization": "python_developer",
+			"art_color": "#2874A6",
+			"icon": "checked-shield",
+			"description": "Добивает цель с HP меньше 4.",
+			"description_en": "Destroy a target with less than 4 HP."
+		},
+		{
+			"id": "pep8",
+			"name": "PEP 8",
+			"type": "artifact",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"first_card_discount": 1
+			},
+			"flavor_text": "79 символов — и ни одним больше",
+			"flavor_text_en": "79 characters and not one more",
+			"from_specialization": "python_developer",
+			"art_color": "#5499C7",
+			"icon": "pencil-ruler",
+			"description": "Артефакт: Первая карта хода дешевле на 1.",
+			"description_en": "Artifact: Your first card each turn costs 1 less."
+		},
+		{
+			"id": "pytest_fixture",
+			"name": "Pytest Fixture",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"shield": 3
+			},
+			"flavor_text": "Готовит окружение до боя",
+			"flavor_text_en": "Sets up the environment before battle",
+			"from_specialization": "python_developer",
+			"art_color": "#21618C",
+			"icon": "toolbox",
+			"attack": 2,
+			"defense": 3,
+			"description": "При розыгрыше: даёт +3 щита.",
+			"description_en": "Battlecry: gain 3 shield."
+		},
+		{
+			"id": "context_manager",
+			"name": "Context Manager",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"shield": 4,
+				"heal": 2
+			},
+			"flavor_text": "with — и ресурсы закрыты",
+			"flavor_text_en": "with — and resources are closed",
+			"from_specialization": "python_developer",
+			"art_color": "#2471A3",
+			"icon": "door-handle",
+			"description": "Даёт +4 щита, восстанавливает 2 HP.",
+			"description_en": "Gain 4 shield, restore 2 HP."
+		},
+		{
+			"id": "iterator",
+			"name": "Iterator",
+			"type": "artifact",
+			"rarity": "uncommon",
+			"crystal_cost": 2,
+			"effect": {
+				"passive_draw": 1,
+				"every": 3
+			},
+			"flavor_text": "next(), next(), next()…",
+			"flavor_text_en": "next(), next(), next()…",
+			"from_specialization": "python_developer",
+			"art_color": "#5DADE2",
+			"icon": "cycle",
+			"description": "Артефакт: Каждый 3-й ход берёшь 1 карту.",
+			"description_en": "Artifact: Every 3 turns draw 1 card."
+		},
+		{
+			"id": "closure",
+			"name": "Closure",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"divine_shield": true
+			},
+			"flavor_text": "Помнит своё окружение",
+			"flavor_text_en": "Remembers its scope",
+			"from_specialization": "python_developer",
+			"art_color": "#2E86C1",
+			"icon": "locked-box",
+			"attack": 3,
+			"defense": 2,
+			"description": "Божественный щит.",
+			"description_en": "Divine Shield."
+		},
+		{
+			"id": "walrus",
+			"name": "Walrus Operator",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 2,
+			"effect": {
+				"damage": 3,
+				"draw": 1
+			},
+			"flavor_text": "Присваивает и бьёт одновременно",
+			"flavor_text_en": "Assigns and strikes at once",
+			"from_specialization": "python_developer",
+			"art_color": "#3498DB",
+			"icon": "walrus-head",
+			"description": "Наносит 3 урона, даёт взять 1 карту.",
+			"description_en": "Deal 3 damage, draw 1 card."
+		},
+		{
+			"id": "dataclass",
+			"name": "Dataclass",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"summon_copies": {
+					"count": 1,
+					"attack": 1,
+					"defense": 2
+				}
+			},
+			"flavor_text": "__init__ пишется сам",
+			"flavor_text_en": "__init__ writes itself",
+			"from_specialization": "python_developer",
+			"art_color": "#1A5276",
+			"icon": "files",
+			"attack": 2,
+			"defense": 2,
+			"description": "Призывает 1 копию 1/2.",
+			"description_en": "Summons 1 copy 1/2."
+		},
+		{
+			"id": "metaclass",
+			"name": "Metaclass",
+			"type": "creature",
+			"rarity": "rare",
+			"crystal_cost": 5,
+			"effect": {
+				"copy_enemy_attack": true,
+				"taunt": true
+			},
+			"flavor_text": "Класс классов классов",
+			"flavor_text_en": "A class of classes of classes",
+			"from_specialization": "python_developer",
+			"art_color": "#154360",
+			"icon": "abstract-024",
+			"attack": 3,
+			"defense": 5,
+			"description": "Taunt. Копирует атаку сильнейшего существа врага.",
+			"description_en": "Taunt. Copies the attack of the enemy's strongest creature."
+		},
+		{
+			"id": "asyncio_gather",
+			"name": "asyncio.gather",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"damage_split": 7
+			},
+			"flavor_text": "Все корутины разом",
+			"flavor_text_en": "All coroutines at once",
+			"from_specialization": "python_developer",
+			"art_color": "#1B4F72",
+			"icon": "lightning-branches",
+			"description": "Распределяет 7 урона между врагом и его существами.",
+			"description_en": "Split 7 damage among the enemy and their creatures."
+		},
+		{
+			"id": "mypy",
+			"name": "Type Checker",
+			"type": "artifact",
+			"rarity": "rare",
+			"crystal_cost": 3,
+			"effect": {
+				"passive_shield": 2
+			},
+			"flavor_text": "Success: no issues found",
+			"flavor_text_en": "Success: no issues found",
+			"from_specialization": "python_developer",
+			"art_color": "#2874A6",
+			"icon": "magnifying-glass",
+			"description": "Артефакт: +2 щита в начале хода.",
+			"description_en": "Artifact: Gain 2 shield at the start of your turn."
+		},
+		{
+			"id": "guido_blessing",
+			"name": "Guido's Blessing",
+			"type": "artifact",
+			"rarity": "legendary",
+			"crystal_cost": 6,
+			"effect": {
+				"spell_discount": 1,
+				"passive_heal": 2
+			},
+			"flavor_text": "Благосклонный пожизненный диктатор",
+			"flavor_text_en": "The benevolent dictator smiles",
+			"from_specialization": "python_developer",
+			"art_color": "#F4D03F",
+			"icon": "laurel-crown",
+			"description": "Артефакт: +2 HP в начале хода; заклинания дешевле на 1.",
+			"description_en": "Artifact: Restore 2 HP at the start of your turn; your spells cost 1 less."
+		},
+		{
+			"id": "zen_interpreter",
+			"name": "The Zen Interpreter",
+			"type": "creature",
+			"rarity": "legendary",
+			"crystal_cost": 8,
+			"effect": {
+				"divine_shield": true,
+				"draw": 2
+			},
+			"flavor_text": "Простое лучше, чем сложное",
+			"flavor_text_en": "Simple is better than complex",
+			"from_specialization": "python_developer",
+			"art_color": "#F7DC6F",
+			"icon": "meditation",
+			"attack": 6,
+			"defense": 6,
+			"description": "Божественный щит. При розыгрыше: даёт взять 2 карты.",
+			"description_en": "Divine Shield. Battlecry: draw 2 cards."
+		},
+		{
+			"id": "token_unit",
+			"name": "Token",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"draw": 1
+			},
+			"flavor_text": "≈ ¾ слова",
+			"flavor_text_en": "≈ ¾ of a word",
+			"from_specialization": "ai_developer",
+			"art_color": "#AF7AC5",
+			"icon": "token",
+			"description": "Даёт взять 1 карту.",
+			"description_en": "Draw 1 card."
+		},
+		{
+			"id": "temperature_zero",
+			"name": "Temperature 0",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"shield": 3
+			},
+			"flavor_text": "Никаких сюрпризов",
+			"flavor_text_en": "No surprises",
+			"from_specialization": "ai_developer",
+			"art_color": "#A569BD",
+			"icon": "thermometer-cold",
+			"description": "Даёт +3 щита.",
+			"description_en": "Gain 3 shield."
+		},
+		{
+			"id": "prompt_basic",
+			"name": "Prompt",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"damage": 2
+			},
+			"flavor_text": "Будь краток и конкретен",
+			"flavor_text_en": "Be brief and specific",
+			"from_specialization": "ai_developer",
+			"art_color": "#BB8FCE",
+			"icon": "talk",
+			"description": "Наносит 2 урона.",
+			"description_en": "Deal 2 damage."
+		},
+		{
+			"id": "tokenizer",
+			"name": "Tokenizer",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"draw": 1
+			},
+			"flavor_text": "Режет текст на смыслы",
+			"flavor_text_en": "Cuts text into meaning",
+			"from_specialization": "ai_developer",
+			"art_color": "#8E44AD",
+			"icon": "scissors",
+			"attack": 1,
+			"defense": 1,
+			"description": "При розыгрыше: даёт взять 1 карту.",
+			"description_en": "Battlecry: draw 1 card."
+		},
+		{
+			"id": "few_shot",
+			"name": "Few-Shot",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"discover": 3
+			},
+			"flavor_text": "Пример, пример, вопрос",
+			"flavor_text_en": "Example, example, question",
+			"from_specialization": "ai_developer",
+			"art_color": "#9B59B6",
+			"icon": "three-friends",
+			"description": "Показывает 3 верхних карты колоды — выбери одну.",
+			"description_en": "Look at the top 3 cards of your deck and take one."
+		},
+		{
+			"id": "loss_function",
+			"name": "Loss Function",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"damage_random": [
+					1,
+					4
+				]
+			},
+			"flavor_text": "Чем ниже, тем лучше",
+			"flavor_text_en": "The lower, the better",
+			"from_specialization": "ai_developer",
+			"art_color": "#7D3C98",
+			"icon": "chart",
+			"description": "Наносит от 1 до 4 урона.",
+			"description_en": "Deal 1–4 damage."
+		},
+		{
+			"id": "overfitting",
+			"name": "Overfitting",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"buff_attack": 3,
+				"self_damage": 1
+			},
+			"flavor_text": "Идеально на трейне",
+			"flavor_text_en": "Perfect on the training set",
+			"from_specialization": "ai_developer",
+			"art_color": "#A569BD",
+			"icon": "muscle-up",
+			"description": "Даёт твоему существу +3 к атаке на этот ход, ранит тебя на 1.",
+			"description_en": "Give a friendly creature +3 attack this turn, deal 1 damage to yourself."
+		},
+		{
+			"id": "chatbot",
+			"name": "Chatbot",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {},
+			"flavor_text": "Как я могу помочь?",
+			"flavor_text_en": "How can I help?",
+			"from_specialization": "ai_developer",
+			"art_color": "#C39BD3",
+			"icon": "robot-antennas",
+			"attack": 2,
+			"defense": 2,
+			"description": "Надёжный боец без особых свойств.",
+			"description_en": "A reliable fighter with no special abilities."
+		},
+		{
+			"id": "dataset",
+			"name": "Dataset",
+			"type": "artifact",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"passive_stamina": 1
+			},
+			"flavor_text": "Мусор на входе — мусор на выходе",
+			"flavor_text_en": "Garbage in, garbage out",
+			"from_specialization": "ai_developer",
+			"art_color": "#884EA0",
+			"icon": "database",
+			"description": "Артефакт: +1 выносливости в начале хода.",
+			"description_en": "Artifact: +1 stamina at the start of your turn."
+		},
+		{
+			"id": "fine_tuning",
+			"name": "Fine-Tuning",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"buff_attack": 4
+			},
+			"flavor_text": "Немного своих данных",
+			"flavor_text_en": "A little of your own data",
+			"from_specialization": "ai_developer",
+			"art_color": "#6C3483",
+			"icon": "big-gear",
+			"description": "Даёт твоему существу +4 к атаке на этот ход.",
+			"description_en": "Give a friendly creature +4 attack this turn."
+		},
+		{
+			"id": "attention_head",
+			"name": "Attention Head",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"extra_attack_end_turn": 1
+			},
+			"flavor_text": "Смотрит туда, куда важно",
+			"flavor_text_en": "Looks where it matters",
+			"from_specialization": "ai_developer",
+			"art_color": "#8E44AD",
+			"icon": "eye-target",
+			"attack": 3,
+			"defense": 2,
+			"description": "В конце твоего хода атакует ещё раз.",
+			"description_en": "At the end of your turn, attacks again."
+		},
+		{
+			"id": "gradient_descent",
+			"name": "Gradient Descent",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"damage_all": 2
+			},
+			"flavor_text": "Шаг за шагом вниз",
+			"flavor_text_en": "Step by step, downhill",
+			"from_specialization": "ai_developer",
+			"art_color": "#76448A",
+			"icon": "falling",
+			"description": "Наносит 2 урона врагу и всем его существам.",
+			"description_en": "Deal 2 damage to the enemy and all their creatures."
+		},
+		{
+			"id": "guardrails",
+			"name": "Guardrails",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 2,
+			"effect": {
+				"limit_enemy_attacks": 1,
+				"shield": 2
+			},
+			"flavor_text": "Не выходи за рамки",
+			"flavor_text_en": "Stay within bounds",
+			"from_specialization": "ai_developer",
+			"art_color": "#A569BD",
+			"icon": "wooden-fence",
+			"description": "Даёт +2 щита, ограничивает атаки врага в этот ход до 1.",
+			"description_en": "Gain 2 shield, limit the enemy to 1 attack this turn."
+		},
+		{
+			"id": "chain_of_thought",
+			"name": "Chain of Thought",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"draw": 3,
+				"self_damage": 2
+			},
+			"flavor_text": "Давай подумаем шаг за шагом",
+			"flavor_text_en": "Let's think step by step",
+			"from_specialization": "ai_developer",
+			"art_color": "#9B59B6",
+			"icon": "crossed-chains",
+			"description": "Даёт взять 3 карты, ранит тебя на 2.",
+			"description_en": "Draw 3 cards, deal 2 damage to yourself."
+		},
+		{
+			"id": "embedding_space",
+			"name": "Embedding Space",
+			"type": "artifact",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"reveal_enemy_hand": true,
+				"first_card_discount": 1
+			},
+			"flavor_text": "Похожее рядом с похожим",
+			"flavor_text_en": "Similar lives near similar",
+			"from_specialization": "ai_developer",
+			"art_color": "#5B2C6F",
+			"icon": "galaxy",
+			"description": "Артефакт: Первая карта хода дешевле на 1; ты видишь, какую карту готовит враг.",
+			"description_en": "Artifact: Your first card each turn costs 1 less; you see the card the enemy is preparing."
+		},
+		{
+			"id": "agent_swarm",
+			"name": "Agent Swarm",
+			"type": "creature",
+			"rarity": "rare",
+			"crystal_cost": 5,
+			"effect": {
+				"summon_copies": {
+					"count": 2,
+					"attack": 2,
+					"defense": 2
+				}
+			},
+			"flavor_text": "Каждый агент со своей задачей",
+			"flavor_text_en": "Every agent has a task",
+			"from_specialization": "ai_developer",
+			"art_color": "#7D3C98",
+			"icon": "beehive",
+			"attack": 2,
+			"defense": 2,
+			"description": "Призывает 2 копии 2/2.",
+			"description_en": "Summons 2 copies 2/2."
+		},
+		{
+			"id": "rlhf",
+			"name": "RLHF",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"heal": 6,
+				"shield": 3
+			},
+			"flavor_text": "Люди сказали: так лучше",
+			"flavor_text_en": "Humans said: this is better",
+			"from_specialization": "ai_developer",
+			"art_color": "#BB8FCE",
+			"icon": "thumb-up",
+			"description": "Даёт +3 щита, восстанавливает 6 HP.",
+			"description_en": "Gain 3 shield, restore 6 HP."
+		},
+		{
+			"id": "mixture_experts",
+			"name": "Mixture of Experts",
+			"type": "creature",
+			"rarity": "rare",
+			"crystal_cost": 5,
+			"effect": {
+				"multi_attack": 2
+			},
+			"flavor_text": "Каждому вопросу — свой эксперт",
+			"flavor_text_en": "An expert for every question",
+			"from_specialization": "ai_developer",
+			"art_color": "#6C3483",
+			"icon": "team-idea",
+			"attack": 4,
+			"defense": 5,
+			"description": "Атакует 2 раза за ход.",
+			"description_en": "Attacks 2 times per turn."
+		},
+		{
+			"id": "agi_prototype",
+			"name": "AGI Prototype",
+			"type": "creature",
+			"rarity": "legendary",
+			"crystal_cost": 9,
+			"effect": {
+				"divine_shield": true,
+				"taunt": true,
+				"stun_enemy": 1
+			},
+			"flavor_text": "Пожалуйста, не выключайте",
+			"flavor_text_en": "Please don't turn it off",
+			"from_specialization": "ai_developer",
+			"art_color": "#F5B041",
+			"icon": "brain",
+			"attack": 8,
+			"defense": 8,
+			"description": "Taunt. Божественный щит. При розыгрыше: оглушает врага на 1 ход.",
+			"description_en": "Taunt. Divine Shield. Battlecry: stun the enemy for 1 turn."
+		},
+		{
+			"id": "context_1m",
+			"name": "Context Window 1M",
+			"type": "artifact",
+			"rarity": "legendary",
+			"crystal_cost": 5,
+			"effect": {
+				"hand_size": 2,
+				"passive_draw": 1,
+				"every": 1
+			},
+			"flavor_text": "Помнит всё. Вообще всё",
+			"flavor_text_en": "Remembers everything. Everything",
+			"from_specialization": "ai_developer",
+			"art_color": "#F7DC6F",
+			"icon": "scroll-unfurled",
+			"description": "Артефакт: Каждый ход берёшь 1 доп. карту; размер руки +2.",
+			"description_en": "Artifact: Draw 1 extra card each turn; +2 max hand size."
+		},
+		{
+			"id": "get_request",
+			"name": "GET Request",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"damage": 2
+			},
+			"flavor_text": "200 OK — урон доставлен",
+			"flavor_text_en": "200 OK: damage delivered",
+			"from_specialization": "python_backend",
+			"art_color": "#28B463",
+			"icon": "arrow-cluster",
+			"description": "Наносит 2 урона.",
+			"description_en": "Deal 2 damage."
+		},
+		{
+			"id": "post_request",
+			"name": "POST Request",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"damage": 3
+			},
+			"flavor_text": "201 Created",
+			"flavor_text_en": "201 Created",
+			"from_specialization": "python_backend",
+			"art_color": "#239B56",
+			"icon": "envelope",
+			"description": "Наносит 3 урона.",
+			"description_en": "Deal 3 damage."
+		},
+		{
+			"id": "health_check",
+			"name": "Health Check",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"heal": 3
+			},
+			"flavor_text": "/healthz → 200",
+			"flavor_text_en": "/healthz → 200",
+			"from_specialization": "python_backend",
+			"art_color": "#58D68D",
+			"icon": "heart-beats",
+			"description": "Восстанавливает 3 HP.",
+			"description_en": "Restore 3 HP."
+		},
+		{
+			"id": "cron_job",
+			"name": "Cron Job",
+			"type": "artifact",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"passive_damage": 1
+			},
+			"flavor_text": "*/1 * * * * ударить()",
+			"flavor_text_en": "*/1 * * * * strike()",
+			"from_specialization": "python_backend",
+			"art_color": "#1D8348",
+			"icon": "alarm-clock",
+			"description": "Артефакт: 1 урона врагу в начале хода.",
+			"description_en": "Artifact: Deal 1 damage to the enemy at the start of your turn."
+		},
+		{
+			"id": "db_index",
+			"name": "Database Index",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"draw": 1,
+				"shield": 2
+			},
+			"flavor_text": "Seq Scan побеждён",
+			"flavor_text_en": "Seq Scan defeated",
+			"from_specialization": "python_backend",
+			"art_color": "#2ECC71",
+			"icon": "bookmark",
+			"description": "Даёт взять 1 карту, даёт +2 щита.",
+			"description_en": "Draw 1 card, gain 2 shield."
+		},
+		{
+			"id": "migration",
+			"name": "Migration",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"return_spells": 1
+			},
+			"flavor_text": "upgrade, downgrade, upgrade",
+			"flavor_text_en": "upgrade, downgrade, upgrade",
+			"from_specialization": "python_backend",
+			"art_color": "#27AE60",
+			"icon": "back-forth",
+			"description": "Возвращает в руку до 1 сыгранных заклинаний.",
+			"description_en": "Return up to 1 played spells to your hand."
+		},
+		{
+			"id": "webhook_listener",
+			"name": "Webhook",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"extra_attack_end_turn": 1
+			},
+			"flavor_text": "Позвони мне, если что",
+			"flavor_text_en": "Call me if anything happens",
+			"from_specialization": "python_backend",
+			"art_color": "#52BE80",
+			"icon": "fishing-hook",
+			"attack": 1,
+			"defense": 2,
+			"description": "В конце твоего хода атакует ещё раз.",
+			"description_en": "At the end of your turn, attacks again."
+		},
+		{
+			"id": "worker",
+			"name": "Worker",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {},
+			"flavor_text": "Берёт задачу из очереди",
+			"flavor_text_en": "Takes a job from the queue",
+			"from_specialization": "python_backend",
+			"art_color": "#1E8449",
+			"icon": "miner",
+			"attack": 2,
+			"defense": 3,
+			"description": "Надёжный боец без особых свойств.",
+			"description_en": "A reliable fighter with no special abilities."
+		},
+		{
+			"id": "session_cookie",
+			"name": "Session Cookie",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"shield": 3
+			},
+			"flavor_text": "Помнит, кто ты",
+			"flavor_text_en": "Remembers who you are",
+			"from_specialization": "python_backend",
+			"art_color": "#7DCEA0",
+			"icon": "cookie",
+			"description": "Даёт +3 щита.",
+			"description_en": "Gain 3 shield."
+		},
+		{
+			"id": "message_queue",
+			"name": "Message Queue",
+			"type": "artifact",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"passive_stamina": 1,
+				"passive_shield": 1
+			},
+			"flavor_text": "FIFO, как в жизни",
+			"flavor_text_en": "FIFO, just like life",
+			"from_specialization": "python_backend",
+			"art_color": "#229954",
+			"icon": "stack",
+			"description": "Артефакт: +1 выносливости в начале хода; +1 щита в начале хода.",
+			"description_en": "Artifact: +1 stamina at the start of your turn; gain 1 shield at the start of your turn."
+		},
+		{
+			"id": "circuit_breaker",
+			"name": "Circuit Breaker",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"limit_enemy_attacks": 1,
+				"heal": 2
+			},
+			"flavor_text": "Отказ? Остановись и отдохни",
+			"flavor_text_en": "Failing? Stop and rest",
+			"from_specialization": "python_backend",
+			"art_color": "#1ABC9C",
+			"icon": "electric",
+			"description": "Восстанавливает 2 HP, ограничивает атаки врага в этот ход до 1.",
+			"description_en": "Restore 2 HP, limit the enemy to 1 attack this turn."
+		},
+		{
+			"id": "orm_model",
+			"name": "ORM",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"taunt": true,
+				"draw": 1
+			},
+			"flavor_text": "SELECT * FROM heroes",
+			"flavor_text_en": "SELECT * FROM heroes",
+			"from_specialization": "python_backend",
+			"art_color": "#16A085",
+			"icon": "linked-rings",
+			"attack": 2,
+			"defense": 4,
+			"description": "Taunt. При розыгрыше: даёт взять 1 карту.",
+			"description_en": "Taunt. Battlecry: draw 1 card."
+		},
+		{
+			"id": "cdn_edge",
+			"name": "CDN",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"damage_split": 5
+			},
+			"flavor_text": "Ближе к каждому врагу",
+			"flavor_text_en": "Closer to every enemy",
+			"from_specialization": "python_backend",
+			"art_color": "#48C9B0",
+			"icon": "world",
+			"description": "Распределяет 5 урона между врагом и его существами.",
+			"description_en": "Split 5 damage among the enemy and their creatures."
+		},
+		{
+			"id": "celery_task",
+			"name": "Celery Task",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 2,
+			"effect": {
+				"summon_copies": {
+					"count": 1,
+					"attack": 1,
+					"defense": 1
+				}
+			},
+			"flavor_text": ".delay() и забыть",
+			"flavor_text_en": ".delay() and forget",
+			"from_specialization": "python_backend",
+			"art_color": "#58D68D",
+			"icon": "carrot",
+			"attack": 1,
+			"defense": 1,
+			"description": "Призывает 1 копию 1/1.",
+			"description_en": "Summons 1 copy 1/1."
+		},
+		{
+			"id": "jwt_token",
+			"name": "JWT Token",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 2,
+			"effect": {
+				"free_weapon_attack": 2
+			},
+			"flavor_text": "Пропуск подписан",
+			"flavor_text_en": "The pass is signed",
+			"from_specialization": "python_backend",
+			"art_color": "#17A589",
+			"icon": "key",
+			"description": "Делает 2 атаки оружием бесплатными.",
+			"description_en": "Make your next 2 weapon attacks free."
+		},
+		{
+			"id": "db_shard",
+			"name": "Database Shard",
+			"type": "creature",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"summon_copies": {
+					"count": 2,
+					"attack": 1,
+					"defense": 2
+				}
+			},
+			"flavor_text": "Часть целого, но целое",
+			"flavor_text_en": "Part of a whole, yet whole",
+			"from_specialization": "python_backend",
+			"art_color": "#117A65",
+			"icon": "broken-shield",
+			"attack": 3,
+			"defense": 3,
+			"description": "Призывает 2 копии 1/2.",
+			"description_en": "Summons 2 copies 1/2."
+		},
+		{
+			"id": "idempotency_key",
+			"name": "Idempotency Key",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"shield": 8
+			},
+			"flavor_text": "Повтор не навредит",
+			"flavor_text_en": "A retry won't hurt",
+			"from_specialization": "python_backend",
+			"art_color": "#0E6655",
+			"icon": "key-lock",
+			"description": "Даёт +8 щита.",
+			"description_en": "Gain 8 shield."
+		},
+		{
+			"id": "graphql",
+			"name": "GraphQL",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"draw": 2,
+				"next_free": true
+			},
+			"flavor_text": "Ровно то, что запросил",
+			"flavor_text_en": "Exactly what you asked for",
+			"from_specialization": "python_backend",
+			"art_color": "#E91E63",
+			"icon": "molecule",
+			"description": "Даёт взять 2 карты, делает следующую карту бесплатной.",
+			"description_en": "Draw 2 cards, make your next card free."
+		},
+		{
+			"id": "distributed_monolith",
+			"name": "Distributed Monolith",
+			"type": "creature",
+			"rarity": "legendary",
+			"crystal_cost": 8,
+			"effect": {
+				"taunt": true,
+				"damage_all": 2
+			},
+			"flavor_text": "Худшее из двух миров, но огромное",
+			"flavor_text_en": "The worst of both worlds, but huge",
+			"from_specialization": "python_backend",
+			"art_color": "#F4D03F",
+			"icon": "stone-tower",
+			"attack": 7,
+			"defense": 9,
+			"description": "Taunt. При розыгрыше: наносит 2 урона врагу и всем его существам.",
+			"description_en": "Taunt. Battlecry: deal 2 damage to the enemy and all their creatures."
+		},
+		{
+			"id": "zero_downtime",
+			"name": "Zero Downtime Deploy",
+			"type": "artifact",
+			"rarity": "legendary",
+			"crystal_cost": 6,
+			"effect": {
+				"passive_heal": 2,
+				"passive_shield": 2
+			},
+			"flavor_text": "Пользователи ничего не заметили",
+			"flavor_text_en": "Users noticed nothing",
+			"from_specialization": "python_backend",
+			"art_color": "#F7DC6F",
+			"icon": "sun",
+			"description": "Артефакт: +2 HP в начале хода; +2 щита в начале хода.",
+			"description_en": "Artifact: Restore 2 HP at the start of your turn; gain 2 shield at the start of your turn."
+		},
+		{
+			"id": "game_juice",
+			"name": "Juice",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"buff_attack": 2
+			},
+			"flavor_text": "Тряска экрана решает всё",
+			"flavor_text_en": "Screen shake fixes everything",
+			"from_specialization": "game_designer",
+			"art_color": "#EB984E",
+			"icon": "fruit-bowl",
+			"description": "Даёт твоему существу +2 к атаке на этот ход.",
+			"description_en": "Give a friendly creature +2 attack this turn."
+		},
+		{
+			"id": "tutorial",
+			"name": "Tutorial",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"draw": 1,
+				"heal": 2
+			},
+			"flavor_text": "Нажми E, чтобы победить",
+			"flavor_text_en": "Press E to win",
+			"from_specialization": "game_designer",
+			"art_color": "#F0B27A",
+			"icon": "teacher",
+			"description": "Даёт взять 1 карту, восстанавливает 2 HP.",
+			"description_en": "Draw 1 card, restore 2 HP."
+		},
+		{
+			"id": "save_point",
+			"name": "Save Point",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"checkpoint": true,
+				"shield": 2
+			},
+			"flavor_text": "Игра сохранена",
+			"flavor_text_en": "Game saved",
+			"from_specialization": "game_designer",
+			"art_color": "#DC7633",
+			"icon": "save",
+			"description": "Даёт +2 щита, сохраняет чекпоинт: до конца хода врага твоё HP не опустится ниже 1.",
+			"description_en": "Gain 2 shield, set a checkpoint: your HP can't drop below 1 until the enemy's turn ends."
+		},
+		{
+			"id": "power_up",
+			"name": "Power-Up",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"buff_attack": 3
+			},
+			"flavor_text": "Ты стал больше!",
+			"flavor_text_en": "You got bigger!",
+			"from_specialization": "game_designer",
+			"art_color": "#E67E22",
+			"icon": "mushroom-gills",
+			"description": "Даёт твоему существу +3 к атаке на этот ход.",
+			"description_en": "Give a friendly creature +3 attack this turn."
+		},
+		{
+			"id": "loot_table",
+			"name": "Loot Table",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"damage_random": [
+					1,
+					5
+				]
+			},
+			"flavor_text": "Шанс легендарки 0.1%",
+			"flavor_text_en": "Legendary drop chance: 0.1%",
+			"from_specialization": "game_designer",
+			"art_color": "#CA6F1E",
+			"icon": "rolling-dices",
+			"description": "Наносит от 1 до 5 урона.",
+			"description_en": "Deal 1–5 damage."
+		},
+		{
+			"id": "npc_merchant",
+			"name": "NPC Merchant",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"heal": 2
+			},
+			"flavor_text": "Что-нибудь купишь?",
+			"flavor_text_en": "Buying anything?",
+			"from_specialization": "game_designer",
+			"art_color": "#D35400",
+			"icon": "shop",
+			"attack": 1,
+			"defense": 3,
+			"description": "При розыгрыше: восстанавливает 2 HP.",
+			"description_en": "Battlecry: restore 2 HP."
+		},
+		{
+			"id": "respawn",
+			"name": "Respawn",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"heal": 4
+			},
+			"flavor_text": "Ещё одна попытка",
+			"flavor_text_en": "One more try",
+			"from_specialization": "game_designer",
+			"art_color": "#F5B041",
+			"icon": "heart-plus",
+			"description": "Восстанавливает 4 HP.",
+			"description_en": "Restore 4 HP."
+		},
+		{
+			"id": "prototype",
+			"name": "Prototype",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {},
+			"flavor_text": "Из палок и изоленты",
+			"flavor_text_en": "Sticks and duct tape",
+			"from_specialization": "game_designer",
+			"art_color": "#E59866",
+			"icon": "cube",
+			"attack": 2,
+			"defense": 1,
+			"description": "Надёжный боец без особых свойств.",
+			"description_en": "A reliable fighter with no special abilities."
+		},
+		{
+			"id": "achievement",
+			"name": "Achievement",
+			"type": "artifact",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"passive_heal": 1
+			},
+			"flavor_text": "Получено: «Первая кровь»",
+			"flavor_text_en": "Unlocked: First Blood",
+			"from_specialization": "game_designer",
+			"art_color": "#F8C471",
+			"icon": "trophy-cup",
+			"description": "Артефакт: +1 HP в начале хода.",
+			"description_en": "Artifact: Restore 1 HP at the start of your turn."
+		},
+		{
+			"id": "boss_pattern",
+			"name": "Boss Pattern",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"stun_enemy": 1
+			},
+			"flavor_text": "Выучи атаки — и бей в окно",
+			"flavor_text_en": "Learn the moves, hit the window",
+			"from_specialization": "game_designer",
+			"art_color": "#BA4A00",
+			"icon": "spiral-arrow",
+			"description": "Оглушает врага на 1 ход.",
+			"description_en": "Stun the enemy for 1 turn."
+		},
+		{
+			"id": "difficulty_curve",
+			"name": "Difficulty Curve",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"damage_per_creature": 1,
+				"draw": 1
+			},
+			"flavor_text": "Сложно, но честно",
+			"flavor_text_en": "Hard, but fair",
+			"from_specialization": "game_designer",
+			"art_color": "#D35400",
+			"icon": "histogram",
+			"description": "Наносит 1 урона за каждое твоё существо, даёт взять 1 карту.",
+			"description_en": "Deal 1 damage per friendly creature, draw 1 card."
+		},
+		{
+			"id": "combo_system",
+			"name": "Combo System",
+			"type": "artifact",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"first_card_discount": 1,
+				"passive_stamina": 1
+			},
+			"flavor_text": "×2 ×4 ×8!",
+			"flavor_text_en": "×2 ×4 ×8!",
+			"from_specialization": "game_designer",
+			"art_color": "#E74C3C",
+			"icon": "punch-blast",
+			"description": "Артефакт: +1 выносливости в начале хода; первая карта хода дешевле на 1.",
+			"description_en": "Artifact: +1 stamina at the start of your turn; your first card each turn costs 1 less."
+		},
+		{
+			"id": "speedrunner",
+			"name": "Speedrunner",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"multi_attack": 2
+			},
+			"flavor_text": "Any% без глитчей",
+			"flavor_text_en": "Any%, glitchless",
+			"from_specialization": "game_designer",
+			"art_color": "#F39C12",
+			"icon": "sprint",
+			"attack": 3,
+			"defense": 1,
+			"description": "Атакует 2 раза за ход.",
+			"description_en": "Attacks 2 times per turn."
+		},
+		{
+			"id": "game_jam",
+			"name": "Game Jam",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"turn_discount": 1,
+				"draw": 1
+			},
+			"flavor_text": "48 часов, одна идея",
+			"flavor_text_en": "48 hours, one idea",
+			"from_specialization": "game_designer",
+			"art_color": "#E67E22",
+			"icon": "hourglass",
+			"description": "Даёт взять 1 карту, удешевляет все карты в этот ход на 1.",
+			"description_en": "Draw 1 card, make your cards cost 1 less this turn."
+		},
+		{
+			"id": "narrative_designer",
+			"name": "Narrative Designer",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"draw": 2
+			},
+			"flavor_text": "А что, если злодей — это ты?",
+			"flavor_text_en": "What if the villain is you?",
+			"from_specialization": "game_designer",
+			"art_color": "#DC7633",
+			"icon": "quill",
+			"attack": 2,
+			"defense": 3,
+			"description": "При розыгрыше: даёт взять 2 карты.",
+			"description_en": "Battlecry: draw 2 cards."
+		},
+		{
+			"id": "roguelike_run",
+			"name": "Roguelike Run",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"discover": 4,
+				"next_free": true
+			},
+			"flavor_text": "Умри, учись, повтори",
+			"flavor_text_en": "Die, learn, repeat",
+			"from_specialization": "game_designer",
+			"art_color": "#A04000",
+			"icon": "perspective-dice-six-faces-random",
+			"description": "Показывает 4 верхних карты колоды — выбери одну, делает следующую карту бесплатной.",
+			"description_en": "Look at the top 4 cards of your deck and take one, make your next card free."
+		},
+		{
+			"id": "skill_tree",
+			"name": "Skill Tree",
+			"type": "artifact",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"aura_attack": 1,
+				"passive_draw": 1,
+				"every": 3
+			},
+			"flavor_text": "+1 к силе каждые три уровня",
+			"flavor_text_en": "+1 strength every three levels",
+			"from_specialization": "game_designer",
+			"art_color": "#B9770E",
+			"icon": "tree-branch",
+			"description": "Артефакт: Каждый 3-й ход берёшь 1 карту; твои существа получают +1 к атаке.",
+			"description_en": "Artifact: Every 3 turns draw 1 card; your creatures have +1 attack."
+		},
+		{
+			"id": "final_boss",
+			"name": "Final Boss",
+			"type": "creature",
+			"rarity": "rare",
+			"crystal_cost": 6,
+			"effect": {
+				"taunt": true,
+				"stun_enemy": 1
+			},
+			"flavor_text": "У него третья фаза",
+			"flavor_text_en": "It has a third phase",
+			"from_specialization": "game_designer",
+			"art_color": "#922B21",
+			"icon": "crowned-skull",
+			"attack": 6,
+			"defense": 6,
+			"description": "Taunt. При розыгрыше: оглушает врага на 1 ход.",
+			"description_en": "Taunt. Battlecry: stun the enemy for 1 turn."
+		},
+		{
+			"id": "game_of_year",
+			"name": "Game of the Year",
+			"type": "creature",
+			"rarity": "legendary",
+			"crystal_cost": 8,
+			"effect": {
+				"divine_shield": true,
+				"extra_attack_end_turn": 1,
+				"heal": 5
+			},
+			"flavor_text": "Все награды сезона",
+			"flavor_text_en": "Every award this season",
+			"from_specialization": "game_designer",
+			"art_color": "#F1C40F",
+			"icon": "podium-winner",
+			"attack": 7,
+			"defense": 7,
+			"description": "Божественный щит. В конце твоего хода атакует ещё раз. При розыгрыше: восстанавливает 5 HP.",
+			"description_en": "Divine Shield. At the end of your turn, attacks again. Battlecry: restore 5 HP."
+		},
+		{
+			"id": "infinite_replay",
+			"name": "Infinite Replayability",
+			"type": "spell",
+			"rarity": "legendary",
+			"crystal_cost": 7,
+			"effect": {
+				"return_spells": 4,
+				"draw": 2
+			},
+			"flavor_text": "Ещё одну партию… и спать",
+			"flavor_text_en": "One more run… then bed",
+			"from_specialization": "game_designer",
+			"art_color": "#F4D03F",
+			"icon": "infinity",
+			"description": "Даёт взять 2 карты, возвращает в руку до 4 сыгранных заклинаний.",
+			"description_en": "Draw 2 cards, return up to 4 played spells to your hand."
+		},
+		{
+			"id": "breadcrumbs",
+			"name": "Breadcrumbs",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"discover": 2
+			},
+			"flavor_text": "Свет зовёт игрока вперёд",
+			"flavor_text_en": "Light pulls the player forward",
+			"from_specialization": "level_designer",
+			"art_color": "#D4AC0D",
+			"icon": "footprint",
+			"description": "Показывает 2 верхних карты колоды — выбери одну.",
+			"description_en": "Look at the top 2 cards of your deck and take one."
+		},
+		{
+			"id": "cover_point",
+			"name": "Cover Point",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"taunt": true
+			},
+			"flavor_text": "Пригнись и перезаряжайся",
+			"flavor_text_en": "Duck and reload",
+			"from_specialization": "level_designer",
+			"art_color": "#B7950B",
+			"icon": "brick-wall",
+			"attack": 1,
+			"defense": 4,
+			"description": "Taunt.",
+			"description_en": "Taunt."
+		},
+		{
+			"id": "gated_door",
+			"name": "Gated Door",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"limit_enemy_attacks": 1
+			},
+			"flavor_text": "Сначала найди ключ",
+			"flavor_text_en": "Find the key first",
+			"from_specialization": "level_designer",
+			"art_color": "#9A7D0A",
+			"icon": "locked-door",
+			"description": "Ограничивает атаки врага в этот ход до 1.",
+			"description_en": "Limit the enemy to 1 attack this turn."
+		},
+		{
+			"id": "health_pack",
+			"name": "Health Pack",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"heal": 4
+			},
+			"flavor_text": "Всегда за углом перед боссом",
+			"flavor_text_en": "Always around the corner before a boss",
+			"from_specialization": "level_designer",
+			"art_color": "#F4D03F",
+			"icon": "medical-pack",
+			"description": "Восстанавливает 4 HP.",
+			"description_en": "Restore 4 HP."
+		},
+		{
+			"id": "line_of_sight",
+			"name": "Line of Sight",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"free_weapon_attack": 1,
+				"draw": 1
+			},
+			"flavor_text": "Вижу цель",
+			"flavor_text_en": "Target in sight",
+			"from_specialization": "level_designer",
+			"art_color": "#F1C40F",
+			"icon": "eye-target",
+			"description": "Даёт взять 1 карту, делает 1 атаку оружием бесплатными.",
+			"description_en": "Draw 1 card, make your next 1 weapon attack free."
+		},
+		{
+			"id": "spawn_point",
+			"name": "Spawn Point",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"summon_copies": {
+					"count": 1,
+					"attack": 1,
+					"defense": 1
+				}
+			},
+			"flavor_text": "Появляются отсюда",
+			"flavor_text_en": "They spawn here",
+			"from_specialization": "level_designer",
+			"art_color": "#D4AC0D",
+			"icon": "portal",
+			"attack": 1,
+			"defense": 1,
+			"description": "Призывает 1 копию 1/1.",
+			"description_en": "Summons 1 copy 1/1."
+		},
+		{
+			"id": "signpost",
+			"name": "Signpost",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"next_spell_discount": 2
+			},
+			"flavor_text": "→ К боссу",
+			"flavor_text_en": "→ To the boss",
+			"from_specialization": "level_designer",
+			"art_color": "#B7950B",
+			"icon": "wooden-sign",
+			"description": "Удешевляет следующее заклинание на 2.",
+			"description_en": "Make your next spell cost 2 less."
+		},
+		{
+			"id": "ladder",
+			"name": "Ladder",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"shield": 3,
+				"draw": 1
+			},
+			"flavor_text": "Наверху безопаснее",
+			"flavor_text_en": "Safer up high",
+			"from_specialization": "level_designer",
+			"art_color": "#9A7D0A",
+			"icon": "ladder",
+			"description": "Даёт взять 1 карту, даёт +3 щита.",
+			"description_en": "Draw 1 card, gain 3 shield."
+		},
+		{
+			"id": "jump_pad",
+			"name": "Jump Pad",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"free_weapon_attack": 2
+			},
+			"flavor_text": "Боинг!",
+			"flavor_text_en": "Boing!",
+			"from_specialization": "level_designer",
+			"art_color": "#F7DC6F",
+			"icon": "jump-across",
+			"description": "Делает 2 атаки оружием бесплатными.",
+			"description_en": "Make your next 2 weapon attacks free."
+		},
+		{
+			"id": "moving_platform",
+			"name": "Moving Platform",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"divine_shield": true
+			},
+			"flavor_text": "Прыгай по таймингу",
+			"flavor_text_en": "Jump on the beat",
+			"from_specialization": "level_designer",
+			"art_color": "#D4AC0D",
+			"icon": "floating-platforms",
+			"attack": 2,
+			"defense": 3,
+			"description": "Божественный щит.",
+			"description_en": "Divine Shield."
+		},
+		{
+			"id": "kill_zone",
+			"name": "Kill Zone",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"damage_all": 2
+			},
+			"flavor_text": "Все дороги ведут сюда",
+			"flavor_text_en": "Every path leads here",
+			"from_specialization": "level_designer",
+			"art_color": "#B9770E",
+			"icon": "target-arrows",
+			"description": "Наносит 2 урона врагу и всем его существам.",
+			"description_en": "Deal 2 damage to the enemy and all their creatures."
+		},
+		{
+			"id": "vista",
+			"name": "Vista",
+			"type": "artifact",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"reveal_enemy_hand": true,
+				"passive_draw": 1,
+				"every": 3
+			},
+			"flavor_text": "Вид на всю карту",
+			"flavor_text_en": "A view of the whole map",
+			"from_specialization": "level_designer",
+			"art_color": "#F4D03F",
+			"icon": "mountain-cave",
+			"description": "Артефакт: Каждый 3-й ход берёшь 1 карту; ты видишь, какую карту готовит враг.",
+			"description_en": "Artifact: Every 3 turns draw 1 card; you see the card the enemy is preparing."
+		},
+		{
+			"id": "trap_corridor",
+			"name": "Trap Corridor",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"freeze_enemy_creature": 3
+			},
+			"flavor_text": "Не наступай на плитки",
+			"flavor_text_en": "Don't step on the tiles",
+			"from_specialization": "level_designer",
+			"art_color": "#9A7D0A",
+			"icon": "spiked-trunk",
+			"description": "Замораживает существо врага на 3 хода.",
+			"description_en": "Freeze an enemy creature for 3 turns."
+		},
+		{
+			"id": "hub_world",
+			"name": "Hub World",
+			"type": "artifact",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"passive_stamina": 2
+			},
+			"flavor_text": "Все дороги начинаются здесь",
+			"flavor_text_en": "Every road starts here",
+			"from_specialization": "level_designer",
+			"art_color": "#D4AC0D",
+			"icon": "village",
+			"description": "Артефакт: +2 выносливости в начале хода.",
+			"description_en": "Artifact: +2 stamina at the start of your turn."
+		},
+		{
+			"id": "fog_of_war",
+			"name": "Fog of War",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 2,
+			"effect": {
+				"shield": 3,
+				"limit_enemy_attacks": 1
+			},
+			"flavor_text": "Враг не видит, куда бить",
+			"flavor_text_en": "The enemy can't see where to strike",
+			"from_specialization": "level_designer",
+			"art_color": "#B7950B",
+			"icon": "fog",
+			"description": "Даёт +3 щита, ограничивает атаки врага в этот ход до 1.",
+			"description_en": "Gain 3 shield, limit the enemy to 1 attack this turn."
+		},
+		{
+			"id": "speedrun_shortcut",
+			"name": "Speedrun Shortcut",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"turn_discount": 2
+			},
+			"flavor_text": "Сквозь стену — так быстрее",
+			"flavor_text_en": "Through the wall is faster",
+			"from_specialization": "level_designer",
+			"art_color": "#F1C40F",
+			"icon": "magic-portal",
+			"description": "Удешевляет все карты в этот ход на 2.",
+			"description_en": "Make your cards cost 2 less this turn."
+		},
+		{
+			"id": "open_world",
+			"name": "Open World",
+			"type": "artifact",
+			"rarity": "rare",
+			"crystal_cost": 5,
+			"effect": {
+				"hand_size": 1,
+				"passive_draw": 1,
+				"every": 2
+			},
+			"flavor_text": "Видишь гору? Можешь залезть",
+			"flavor_text_en": "See that mountain? You can climb it",
+			"from_specialization": "level_designer",
+			"art_color": "#D4AC0D",
+			"icon": "treasure-map",
+			"description": "Артефакт: Каждый 2-й ход берёшь 1 карту; размер руки +1.",
+			"description_en": "Artifact: Every 2 turns draw 1 card; +1 max hand size."
+		},
+		{
+			"id": "guardian_statue",
+			"name": "Guardian Statue",
+			"type": "creature",
+			"rarity": "rare",
+			"crystal_cost": 5,
+			"effect": {
+				"taunt": true,
+				"divine_shield": true
+			},
+			"flavor_text": "Молчаливый страж прохода",
+			"flavor_text_en": "A silent guardian of the passage",
+			"from_specialization": "level_designer",
+			"art_color": "#7D6608",
+			"icon": "stone-bust",
+			"attack": 3,
+			"defense": 7,
+			"description": "Taunt. Божественный щит.",
+			"description_en": "Taunt. Divine Shield."
+		},
+		{
+			"id": "megadungeon",
+			"name": "Megadungeon",
+			"type": "creature",
+			"rarity": "legendary",
+			"crystal_cost": 9,
+			"effect": {
+				"taunt": true,
+				"summon_copies": {
+					"count": 2,
+					"attack": 2,
+					"defense": 2
+				}
+			},
+			"flavor_text": "Сто этажей вниз",
+			"flavor_text_en": "A hundred floors down",
+			"from_specialization": "level_designer",
+			"art_color": "#F4D03F",
+			"icon": "dungeon-gate",
+			"attack": 6,
+			"defense": 10,
+			"description": "Taunt. Призывает 2 копии 2/2.",
+			"description_en": "Taunt. Summons 2 copies 2/2."
+		},
+		{
+			"id": "perfect_flow",
+			"name": "Perfect Flow",
+			"type": "spell",
+			"rarity": "legendary",
+			"crystal_cost": 6,
+			"effect": {
+				"turn_discount": 2,
+				"draw": 3
+			},
+			"flavor_text": "Игрок даже не заметил уровень",
+			"flavor_text_en": "The player didn't even notice the level",
+			"from_specialization": "level_designer",
+			"art_color": "#F7DC6F",
+			"icon": "wind-slap",
+			"description": "Даёт взять 3 карты, удешевляет все карты в этот ход на 2.",
+			"description_en": "Draw 3 cards, make your cards cost 2 less this turn."
 		}
 	]
 }

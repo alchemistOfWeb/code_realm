@@ -40,6 +40,10 @@ var player := Fighter.new()
 var enemy := Fighter.new()
 var enemy_data: Dictionary = {}
 var attributes: Dictionary = {}
+## Атаки оружием, доступные герою (по экипировке): ["sword"], ["bow", "dagger"], ["fists"]...
+var weapons: Array = ["fists"]
+var damage_bonus := 0
+var dodge_bonus := 0
 var turn := 0
 var over := false
 var winner := ""                   # "player" | "enemy"
@@ -61,6 +65,12 @@ func start(enemy_info: Dictionary, deck_ids: Array, player_stats: Dictionary) ->
 	player.mana = player.max_mana
 	player.max_stamina = attributes.get("max_stamina", 10)
 	player.stamina = player.max_stamina
+	weapons = player_stats.get("weapons", ["fists"]).duplicate()
+	if weapons.is_empty():
+		weapons = ["fists"]
+	damage_bonus = int(player_stats.get("damage_bonus", 0))
+	dodge_bonus = int(player_stats.get("dodge_bonus", 0))
+	player.shield = int(player_stats.get("armor", 0))
 	for id in deck_ids:
 		var c := CardDatabase.get_card(id)
 		if not c.is_empty():
@@ -137,7 +147,7 @@ func can_play(index: int) -> Dictionary:
 
 func weapon_damage(weapon_id: String) -> int:
 	var w: Dictionary = XPCalculator.WEAPONS[weapon_id]
-	return w.base + w.per * int(attributes.get(w.attr, 1))
+	return w.base + w.per * int(attributes.get(w.attr, 1)) + damage_bonus
 
 
 func weapon_cost(weapon_id: String) -> int:
@@ -201,7 +211,7 @@ func play_card(index: int, target: Dictionary = {}) -> bool:
 
 
 func weapon_attack(weapon_id: String, target: Dictionary) -> bool:
-	if over or not XPCalculator.WEAPONS.has(weapon_id):
+	if over or not XPCalculator.WEAPONS.has(weapon_id) or not weapon_id in weapons:
 		return false
 	var cost := weapon_cost(weapon_id)
 	if player.stamina < cost:
@@ -216,10 +226,30 @@ func weapon_attack(weapon_id: String, target: Dictionary) -> bool:
 		player.flags.free_weapon -= 1
 	var dmg := weapon_damage(weapon_id)
 	_push("weapon", {"weapon": weapon_id, "target": target})
-	_log("%s: %d урона" % [XPCalculator.WEAPONS[weapon_id].name, dmg])
+	_log(Loc.t("%s: %d урона") % [Loc.t(XPCalculator.WEAPONS[weapon_id].name), dmg])
+	if weapon_id == "hammer":
+		_break_shields(target)
 	_damage_target(player, target, dmg)
+	if weapon_id == "spear" and target.get("kind") == "creature" and not over:
+		_log(Loc.t("Копьё задевает героя: 1 урон"))
+		_damage_hero(enemy, 1, false)
 	_check_over()
 	return true
+
+
+## Молот: сбить щит героя или божественный щит существа перед ударом.
+func _break_shields(target: Dictionary) -> void:
+	var victim := player if target.get("side") == "player" else enemy
+	if target.get("kind") == "hero":
+		if victim.shield > 0:
+			_log(Loc.t("Молот сбивает щит (%d)") % victim.shield)
+			victim.shield = 0
+			_push("block", {"target": target, "amount": 0})
+	else:
+		var c := _find_creature(victim, target.get("uid", -1))
+		if not c.is_empty() and c.get("divine_shield", false):
+			c.divine_shield = false
+			_log(Loc.t("Молот разбивает божественный щит"))
 
 
 func use_rune(rune_id: String, target: Dictionary = {}) -> bool:
@@ -301,6 +331,15 @@ func _start_turn(side: Fighter) -> void:
 			var every: int = e.get("every", 1)
 			if turn % every == 0:
 				_draw(side, e.passive_draw)
+		if e.has("passive_heal"):
+			_heal(side, e.passive_heal)
+		if e.has("passive_shield"):
+			side.shield += e.passive_shield
+			_push("shield", {"target": _hero_ref(side), "amount": e.passive_shield})
+		if e.has("passive_damage"):
+			var other := enemy if side.is_player else player
+			_log(Loc.t("%s: %d урона") % [a.get("name", ""), e.passive_damage])
+			_damage_hero(other, e.passive_damage, false)
 	if side.is_player:
 		side.stamina = mini(side.stamina + XPCalculator.STAMINA_REGEN, side.max_stamina)
 		var need: int = XPCalculator.HAND_TARGET - side.hand.size()
@@ -634,7 +673,8 @@ func _summon(side: Fighter, card: Dictionary, as_token: bool = false) -> Diction
 		var other := enemy if side.is_player else player
 		# Эффекты существ «при розыгрыше»
 		var on_play := {}
-		for key in ["isolate_enemy", "heal", "max_crystal_bonus"]:
+		for key in ["isolate_enemy", "heal", "max_crystal_bonus", "draw", "shield", "damage_all", "damage_split",
+				"stun_enemy", "free_weapon_attack", "self_damage", "next_spell_discount"]:
 			if e.has(key):
 				on_play[key] = e[key]
 		if not on_play.is_empty():
@@ -699,7 +739,7 @@ func _damage_hero(side: Fighter, amount: int, self_inflicted: bool) -> void:
 	if not side.is_player and enemy_data.get("special", "") == "armor":
 		amount = maxi(0, amount - 1)
 	if side.is_player and not self_inflicted:
-		var dodge := XPCalculator.dodge_chance(attributes.get("agility", 0))
+		var dodge := XPCalculator.dodge_chance(attributes.get("agility", 0), dodge_bonus)
 		if randi() % 100 < dodge:
 			_log("Уклонение!")
 			_push("dodge", {"target": ref})

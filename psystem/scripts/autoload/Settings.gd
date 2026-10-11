@@ -28,22 +28,35 @@ const DEFAULTS := {
 	"sfx_volume": 0.75,
 	"music_enabled": true,
 	"ui_sounds": true,
+	"language": "ru",              # "ru" | "en"
+	"bindings": {},                # действие → physical keycode (переназначенные клавиши)
+	"mouse_sensitivity": 1.0,      # чувствительность камеры в вылазках
 }
 
-var values: Dictionary = DEFAULTS.duplicate()
+var values: Dictionary = DEFAULTS.duplicate(true)
 
 
-## Действия ввода экспедиции (регистрируются в коде, чтобы не править project.godot вручную).
+## Действия ввода вылазок (регистрируются в коде, чтобы не править project.godot вручную).
+## Space — пауза (по просьбе игрока), прыжок по умолчанию на F; всё переназначается в настройках.
 const INPUT_ACTIONS := {
 	"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 	"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 	"interact": [KEY_E], "pause": [KEY_SPACE], "sprint": [KEY_SHIFT],
+	"jump": [KEY_F], "map": [KEY_M], "camera_left": [KEY_Q], "camera_right": [KEY_R],
+}
+## Действия, которые можно переназначить в настройках (порядок — как в списке).
+const REBINDABLE := {
+	"move_forward": "Вперёд", "move_back": "Назад", "move_left": "Влево", "move_right": "Вправо",
+	"sprint": "Бег (тратит выносливость)", "jump": "Прыжок", "interact": "Действие",
+	"pause": "Пауза", "map": "Карта", "camera_left": "Повернуть камеру влево", "camera_right": "Повернуть камеру вправо",
 }
 
 
 func _ready() -> void:
 	_register_input()
 	load_settings()
+	apply_bindings()
+	Loc.setup(get_value("language"))
 	_apply_startup.call_deferred()
 
 
@@ -80,12 +93,19 @@ func set_value(key: String, value: Variant) -> void:
 			apply_ui_scale()
 		"vsync":
 			apply_vsync()
+		"language":
+			Loc.setup(value)
+		"bindings":
+			apply_bindings()
 	changed.emit(key)
 
 
 func reset_to_defaults() -> void:
-	values = DEFAULTS.duplicate()
+	var lang: String = get_value("language")
+	values = DEFAULTS.duplicate(true)
+	values.language = lang   # язык сбрасывать не нужно
 	save_settings()
+	apply_bindings()
 	_apply_startup()
 	for key in values:
 		changed.emit(key)
@@ -99,6 +119,51 @@ func load_settings() -> void:
 		var v = cfg.get_value(SECTION, key, DEFAULTS[key])
 		if typeof(v) == typeof(DEFAULTS[key]) or (DEFAULTS[key] is float and v is int):
 			values[key] = v
+
+
+# ---------------------------------------------------------------- Клавиши
+
+## Первая клавиатурная клавиша действия (physical keycode) с учётом переназначений.
+func action_key(action: String) -> int:
+	var b: Dictionary = get_value("bindings")
+	if b.has(action):
+		return int(b[action])
+	return INPUT_ACTIONS[action][0] if INPUT_ACTIONS.has(action) else KEY_NONE
+
+
+func action_key_name(action: String) -> String:
+	var key := action_key(action)
+	if key == KEY_NONE:
+		return "—"
+	return OS.get_keycode_string(key)   # физическая клавиша (как на QWERTY), независимо от раскладки
+
+
+func rebind(action: String, physical_key: int) -> void:
+	var b: Dictionary = get_value("bindings").duplicate()
+	# Клавиша была у другого действия — меняем местами
+	for other in REBINDABLE:
+		if other != action and action_key(other) == physical_key:
+			b[other] = action_key(action)
+	b[action] = physical_key
+	values.bindings = b
+	save_settings()
+	apply_bindings()
+	changed.emit("bindings")
+
+
+func apply_bindings() -> void:
+	var b: Dictionary = get_value("bindings")
+	for action in INPUT_ACTIONS:
+		if not InputMap.has_action(action):
+			continue
+		InputMap.action_erase_events(action)
+		var keys: Array = INPUT_ACTIONS[action].duplicate()
+		if b.has(action):
+			keys[0] = int(b[action])
+		for key in keys:
+			var ev := InputEventKey.new()
+			ev.physical_keycode = key
+			InputMap.action_add_event(action, ev)
 
 
 func save_settings() -> void:

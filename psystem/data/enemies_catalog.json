@@ -16,7 +16,10 @@
 			"title": "Заводной жучок-опечатка",
 			"icon": "alien-bug",
 			"floor": 1,
-			"special": ""
+			"special": "",
+			"model": "Rat",
+			"model_size": 1.0,
+			"model_tint": "#FFB0A0"
 		},
 		{
 			"id": "null_pointer",
@@ -34,7 +37,10 @@
 			"title": "Пустотный автоматон",
 			"icon": "android-mask",
 			"floor": 1,
-			"special": ""
+			"special": "",
+			"model": "Wasp",
+			"model_size": 1.0,
+			"model_tint": "#FFC890"
 		},
 		{
 			"id": "legacy_code",
@@ -52,7 +58,10 @@
 			"title": "Древний голем без документации",
 			"icon": "metal-golem-head",
 			"floor": 2,
-			"special": "armor"
+			"special": "armor",
+			"model": "Skeleton",
+			"model_size": 1.0,
+			"model_tint": "#E8C890"
 		},
 		{
 			"id": "infinite_loop",
@@ -70,7 +79,10 @@
 			"special": "double_attack",
 			"title": "Вечный маятник",
 			"icon": "cogsplosion",
-			"floor": 2
+			"floor": 2,
+			"model": "Snake",
+			"model_size": 1.1,
+			"model_tint": "#A0C8FF"
 		},
 		{
 			"id": "data_breach",
@@ -89,7 +101,9 @@
 			"is_miniboss": true,
 			"title": "Похититель архивов",
 			"icon": "hooded-figure",
-			"floor": 3
+			"floor": 3,
+			"model": "Imp",
+			"model_size": 1.1
 		},
 		{
 			"id": "memory_leak",
@@ -107,7 +121,9 @@
 			"color": "#5D8A3A",
 			"special": "grow",
 			"icon": "slime",
-			"floor": 1
+			"floor": 1,
+			"model": "Slime",
+			"model_size": 1.0
 		},
 		{
 			"id": "race_condition",
@@ -125,7 +141,10 @@
 			"color": "#D35400",
 			"special": "double_attack",
 			"icon": "spider-bot",
-			"floor": 1
+			"floor": 1,
+			"model": "Spider",
+			"model_size": 1.0,
+			"model_tint": "#FFB080"
 		},
 		{
 			"id": "deadlock",
@@ -143,7 +162,10 @@
 			"color": "#7F8C8D",
 			"special": "regen",
 			"icon": "tracked-robot",
-			"floor": 2
+			"floor": 2,
+			"model": "Puglin",
+			"model_size": 1.0,
+			"model_tint": "#C8C8C8"
 		},
 		{
 			"id": "segfault",
@@ -161,7 +183,10 @@
 			"color": "#8E44AD",
 			"special": "",
 			"icon": "ghost",
-			"floor": 2
+			"floor": 2,
+			"model": "Bat",
+			"model_size": 1.1,
+			"model_tint": "#D0A0FF"
 		},
 		{
 			"id": "corrupted_compiler",
@@ -181,7 +206,238 @@
 			"special": "summon",
 			"icon": "skull-staff",
 			"floor": 3,
-			"is_boss": true
+			"is_boss": true,
+			"model": "Dragon",
+			"model_size": 1.0,
+			"model_tint": "#FF9080"
+		},
+		{
+			"id": "forest_rat",
+			"name": "Off-by-One",
+			"title": "Крыса, что всегда ошибается на единицу",
+			"title_en": "A rat that is always off by one",
+			"hp": 7,
+			"attack": 2,
+			"xp_reward": 8,
+			"gold_reward": 3,
+			"cards": [
+				"list_comprehension",
+				"sql_query"
+			],
+			"color": "#9C8F86",
+			"icon": "rat",
+			"floor": 1,
+			"special": "",
+			"model": "Rat",
+			"model_size": 1.0,
+			"description": "Шныряет по опушке и грызёт индексы массивов. Кусает не туда, но больно.",
+			"description_en": "Scurries along the forest edge gnawing on array indices. Bites the wrong spot, but it hurts."
+		},
+		{
+			"id": "spam_wasp",
+			"name": "Spam Wasp",
+			"title": "Оса-спамер",
+			"title_en": "Spam wasp",
+			"hp": 6,
+			"attack": 2,
+			"xp_reward": 10,
+			"gold_reward": 4,
+			"cards": [
+				"hallucination",
+				"embedding"
+			],
+			"color": "#F1C40F",
+			"icon": "alien-bug",
+			"floor": 1,
+			"special": "double_attack",
+			"model": "Wasp",
+			"model_size": 1.0,
+			"description": "Жалит дважды за ход и жужжит рассылками.",
+			"description_en": "Stings twice per turn and buzzes with newsletters."
+		},
+		{
+			"id": "web_crawler",
+			"name": "Web Crawler",
+			"title": "Паук-краулер",
+			"title_en": "Crawler spider",
+			"hp": 10,
+			"attack": 3,
+			"xp_reward": 14,
+			"gold_reward": 5,
+			"cards": [
+				"rag_pipeline",
+				"embedding"
+			],
+			"color": "#6D6875",
+			"icon": "spider-face",
+			"floor": 1,
+			"special": "",
+			"model": "Spider",
+			"model_size": 0.85,
+			"description": "Обходит лес ссылка за ссылкой и плетёт сети из чужих страниц.",
+			"description_en": "Walks the forest link by link, weaving webs from other people's pages."
+		},
+		{
+			"id": "recursive_frog",
+			"name": "Recursion",
+			"title": "Рекурсивная жаба",
+			"title_en": "Recursive toad",
+			"hp": 12,
+			"attack": 2,
+			"xp_reward": 15,
+			"gold_reward": 5,
+			"cards": [
+				"generator",
+				"try_except"
+			],
+			"color": "#7FBF5A",
+			"icon": "frog",
+			"floor": 1,
+			"special": "grow",
+			"model": "Frog",
+			"model_size": 1.1,
+			"description": "Каждый ход вызывает саму себя и становится сильнее. Нужен базовый случай — твой меч.",
+			"description_en": "Calls itself every turn and grows stronger. It needs a base case: your sword."
+		},
+		{
+			"id": "python_constrictor",
+			"name": "Python Constrictor",
+			"title": "Питон-душитель",
+			"title_en": "Python constrictor",
+			"hp": 15,
+			"attack": 3,
+			"xp_reward": 18,
+			"gold_reward": 7,
+			"cards": [
+				"decorator",
+				"gil_lock"
+			],
+			"color": "#3A7DBF",
+			"icon": "snake",
+			"floor": 2,
+			"special": "armor",
+			"model": "Snake",
+			"model_size": 1.3,
+			"model_tint": "#C0E0A0",
+			"description": "Обвивает жертву глобальной блокировкой. Чешуя гасит слабые удары.",
+			"description_en": "Wraps its prey in a global lock. Its scales soak up weak blows."
+		},
+		{
+			"id": "scraper_goblin",
+			"name": "Scraper",
+			"title": "Гоблин-скрапер",
+			"title_en": "Scraper goblin",
+			"hp": 16,
+			"attack": 3,
+			"xp_reward": 20,
+			"gold_reward": 10,
+			"cards": [
+				"async_coroutine",
+				"redis_cache"
+			],
+			"color": "#8FBF4A",
+			"icon": "goblin-head",
+			"floor": 2,
+			"special": "steal_card",
+			"model": "Puglin",
+			"model_size": 1.0,
+			"description": "Тащит всё, что плохо лежит, включая твои карты.",
+			"description_en": "Steals anything not nailed down, including your cards."
+		},
+		{
+			"id": "deprecated_knight",
+			"name": "Deprecated",
+			"title": "Устаревший рыцарь",
+			"title_en": "Deprecated knight",
+			"hp": 18,
+			"attack": 4,
+			"xp_reward": 24,
+			"gold_reward": 9,
+			"cards": [
+				"blockout",
+				"docker_container"
+			],
+			"color": "#D8D2C4",
+			"icon": "skeleton",
+			"floor": 2,
+			"special": "regen",
+			"model": "Skeleton",
+			"model_size": 1.0,
+			"description": "Давно помечен к удалению, но всё ещё поддерживается. Восстанавливается каждый ход.",
+			"description_en": "Marked for removal long ago, yet still supported. Regenerates every turn."
+		},
+		{
+			"id": "bug_gremlin",
+			"name": "Heisenbug",
+			"title": "Гремлин-гейзенбаг",
+			"title_en": "Heisenbug gremlin",
+			"hp": 16,
+			"attack": 4,
+			"xp_reward": 26,
+			"gold_reward": 11,
+			"cards": [
+				"hallucination",
+				"prompt_injection"
+			],
+			"color": "#C0392B",
+			"icon": "imp",
+			"floor": 2,
+			"special": "double_attack",
+			"model": "Imp",
+			"model_size": 0.9,
+			"description": "Исчезает, стоит на него посмотреть, и бьёт дважды, когда отвернёшься.",
+			"description_en": "Vanishes when observed and strikes twice when you look away."
+		},
+		{
+			"id": "webhook_queen",
+			"name": "Webhook Queen",
+			"title": "Королева Вебхуков",
+			"title_en": "Queen of Webhooks",
+			"hp": 30,
+			"attack": 5,
+			"xp_reward": 60,
+			"gold_reward": 30,
+			"cards": [
+				"microservices",
+				"rag_pipeline",
+				"ai_agent"
+			],
+			"color": "#8E44AD",
+			"icon": "spider-face",
+			"floor": 2,
+			"special": "summon",
+			"is_miniboss": true,
+			"model": "Spider",
+			"model_size": 1.9,
+			"model_tint": "#C890FF",
+			"description": "Каждое событие в лесу дёргает её нити. Призывает паучат-подписчиков.",
+			"description_en": "Every event in the forest tugs her threads. Summons spiderling subscribers."
+		},
+		{
+			"id": "ancient_monolith",
+			"name": "Ancient Monolith",
+			"title": "Древний Монолит",
+			"title_en": "The Ancient Monolith",
+			"hp": 45,
+			"attack": 5,
+			"xp_reward": 100,
+			"gold_reward": 60,
+			"cards": [
+				"kubernetes_pod",
+				"microservices",
+				"load_balancer",
+				"transformer_model"
+			],
+			"color": "#2E8B57",
+			"icon": "dragon-head",
+			"floor": 3,
+			"special": "grow",
+			"is_boss": true,
+			"model": "Dragon",
+			"model_size": 1.15,
+			"model_tint": "#A0FFB0",
+			"description": "Дракон-монолит, проросший в Сердце рощи. Растёт с каждым ходом — бей быстро.",
+			"description_en": "A monolith dragon rooted in the Heart of the Grove. Grows every turn: strike fast."
 		}
 	]
 }

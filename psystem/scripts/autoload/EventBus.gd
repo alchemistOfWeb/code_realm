@@ -21,6 +21,10 @@ signal dialogue_finished(npc_id: String, actions: Array)
 signal riddle_finished(riddle_id: String, solved: bool)
 ## Сейф: opened — исправлен ли код
 signal safe_finished(safe_id: String, opened: bool)
+## Выход из игры (Main сохраняет прогресс и закрывает окно).
+signal quit_requested()
+## Открыть внутриигровое меню (продолжить / настройки / главное меню / выход).
+signal game_menu_requested()
 
 
 func go(screen: String, params: Dictionary = {}) -> void:
@@ -33,3 +37,13 @@ func back() -> void:
 
 func notify(text: String, kind: String = "info") -> void:
 	toast.emit(text, kind)
+
+
+func quit_game() -> void:
+	quit_requested.emit()
+
+
+## В главное меню: сохранить профиль и закрыть его.
+func go_main_menu() -> void:
+	SaveSystem.close_profile()
+	navigate.emit("main_menu", {"root": true})
