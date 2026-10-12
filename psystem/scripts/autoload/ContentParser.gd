@@ -71,8 +71,16 @@ func get_all_spec_ids() -> Array[String]:
 	return spec_order
 
 
+## Метаданные специализации; name, short и description переводятся (locale/en.json).
 func get_spec_meta(spec_id: String) -> Dictionary:
-	return spec_meta.get(spec_id, {})
+	var m: Dictionary = spec_meta.get(spec_id, {})
+	if m.is_empty() or Loc.lang() == "ru":
+		return m
+	var out := m.duplicate()
+	for key in ["name", "short", "description"]:
+		if out.has(key):
+			out[key] = Loc.t(String(out[key]))
+	return out
 
 
 func get_spec_name(spec_id: String) -> String:

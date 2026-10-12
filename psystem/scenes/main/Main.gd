@@ -212,6 +212,51 @@ func _update_chrome() -> void:
 	screen_root.offset_top = 0.0 if full else HUD_HEIGHT
 
 
+## Dev: проверка паркура — герой прыгает со ступени на ступень постройки настоящим вводом (вперёд + прыжок).
+func _climb_test(sw) -> void:
+	await get_tree().create_timer(1.0).timeout
+	for v in sw.data.get("vertical", []):
+		var root_pos := Vector3(v.center.x, 0, v.center.y)
+		var steps: Array = []
+		var n := int(round(float(v.height) / 0.8)) - 1
+		for k in n:
+			if v.type == "tower":
+				var a := PI / 3.0 * k
+				steps.append(Vector3(cos(a) * 1.75, 0.8 * (k + 1), sin(a) * 1.75))
+			else:
+				var h := 0.8 * (k + 1) - 0.1
+				steps.append(Vector3(0.55 * (k % 2 * 2 - 1), h, 2.4 + 1.25 * (n - 1 - k)))
+		steps.append(Vector3(0, float(v.height), 0))
+		var ok := 0
+		for k in steps.size() - 1:
+			var from: Vector3 = root_pos + steps[k].rotated(Vector3.UP, v.yaw)
+			var to: Vector3 = root_pos + steps[k + 1].rotated(Vector3.UP, v.yaw)
+			sw._player.global_position = from + Vector3(0, 0.05, 0)
+			sw._player.velocity = Vector3.ZERO
+			await get_tree().create_timer(0.3).timeout
+			var d: Vector3 = to - sw._player.global_position
+			sw._player.face_yaw(atan2(d.x, d.z))
+			Input.action_press("jump")
+			Input.action_press("move_forward")
+			await get_tree().create_timer(0.12).timeout
+			Input.action_release("jump")
+			var t := 0.0
+			while t < 0.9:
+				await get_tree().physics_frame
+				t += get_physics_process_delta_time()
+				var rest: Vector3 = to - sw._player.global_position
+				if Vector2(rest.x, rest.z).length() < 0.25:
+					Input.action_release("move_forward")
+			Input.action_release("move_forward")
+			await get_tree().create_timer(0.4).timeout
+			var p: Vector3 = sw._player.global_position
+			var landed: bool = absf(p.y - to.y) < 0.35 and Vector2(p.x - to.x, p.z - to.z).length() < 1.3
+			print("CLIMB %s step %d → %d: %s (y %.2f / %.2f) covered=%s" % [v.type, k, k + 1, "ok" if landed else "FAIL", p.y, to.y, sw._covered])
+			ok += int(landed)
+		print("CLIMB %s: %d/%d" % [v.type, ok, steps.size() - 1])
+	get_tree().quit()
+
+
 func current_screen_key() -> String:
 	return _stack[-1].get_meta("screen_key", "") if not _stack.is_empty() else ""
 
@@ -513,8 +558,24 @@ func _apply_dev_args(args: Dictionary) -> void:
 						target = Vector3(e.cell.x + 0.5, 0, e.cell.y + 0.5)
 						var a: Vector2i = e.get("arrive", e.cell)
 						sw._player.global_position = Vector3(a.x + 0.5, 0.3, a.y + 0.5) - (target - Vector3(a.x + 0.5, 0, a.y + 0.5)).normalized() * 3.0
+					elif args.look == "vertical" and not sw.data.get("vertical", []).is_empty():
+						var v: Dictionary = sw.data.vertical[0]
+						target = Vector3(v.center.x, 0, v.center.y)
+						# Встать на проходимую клетку в ~6 м от постройки (перебор направлений)
+						for k in 16:
+							var ang := TAU * k / 16.0
+							var p := target + Vector3(sin(ang), 0, cos(ang)) * 6.0
+							var c := Vector2i(int(p.x), int(p.z))
+							if c.x > 0 and c.y > 0 and c.x < sw.data.w and c.y < sw.data.h and sw.data.grid[c.y * sw.data.w + c.x] in [1, 2]:
+								sw._player.global_position = p + Vector3(0, 0.3, 0)
+								break
 					var d: Vector3 = target - sw._player.global_position
 					sw._player.face_yaw(atan2(d.x, d.z))
+					if args.has("pitch"):
+						sw._player._cam_pitch = deg_to_rad(args.pitch.to_float())
+						sw._player._apply_camera()
+				if args.has("climbtest"):
+					await _climb_test(_stack[-1])
 				if args.has("open"):
 					# Dev: открыть инвентарь (I) или карту локации (M) поверх вылазки
 					await get_tree().create_timer(1.0).timeout

@@ -28,6 +28,8 @@ const DISCOVER_DIST := 4.0
 const FOG_RADIUS := 9
 ## Указатель / проход считается найденным, когда герой подходит ближе этого.
 const SIGN_DIST := 6.0
+## Индексы сундуков на постройках (в node_state.chests рядом с обычными).
+const HIGH_CHEST_BASE := 100
 
 var location_id := ""
 var node_id := ""
@@ -353,7 +355,7 @@ func _load_node(id: String, entry_from: String) -> void:
 				_open_gates(true)
 	_init_minimap()
 	var total_enemies: int = data.enemies.size() + (0 if data.boss.is_empty() else 1)
-	WorldData.visit_node(location_id, id, data.chests.size(), total_enemies)
+	WorldData.visit_node(location_id, id, data.chests.size() + data.get("vertical", []).size(), total_enemies)
 	if not id in run.nodes:
 		run.nodes.append(id)
 	_update_hud()
@@ -449,6 +451,8 @@ func _build_entities(fall_y: float) -> void:
 		chest.add_child(glow)
 		_interactables.append({"kind": "chest", "node": chest, "pos": chest.position, "index": i, "prompt": Loc.t("E — открыть сундук")})
 
+	_build_vertical()
+
 	# Платформы над пропастью / рекой
 	for pl in data.get("platforms", []):
 		var visual := _platform_visual(pl.size)
@@ -473,6 +477,162 @@ func _build_entities(fall_y: float) -> void:
 		if data.get("underground", false) and data.has("exit_room"):
 			area = data.rooms[data.exit_room].rect
 		_spawn_enemy(data.boss.id, data.boss.cell, area, -1)
+
+
+## Вертикальные постройки (OutdoorGenerator → data.vertical): на них надо запрыгнуть, наверху — сундук
+## с ценной добычей. Визуал и коллизия совпадают (простые формы), так что «невидимых» препятствий нет.
+const STEP_RISE := 0.8          # прыжок героя поднимает ~1.17 м — ступень с запасом
+
+
+func _build_vertical() -> void:
+	var st := WorldData.node_state(location_id, node_id)
+	for i in data.get("vertical", []).size():
+		var v: Dictionary = data.vertical[i]
+		var c: Vector2 = v.center
+		var root := Node3D.new()
+		root.position = Vector3(c.x, 0, c.y)
+		root.rotation.y = v.yaw
+		_world.add_child(root)
+		var body := StaticBody3D.new()
+		body.collision_layer = 1
+		root.add_child(body)
+		var top := 0.0
+		if v.type == "tower":
+			top = _build_tower(root, body, float(v.height))
+		else:
+			top = _build_stumps(root, body, float(v.height))
+		# Клетки под постройкой — препятствие для врагов
+		for y in range(int(c.y) - 2, int(c.y) + 3):
+			for x in range(int(c.x) - 2, int(c.x) + 3):
+				if Vector2(x + 0.5, y + 0.5).distance_to(c) <= 1.8 and astar.region.has_point(Vector2i(x, y)):
+					astar.set_point_solid(Vector2i(x, y), true)
+		var index: int = HIGH_CHEST_BASE + i
+		if index in st.chests:
+			continue
+		var chest := LevelBuilder.place(root, LevelBuilder.P + "Chest_Wood.gltf", Vector3(0, top, 0), PI, 0.9)
+		var glow := OmniLight3D.new()
+		glow.light_color = Color("#FFD27A")
+		glow.light_energy = 1.2
+		glow.omni_range = 3.0
+		glow.position.y = 0.9
+		chest.add_child(glow)
+		var gpos := chest.global_position
+		_interactables.append({"kind": "chest", "node": chest, "pos": gpos, "index": index, "high": true, "prompt": Loc.t("E — открыть сундук")})
+
+
+func _stone_mat() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(LevelBuilder.V + "T_UnevenBrick_BaseColor.png")
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3(0.5, 0.5, 0.5)
+	m.albedo_color = Color(0.92, 0.88, 0.82)
+	return m
+
+
+func _wood_mat() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(LevelBuilder.N + "Bark_NormalTree.png")
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3(0.7, 0.7, 0.7)
+	return m
+
+
+func _solid_box(root: Node3D, body: StaticBody3D, size: Vector3, pos: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.material_override = mat
+	mi.position = pos
+	root.add_child(mi)
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	cs.shape = shape
+	cs.position = pos
+	body.add_child(cs)
+
+
+func _solid_cylinder(root: Node3D, body: StaticBody3D, radius: float, height: float, pos: Vector3, mat: Material, taper: float = 1.15) -> void:
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.radial_segments = 20
+	cm.top_radius = radius
+	cm.bottom_radius = radius * taper
+	cm.height = height
+	mi.mesh = cm
+	mi.material_override = mat
+	mi.position = pos
+	root.add_child(mi)
+	var cs := CollisionShape3D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = radius
+	shape.height = height
+	cs.shape = shape
+	cs.position = pos
+	body.add_child(cs)
+
+
+## Каменная башня: ступени-уступы спиралью вокруг стен, наверху площадка с зубцами. Возвращает высоту верха.
+func _build_tower(root: Node3D, body: StaticBody3D, height: float) -> float:
+	var stone := _stone_mat()
+	# Круглый ствол: прыжок между уступами (хорда на радиусе 1.75) не задевает стену.
+	# Верх площадки — на высоте height, ровно на ступень выше последнего уступа; без нависания над уступами
+	_solid_cylinder(root, body, 1.1, height, Vector3(0, height * 0.5, 0), stone, 1.0)
+	var steps := int(round(height / STEP_RISE)) - 1
+	# Зубцы по краю площадки — кроме стороны последнего уступа (там герой запрыгивает наверх)
+	var last_a := PI / 3.0 * (steps - 1)
+	for k in 6:
+		var a := PI / 3.0 * k + PI / 6.0
+		if absf(angle_difference(a, last_a)) < PI / 2.5:
+			continue
+		_solid_box(root, body, Vector3(0.3, 0.5, 0.3), Vector3(cos(a) * 0.88, height + 0.25, sin(a) * 0.88), stone)
+	for k in steps:
+		var a := PI / 3.0 * k
+		var y := STEP_RISE * (k + 1)
+		_solid_box(root, body, Vector3(1.0, 0.3, 1.0), Vector3(cos(a) * 1.75, y - 0.15, sin(a) * 1.75), stone)
+	# Знамя на шпиле — видно издалека
+	var pole := MeshInstance3D.new()
+	var pm := CylinderMesh.new()
+	pm.top_radius = 0.04
+	pm.bottom_radius = 0.05
+	pm.height = 2.0
+	pole.mesh = pm
+	pole.material_override = _wood_mat()
+	pole.position = Vector3(0.61, height + 1.55, 0.61)
+	root.add_child(pole)
+	var flag := MeshInstance3D.new()
+	var fm := BoxMesh.new()
+	fm.size = Vector3(0.9, 0.5, 0.03)
+	flag.mesh = fm
+	var flm := StandardMaterial3D.new()
+	flm.albedo_color = Color("#C0392B")
+	flag.material_override = flm
+	flag.position = Vector3(1.09, height + 2.25, 0.61)
+	root.add_child(flag)
+	return height
+
+
+## Пни-ступени к лесной вышке: дощатый настил на столбах. Возвращает высоту настила.
+func _build_stumps(root: Node3D, body: StaticBody3D, height: float) -> float:
+	var wood := _wood_mat()
+	var plank := StandardMaterial3D.new()
+	plank.albedo_texture = load(LevelBuilder.V + "T_WoodTrim_BaseColor.png")
+	plank.uv1_triplanar = true
+	plank.uv1_scale = Vector3(0.6, 0.6, 0.6)
+	_solid_box(root, body, Vector3(3.0, 0.25, 3.0), Vector3(0, height - 0.125, 0), plank)
+	for corner in [Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1), Vector2(-1, -1)]:
+		_solid_cylinder(root, body, 0.13, height, Vector3(corner.x * 1.3, height * 0.5, corner.y * 1.3), wood)
+	# Перила с трёх сторон (со стороны пней — проход)
+	for side in [Vector2(0, -1), Vector2(-1, 0), Vector2(1, 0)]:
+		var size := Vector3(3.0 if side.x == 0 else 0.12, 0.5, 0.12 if side.x == 0 else 3.0)
+		_solid_box(root, body, size, Vector3(side.x * 1.44, height + 0.25, side.y * 1.44), plank)
+	var n := int(round(height / STEP_RISE)) - 1
+	for k in n:
+		var h := STEP_RISE * (k + 1) - 0.1
+		var p := Vector3(0.55 * (k % 2 * 2 - 1), h * 0.5, 2.4 + 1.25 * (n - 1 - k))
+		_solid_cylinder(root, body, 0.55, h, p, wood)
+	return height
 
 
 func _platform_visual(size: Vector3) -> Node3D:
@@ -845,6 +1005,8 @@ func _update_focus() -> void:
 		if not is_instance_valid(it.node):
 			continue
 		var d: float = Vector2(_player.global_position.x, _player.global_position.z).distance_to(Vector2(it.pos.x, it.pos.z))
+		if absf(_player.global_position.y - it.pos.y) > 1.6:
+			continue   # сундук на башне не открыть снизу
 		if d < best_d:
 			best_d = d
 			best = it
@@ -894,7 +1056,7 @@ func _discover(e: Dictionary) -> void:
 	if WorldData.mark_exit(location_id, node_id, e.to):
 		_update_hud()
 		if not was_open:
-			Audio.play("reward")
+			Audio.play_jingle("discovery")
 			EventBus.notify(Loc.t("Найден проход: %s. Теперь туда можно отправиться прямо с карты локации.") % e.to_name, "success")
 
 
@@ -1028,7 +1190,12 @@ func _start_combat(enemy, enemy_id: String) -> void:
 	Audio.play("hit_heavy")
 	if _player:
 		_player.act("Sword_Attack")
-	EventBus.go("combat", {"enemy_id": enemy_id, "context": "expedition"})
+	EventBus.go("combat", {"enemy_id": enemy_id, "context": "expedition", "power": _enemy_power()})
+
+
+## Сила врагов этой подлокации (глубже в локации — сильнее).
+func _enemy_power() -> float:
+	return XPCalculator.enemy_power(WorldData.node_depth(location_id, node_id), int(WorldData.location_info(location_id).get("level", 1)))
 
 
 func _on_combat_finished(result: Dictionary) -> void:
@@ -1154,14 +1321,15 @@ func _on_safe_finished(safe_id: String, opened: bool) -> void:
 		GameManager.add_item("valve")
 		EventBus.notify(Loc.t("В сейфе — латунный клапан Греты!"), "success")
 	else:
-		var gold := randi_range(15, 30)
+		# Сейф — награда за решённую задачу: всегда предмет снаряжения (из лучших по уровню) и золото
+		var gold := randi_range(25, 45)
 		GameManager.add_gold(gold)
 		run.gold += gold
 		var msg := Loc.t("Сейф открыт: +%d золота") % gold
-		var item := _roll_item(0.5)
+		var item := _roll_item(1.0, 5, true)
 		if not item.is_empty():
 			msg += ", " + Loc.t("предмет «%s»") % item.name
-		elif randf() < 0.6:
+		if randf() < 0.5:
 			var card := CardDatabase.roll_card(CardDatabase.all_cards(), 2.0)
 			GameManager.add_card_to_collection(card.id)
 			msg += ", " + Loc.t("карта «%s»") % card.name
@@ -1204,14 +1372,18 @@ func _boss_alive() -> bool:
 	return false
 
 
-## Предмет снаряжения из сундука/сейфа: подходящий по уровню локации.
-func _roll_item(chance: float) -> Dictionary:
+## Предмет снаряжения из сундука/сейфа: подходящий по уровню локации (+extra_levels).
+## prefer_high — выбор из верхней половины доступных по уровню (награда сейфа, лут на башнях).
+func _roll_item(chance: float, extra_levels: int = 3, prefer_high: bool = false) -> Dictionary:
 	if randf() > chance:
 		return {}
-	var lvl: int = int(WorldData.location_info(location_id).get("level", 1)) + 3
+	var lvl: int = int(WorldData.location_info(location_id).get("level", 1)) + extra_levels
 	var pool := ItemDatabase.all_items().filter(func(it): return it.get("price", 0) > 0 and int(it.get("level", 1)) <= lvl)
 	if pool.is_empty():
 		return {}
+	if prefer_high and pool.size() > 3:
+		pool.sort_custom(func(a, b): return int(a.level) > int(b.level))
+		pool = pool.slice(0, maxi(3, pool.size() / 2))
 	var it: Dictionary = pool.pick_random()
 	GameManager.player_data.inventory.append(it.id)
 	GameManager.equipment_changed.emit()
@@ -1228,11 +1400,13 @@ func _open_chest(it: Dictionary) -> void:
 	tw.tween_property(lid, "scale", Vector3.ONE * lid.scale.x, 0.2)
 	Audio.play("chest_creak")
 	var level: int = int(WorldData.location_info(location_id).get("level", 1))
-	var gold: int = randi_range(8, 18) + level * 4
+	var high: bool = it.get("high", false)
+	var gold: int = randi_range(8, 18) + level * 4 + (randi_range(20, 35) if high else 0)
 	GameManager.add_gold(gold)
 	run.gold += gold
 	var msg := Loc.t("Сундук: +%d золота") % gold
-	var item := _roll_item(0.25)
+	# Сундук на башне/вышке — награда за паркур: чаще и лучше снаряжение
+	var item := _roll_item(0.75, 5, true) if high else _roll_item(0.25)
 	if not item.is_empty():
 		msg += ", " + Loc.t("предмет «%s»") % item.name
 	if randf() < 0.35:
@@ -1245,7 +1419,7 @@ func _open_chest(it: Dictionary) -> void:
 	Audio.play("coins")
 	EventBus.notify(msg, "success")
 	var sparkle := CPUParticles3D.new()
-	sparkle.position = lid.position + Vector3(0, 0.8, 0)
+	sparkle.position = lid.global_position + Vector3(0, 0.8, 0)
 	sparkle.one_shot = true
 	sparkle.amount = 30
 	sparkle.lifetime = 1.0

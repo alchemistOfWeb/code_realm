@@ -43,6 +43,8 @@ var attributes: Dictionary = {}
 ## Атаки оружием, доступные герою (по экипировке): ["sword"], ["bow", "dagger"], ["fists"]...
 var weapons: Array = ["fists"]
 var damage_bonus := 0
+## Расход выносливости надетого оружия (вид → очки), иначе базовый из XPCalculator.WEAPONS.
+var weapon_costs: Dictionary = {}
 var dodge_bonus := 0
 var turn := 0
 var over := false
@@ -61,13 +63,14 @@ func start(enemy_info: Dictionary, deck_ids: Array, player_stats: Dictionary) ->
 	player.name = Loc.t("Ты")
 	player.max_hp = player_stats.get("max_hp", 20)
 	player.hp = clampi(player_stats.get("hp", player.max_hp), 1, player.max_hp)
-	player.max_mana = attributes.get("max_mana", 5)
+	player.max_mana = attributes.get("max_mana", 1)
 	player.mana = player.max_mana
-	player.max_stamina = attributes.get("max_stamina", 5)
+	player.max_stamina = attributes.get("max_stamina", 10)
 	player.stamina = player.max_stamina
 	weapons = player_stats.get("weapons", ["fists"]).duplicate()
 	if weapons.is_empty():
 		weapons = ["fists"]
+	weapon_costs = player_stats.get("weapon_costs", {})
 	damage_bonus = int(player_stats.get("damage_bonus", 0))
 	dodge_bonus = int(player_stats.get("dodge_bonus", 0))
 	player.shield = int(player_stats.get("armor", 0))
@@ -151,7 +154,9 @@ func weapon_damage(weapon_id: String) -> int:
 
 
 func weapon_cost(weapon_id: String) -> int:
-	return 0 if player.flags.get("free_weapon", 0) > 0 else XPCalculator.WEAPONS[weapon_id].cost
+	if player.flags.get("free_weapon", 0) > 0:
+		return 0
+	return int(weapon_costs.get(weapon_id, XPCalculator.WEAPONS[weapon_id].cost))
 
 
 func can_attack_with(c: Dictionary) -> bool:
@@ -740,7 +745,7 @@ func _damage_hero(side: Fighter, amount: int, self_inflicted: bool) -> void:
 		amount = maxi(0, amount - 1)
 	if side.is_player and not self_inflicted:
 		var dodge := XPCalculator.dodge_chance(attributes.get("agility", 0), dodge_bonus)
-		if randi() % 100 < dodge:
+		if randf() * 100.0 < dodge:
 			_log(Loc.t("Уклонение!"))
 			_push("dodge", {"target": ref})
 			return

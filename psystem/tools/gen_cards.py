@@ -251,6 +251,21 @@ SPECS = {
         ("megadungeon", "Megadungeon", "creature", "legendary", 9, {"taunt": True, "summon_copies": {"count": 2, "attack": 2, "defense": 2}}, 6, 10, "dungeon-gate", "#F4D03F", "Сто этажей вниз", "A hundred floors down"),
         ("perfect_flow", "Perfect Flow", "spell", "legendary", 6, {"turn_discount": 2, "draw": 3}, 0, 0, "wind-slap", "#F7DC6F", "Игрок даже не заметил уровень", "The player didn't even notice the level"),
     ]),
+    "algorithms": ("#00BFD8", [
+        ("big_o", "Big O", "spell", "common", 1, {"draw": 1}, 0, 0, "chart", "#1ABC9C", "O(1) — лучшая новость дня", "O(1) is the best news of the day"),
+        ("two_pointers", "Two Pointers", "spell", "common", 1, {"damage": 2}, 0, 0, "back-forth", "#16A085", "Навстречу друг другу — и в цель", "Toward each other — and on target"),
+        ("hash_map", "Hash Map", "spell", "common", 2, {"discover": 3}, 0, 0, "key", "#00BFD8", "Нашёл за O(1)", "Found it in O(1)"),
+        ("stack_frame", "Stack", "creature", "common", 2, {"taunt": True}, 1, 4, "stack", "#1F8A9E", "Последним пришёл — первым принял удар", "Last in, first to take the hit"),
+        ("queue_bfs", "BFS", "spell", "common", 2, {"damage_split": 4}, 0, 0, "mesh-network", "#20A4B8", "Уровень за уровнем", "Level by level"),
+        ("binary_search", "Binary Search", "spell", "common", 2, {"execute_below": 4}, 0, 0, "magnifying-glass", "#0E9AA7", "Пополам, ещё пополам — попался", "Halve it, halve again — gotcha"),
+        ("memo_cache", "Memoization", "artifact", "uncommon", 2, {"first_card_discount": 1}, 0, 0, "files", "#48C9B0", "Уже считали — бери готовое", "Already computed — take it"),
+        ("binary_heap", "Binary Heap", "creature", "uncommon", 3, {"shield": 3}, 2, 4, "triforce", "#17A589", "Самое важное — всегда сверху", "The most important always on top"),
+        ("merge_sort", "Merge Sort", "spell", "uncommon", 3, {"damage": 3, "draw": 1}, 0, 0, "linked-rings", "#13B5C8", "Разделяй и властвуй", "Divide and conquer"),
+        ("dfs_explorer", "DFS Explorer", "creature", "uncommon", 3, {"multi_attack": 2}, 2, 2, "compass", "#0B8A99", "Сначала вглубь, потом посмотрим", "Go deep first, look around later"),
+        ("dijkstra", "Dijkstra", "spell", "rare", 4, {"damage_all": 2, "draw": 1}, 0, 0, "target-arrows", "#117A8B", "Кратчайший путь к победе", "The shortest path to victory"),
+        ("dynamic_programming", "Dynamic Programming", "artifact", "rare", 4, {"passive_draw": 1, "every": 2}, 0, 0, "spiral-arrow", "#0A6E7C", "Каждая подзадача — один раз", "Every subproblem exactly once"),
+        ("red_black_tree", "Red-Black Tree", "creature", "legendary", 7, {"divine_shield": True, "taunt": True, "shield": 4}, 5, 8, "tree-branch", "#F4D03F", "Высота O(log n), как ни крути", "O(log n) height, no matter what"),
+    ]),
 }
 
 

@@ -77,7 +77,8 @@ func _ready() -> void:
 	_alert_label.text = "!"
 	_alert_label.font_size = 96
 	_alert_label.outline_size = 16
-	_alert_label.modulate = Palette.ENERGY
+	_alert_label.modulate = Color("#FF3B3B")
+	_alert_label.outline_modulate = Color(0.15, 0, 0, 1)
 	_alert_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_alert_label.position = Vector3(0, h + 0.95, 0)
 	_alert_label.pixel_size = 0.005

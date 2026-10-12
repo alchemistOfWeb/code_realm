@@ -57,6 +57,8 @@ static func _build_outdoor(root: Node3D, data: Dictionary, sky: String) -> Dicti
 
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Склоны — отдельно для камеры (слой 4): она не уходит внутрь холма, а ровная земля ей не мешает
+	var cam_faces := PackedVector3Array()
 	var hv: PackedFloat32Array = terrain.hv
 	var vw := ew + 1
 	for ez in eh:
@@ -72,6 +74,8 @@ static func _build_outdoor(root: Node3D, data: Dictionary, sky: String) -> Dicti
 			for p in [p0, p1, p2, p0, p2, p3]:
 				st.set_uv(Vector2(p.x, p.z))
 				st.add_vertex(p)
+			if maxf(maxf(p0.y, p1.y), maxf(p2.y, p3.y)) > 1.5:
+				cam_faces.append_array(PackedVector3Array([p0, p1, p2, p0, p2, p3]))
 	st.index()
 	st.generate_normals()
 	var ground_mesh := st.commit()
@@ -96,6 +100,16 @@ static func _build_outdoor(root: Node3D, data: Dictionary, sky: String) -> Dicti
 	gcs.shape = ground_mesh.create_trimesh_shape()
 	ground_body.add_child(gcs)
 	root.add_child(ground_body)
+	if not cam_faces.is_empty():
+		var cam_body := StaticBody3D.new()
+		cam_body.collision_layer = 4
+		cam_body.collision_mask = 0
+		var ccs := CollisionShape3D.new()
+		var cshape := ConcavePolygonShape3D.new()
+		cshape.set_faces(cam_faces)
+		ccs.shape = cshape
+		cam_body.add_child(ccs)
+		root.add_child(cam_body)
 
 	# --- Пропасть / река
 	var fall_y := SortiePlayer.FALL_Y
@@ -116,11 +130,12 @@ static func _build_outdoor(root: Node3D, data: Dictionary, sky: String) -> Dicti
 		else:
 			var abyss := MeshInstance3D.new()
 			var am := PlaneMesh.new()
-			am.size = Vector2(chasm.size.x + 2, h + MARGIN * 2)
+			am.size = Vector2(chasm.size.x + 2, h + MARGIN * 2 + 12)
 			abyss.mesh = am
 			var amat := StandardMaterial3D.new()
-			amat.albedo_color = Color("#0C0A12")
+			amat.albedo_color = Color("#050408")
 			amat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			amat.disable_fog = true   # иначе туман красит дно в цвет неба — «дыра в мир»
 			abyss.material_override = amat
 			abyss.position = Vector3(chasm.position.x + chasm.size.x * 0.5, -18.0, h * 0.5)
 			root.add_child(abyss)
@@ -135,9 +150,9 @@ static func _build_outdoor(root: Node3D, data: Dictionary, sky: String) -> Dicti
 			if eg[ez * ew + ex] == OutdoorGenerator.BLOCK and edist[ez * ew + ex] == 1:
 				var cs := CollisionShape3D.new()
 				var box := BoxShape3D.new()
-				box.size = Vector3(1, 4, 1)
+				box.size = Vector3(1, 6, 1)
 				cs.shape = box
-				cs.position = Vector3(ex - MARGIN + 0.5, 2.0, ez - MARGIN + 0.5)
+				cs.position = Vector3(ex - MARGIN + 0.5, 3.0, ez - MARGIN + 0.5)
 				walls.add_child(cs)
 
 	# --- Поиск пути
@@ -193,9 +208,9 @@ static func _extend(data: Dictionary) -> Dictionary:
 	return {"ew": ew, "eh": eh, "grid": eg}
 
 
-## Высоты вершин рельефа: проходимые клетки — 0, дальше от них — крутой склон и холмы.
+## Высоты вершин рельефа: проходимые клетки — 0, дальше от них — крутые склоны оврага (до ~6 м).
 ## Кромка пропасти остаётся на уровне 0 (там стоят обрывы).
-const HILL := [0.0, 1.35, 2.15, 2.75, 3.15, 3.4, 3.6]
+const HILL := [0.0, 2.1, 3.7, 4.8, 5.5, 5.9, 6.2]
 
 
 static func _terrain(ext: Dictionary, edist: PackedInt32Array, kind: String, chasm: Rect2i) -> Dictionary:
@@ -268,21 +283,43 @@ static func _biome_of(kind: String) -> String:
 static func _build_cliffs(root: Node3D, chasm: Rect2i, h: int, water: bool, rng: RandomNumberGenerator) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Стены каньона: сверху цвет скалы, книзу — темнота (без тумана, чтобы не просвечивал цвет неба).
+	# Полосы по высоте с небольшим шумом по x — неровный скальный край.
 	var depth := 3.0 if water else 22.0
+	var rows := [0.0, -1.2, -3.0, -6.0, -11.0, -depth] if not water else [0.0, -1.0, -depth]
+	var top := Color("#6E655A") if not water else Color("#5A5E52")
 	for side in [0, 1]:
 		var x := float(chasm.position.x if side == 0 else chasm.end.x)
-		var z0 := float(-MARGIN)
-		var z1 := float(h + MARGIN)
-		var pts := [Vector3(x, 0, z0), Vector3(x, 0, z1), Vector3(x, -depth, z1), Vector3(x, -depth, z0)]
-		var order := [0, 1, 2, 0, 2, 3] if side == 0 else [0, 2, 1, 0, 3, 2]
-		for i in order:
-			st.set_uv(Vector2(pts[i].z, pts[i].y))
-			st.add_vertex(pts[i])
+		var inward := 1.0 if side == 0 else -1.0
+		# Неровность вершин общая для соседних сегментов — без щелей
+		var zs := range(-MARGIN - 6, h + MARGIN + 8, 2)
+		var jit := {}
+		for z in zs:
+			for r in rows.size():
+				jit[Vector2i(z, r)] = 0.0 if r == 0 else rng.randf_range(-0.35, 0.35) * inward
+		for z in range(-MARGIN - 6, h + MARGIN + 6, 2):
+			for r in rows.size() - 1:
+				var y0: float = rows[r]
+				var y1: float = rows[r + 1]
+				var c0 := top.lerp(Color.BLACK, clampf(-y0 / 9.0, 0, 1))
+				var c1 := top.lerp(Color.BLACK, clampf(-y1 / 9.0, 0, 1))
+				var p0 := Vector3(x + jit[Vector2i(z, r)], y0, z)
+				var p1 := Vector3(x + jit[Vector2i(z + 2, r)], y0, z + 2)
+				var p2 := Vector3(x + jit[Vector2i(z + 2, r + 1)], y1, z + 2)
+				var p3 := Vector3(x + jit[Vector2i(z, r + 1)], y1, z)
+				var quad := [p0, p1, p2, p0, p2, p3]
+				for p in quad:
+					st.set_color(c0 if is_equal_approx(p.y, y0) else c1)
+					st.add_vertex(p)
 	st.generate_normals()
 	var mi := MeshInstance3D.new()
 	mi.mesh = st.commit()
-	var m := WorldStyle.ground_material("cave")
-	m.set_shader_parameter("scale", 0.35)
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.roughness = 0.95
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.disable_fog = true
 	mi.material_override = m
 	root.add_child(mi)
 	var rocks: Array = []
@@ -315,7 +352,8 @@ static func _mist(root: Node3D, center: Vector3, extent: Vector3) -> void:
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.albedo_color = Color(0.75, 0.8, 0.9, 0.12)
+	mat.albedo_color = Color(0.45, 0.45, 0.52, 0.07)
+	mat.disable_fog = true
 	mat.albedo_texture = WorldStyle._soft_dot()
 	quad.material = mat
 	p.mesh = quad

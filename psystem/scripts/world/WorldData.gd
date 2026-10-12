@@ -115,6 +115,23 @@ static func start_node(loc_id: String) -> String:
 	return loc.get("order", [""])[0]
 
 
+## Глубина подлокации: число переходов от стартовой (BFS по графу локации).
+static func node_depth(loc_id: String, node_id: String) -> int:
+	var loc := location(loc_id)
+	var start := start_node(loc_id)
+	var dist := {start: 0}
+	var queue: Array = [start]
+	while not queue.is_empty():
+		var v: String = queue.pop_front()
+		if v == node_id:
+			return dist[v]
+		for u in loc.get("nodes", {}).get(v, {}).get("links", []):
+			if not dist.has(u):
+				dist[u] = dist[v] + 1
+				queue.append(u)
+	return 0
+
+
 static func is_underground(node_data: Dictionary) -> bool:
 	return NODE_KINDS.get(node_data.get("kind", ""), {}).get("underground", false)
 

@@ -51,7 +51,7 @@ func _ready() -> void:
 
 func setup(params: Dictionary) -> void:
 	context = params.get("context", "training")
-	enemy_data = _find_enemy(params.get("enemy_id", "syntax_error"))
+	enemy_data = XPCalculator.scaled_enemy(_find_enemy(params.get("enemy_id", "syntax_error")), float(params.get("power", 1.0)))
 	var stats := GameManager.combat_stats()
 	if context == "training":
 		stats.hp = stats.max_hp
@@ -409,8 +409,7 @@ func _show_preview(card: Dictionary, source: Control) -> void:
 	pos.y = clampf(pos.y, 8, view.y - big.y - 8)
 	cv.global_position = pos
 	_hover_card = cv
-	_preview.text = "%s
-%s" % [card.get("name", ""), card.get("description", "")]
+	_preview.text = "%s\n%s" % [card.get("name", ""), card.get("description", "")]
 
 
 func _hide_preview() -> void:
@@ -765,7 +764,7 @@ func _show_result(result: Dictionary) -> void:
 	if context == "training":
 		lines.append(Loc.t("Тренировочный бой — без наград и потерь."))
 	elif result.won:
-		lines.append(Loc.t("[color=#00D4AA]+%d XP[/color]   [color=#F5C542]+%d золота[/color]   [color=#FFD700]+%d энергии[/color]") % [result.xp, result.gold, result.energy])
+		lines.append(Loc.t("[color=#00D4AA]+%d XP[/color]   [color=#F5C542]+%d золота[/color]") % [result.xp, result.gold])
 		for id in result.cards:
 			lines.append(Loc.t("Трофей: карта «%s»") % CardDatabase.get_card(id).get("name", id))
 		lines.append(Loc.t("[color=#8C8CB0]Осталось HP: %d[/color]") % result.hp_left)

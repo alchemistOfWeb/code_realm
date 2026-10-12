@@ -6,6 +6,9 @@ extends RefCounted
 ## 3 — пропасть или река (смертельно: падение = гибель). Поляны соединены извилистыми тропами (MST).
 ## Если у подлокации features.platforms — карту рассекает пропасть/река поперёк, перейти её можно
 ## только прыжками по движущимся платформам.
+## Вертикальность (vertical): на полянах стоят башни со спиральными уступами (руины) или пни-ступени
+## к деревянной вышке (лес, луг, берег) — на вершине сундук с ценной добычей. Тип и число — features.vertical
+## (по умолчанию одна постройка, на больших картах — две).
 ## Выходы — тропы, уходящие за край карты в сторону соседней подлокации (по её положению на карте
 ## локации). Переход — когда герой уходит по тропе за край; «указатель» (arrive) — точка появления.
 
@@ -164,6 +167,26 @@ static func generate(node: Dictionary, neighbors: Array, seed_value: int, entry:
 
 	var far: Array = clearings.duplicate()
 	far.sort_custom(func(a, b): return a.center.distance_to(start_c.center) > b.center.distance_to(start_c.center))
+
+	# --- Вертикальные постройки с ценным сундуком наверху (до сундуков и врагов — резервируют место)
+	result.vertical = []
+	var vtypes: Array = f.get("vertical", [])
+	if not f.has("vertical"):
+		var t := "tower" if node.get("kind") == "ruins" else "stumps"
+		vtypes = [t] if clearings.size() < 7 else [t, "stumps" if t == "tower" else "tower"]
+	var vpool: Array = pool_clearings.filter(func(c): return c.radius >= 4.6 and c != far[0])
+	vpool.sort_custom(func(a, b): return a.radius > b.radius)
+	for t in vtypes:
+		if vpool.is_empty():
+			break
+		var c: Dictionary = vpool.pop_front()
+		var yaw := rng.randf() * TAU
+		var center: Vector2 = c.center + Vector2(cos(yaw), sin(yaw)) * minf(c.radius - 3.4, 1.2)
+		for y in range(int(center.y) - 3, int(center.y) + 4):
+			for x in range(int(center.x) - 3, int(center.x) + 4):
+				if Vector2(x + 0.5, y + 0.5).distance_to(center) <= 3.2:
+					occupied[Vector2i(x, y)] = true
+		result.vertical.append({"type": t, "center": center, "yaw": yaw, "height": 5.6 if t == "tower" else 3.2})
 
 	# --- NPC — поближе к старту
 	var near: Array = clearings.duplicate()

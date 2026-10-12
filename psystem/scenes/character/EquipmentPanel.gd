@@ -278,16 +278,17 @@ func _drag_item(_at: Vector2, id: String, from: String, slot: String) -> Variant
 	if id == "":
 		return null
 	var it := ItemDatabase.get_item(id)
+	# Сначала режим растяжения, потом размер: иначе минимальный размер — вся текстура рендера
 	var icon := TextureRect.new()
-	icon.texture = ItemDatabase.icon(it)
-	icon.custom_minimum_size = Vector2(64, 64)
-	icon.size = Vector2(64, 64)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.modulate = Color(1, 1, 1, 0.85)
+	icon.texture = ItemDatabase.icon(it)
+	icon.custom_minimum_size = Vector2(44, 44)
+	icon.size = Vector2(44, 44)
+	icon.modulate = Color(1, 1, 1, 0.9)
 	var holder := Control.new()
 	holder.add_child(icon)
-	icon.position = -Vector2(32, 32)
+	icon.position = -Vector2(22, 22)
 	set_drag_preview(holder)
 	Audio.play("select")
 	return {"type": "item", "id": id, "from": from, "slot": slot}
@@ -343,8 +344,8 @@ func _refresh_summary() -> void:
 	var weapons: PackedStringArray = []
 	for w in GameManager.combat_weapons():
 		weapons.append(Loc.t(XPCalculator.WEAPONS[w].name))
-	_summary.text = "[center]%s: [b]%s[/b]\n%s [color=#F5C542]%d[/color] · %s [color=#FF8A8A]%d[/color] · %s [color=#7FDBFF]%d[/color] · %s [color=#00D4AA]%d%%[/color][/center]" % [
+	_summary.text = "[center]%s: [b]%s[/b]\n%s [color=#F5C542]%d[/color] · %s [color=#FF8A8A]%d[/color] · %s [color=#7FDBFF]%d[/color] · %s [color=#00D4AA]%s[/color][/center]" % [
 		Loc.t("Атаки в бою"), ", ".join(weapons),
 		Loc.t("Броня"), int(eq.get("armor", 0)), Loc.t("Урон"), int(eq.get("damage", 0)),
 		Loc.t("HP"), GameManager.player_data.max_hp,
-		Loc.t("Уклонение"), XPCalculator.dodge_chance(attrs.get("agility", 0), int(eq.get("dodge", 0)))]
+		Loc.t("Уклонение"), XPCalculator.format_percent(XPCalculator.dodge_chance(attrs.get("agility", 0), int(eq.get("dodge", 0))))]

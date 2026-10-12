@@ -29,7 +29,8 @@ func _ready() -> void:
 func setup(sid: String) -> void:
 	spec_id = sid
 	var meta := ContentParser.get_spec_meta(sid)
-	name_label.text = meta.get("name", sid)
+	var full: String = meta.get("name", sid)
+	name_label.text = full if full.length() <= 22 else meta.get("short", full)   # длинные названия — коротко
 	tooltip_text = "%s\n\n%s" % [meta.get("name", sid), meta.get("description", "")]
 	var color := ContentParser.get_spec_color(sid)
 	_mat.set_shader_parameter("orb_color", color)

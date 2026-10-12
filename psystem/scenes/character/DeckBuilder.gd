@@ -6,6 +6,9 @@ extends VBoxContainer
 ## Сверху — поиск и фильтры; в колоде — кривая стоимости и состав по типам. Минимального размера нет.
 
 const CARD_SCENE := preload("res://scenes/combat/CardVisual.tscn")
+## Увеличенная карта при наведении (как в коллекции и в бою): полный текст читается без клика.
+const ZOOM_SCALE := 1.45
+const ZOOM_DELAY := 0.25
 const CARD_SCALE := 0.58
 const MINI_SCALE := 0.37
 const GRID_MARGIN := 14
@@ -170,6 +173,7 @@ func _option(parent: Control, items: Array, rarity_names: bool = false) -> Optio
 
 
 func refresh() -> void:
+	_hide_zoom()
 	_starter_btn.visible = not GameManager.has_flag("starter_pack")
 	_refresh_collection()
 	_refresh_deck()
@@ -209,6 +213,43 @@ func _refresh_collection() -> void:
 	_update_columns.call_deferred()
 
 
+var _zoom_card: Control
+var _zoom_src: Control
+
+
+func _hover_zoom(card: Dictionary, src: Control) -> void:
+	_zoom_src = src
+	await get_tree().create_timer(ZOOM_DELAY).timeout
+	if _zoom_src != src or not is_instance_valid(src) or not src.is_visible_in_tree():
+		return
+	_hide_zoom()
+	_zoom_src = src
+	var cv := CARD_SCENE.instantiate()
+	cv.card_scale = ZOOM_SCALE
+	cv.hover_lift = false
+	cv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cv.top_level = true
+	add_child(cv)
+	cv.setup(card, 0)
+	var big := Vector2(200, 280) * ZOOM_SCALE
+	var view := get_viewport_rect().size
+	var r := src.get_global_rect()
+	var x := r.end.x + 12 if r.end.x + 12 + big.x < view.x - 8 else r.position.x - big.x - 12
+	var y := clampf(r.get_center().y - big.y * 0.5, 8, view.y - big.y - 8)
+	cv.global_position = Vector2(clampf(x, 8, view.x - big.x - 8), y)
+	cv.z_index = 50
+	_zoom_card = cv
+
+
+func _hide_zoom(src: Control = null) -> void:
+	if src != null and src != _zoom_src:
+		return
+	_zoom_src = null
+	if is_instance_valid(_zoom_card):
+		_zoom_card.queue_free()
+	_zoom_card = null
+
+
 func _collection_cell(card: Dictionary) -> Control:
 	var id: String = card.id
 	var owned := int(GameManager.card_collection.get(id, 0))
@@ -226,6 +267,8 @@ func _collection_cell(card: Dictionary) -> Control:
 		cv.modulate = Color(0.45, 0.45, 0.52)
 	cv.tooltip_text = (reason + "\n" if reason != "" else "") + Loc.t("В колоде: %d из %d · клик — добавить, ПКМ — убрать") % [in_deck, owned]
 	cv.clicked.connect(_add.bind(id))
+	cv.mouse_entered.connect(_hover_zoom.bind(card, cv))
+	cv.mouse_exited.connect(_hide_zoom.bind(cv))
 	cv.gui_input.connect(func(ev):
 		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_RIGHT:
 			_remove(id))
@@ -322,6 +365,8 @@ func _deck_cell(id: String, n: int) -> Control:
 	cv.setup(card, 0)
 	cv.tooltip_text = "%s\n%s\n\n%s" % [card.get("name", ""), card.get("description", ""), Loc.t("Клик — убрать одну копию")]
 	cv.clicked.connect(_remove.bind(id))
+	cv.mouse_entered.connect(_hover_zoom.bind(card, cv))
+	cv.mouse_exited.connect(_hide_zoom.bind(cv))
 	cv.drag_payload = {"from": "deck", "id": id}
 	if n > 1:
 		var badge := Label.new()

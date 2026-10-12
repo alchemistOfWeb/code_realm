@@ -438,6 +438,126 @@
 			"model_tint": "#A0FFB0",
 			"description": "Дракон-монолит, проросший в Сердце рощи. Растёт с каждым ходом — бей быстро.",
 			"description_en": "A monolith dragon rooted in the Heart of the Grove. Grows every turn: strike fast."
+		},
+		{
+			"id": "thorn_spider",
+			"name": "Thorn Spider",
+			"title": "Колючий паук",
+			"title_en": "Thorn spider",
+			"hp": 14,
+			"attack": 4,
+			"xp_reward": 22,
+			"gold_reward": 8,
+			"cards": [
+				"microservices",
+				"git_commit"
+			],
+			"color": "#A04000",
+			"icon": "spider-face",
+			"floor": 2,
+			"special": "",
+			"model": "Spider",
+			"model_size": 1.1,
+			"model_tint": "#FFB070",
+			"description": "Плетёт паутину из колючих лиан. Кусается больнее, чем выглядит.",
+			"description_en": "Weaves webs from thorny vines. Bites harder than it looks."
+		},
+		{
+			"id": "leaf_imp",
+			"name": "Leaf Imp",
+			"title": "Листопадный бес",
+			"title_en": "Leaf-fall imp",
+			"hp": 18,
+			"attack": 4,
+			"xp_reward": 26,
+			"gold_reward": 10,
+			"cards": [
+				"hallucination",
+				"prompt_basic"
+			],
+			"color": "#D35400",
+			"icon": "imp",
+			"floor": 2,
+			"special": "double_attack",
+			"model": "Imp",
+			"model_size": 0.95,
+			"model_tint": "#FFC080",
+			"description": "Прячется в опавшей листве и бьёт дважды, пока ты ищешь его взглядом.",
+			"description_en": "Hides in fallen leaves and strikes twice while you look for it."
+		},
+		{
+			"id": "maple_wyrm",
+			"name": "Maple Wyrm",
+			"title": "Кленовый змей",
+			"title_en": "The Maple Wyrm",
+			"hp": 42,
+			"attack": 5,
+			"xp_reward": 110,
+			"gold_reward": 65,
+			"cards": [
+				"kubernetes_pod",
+				"load_balancer",
+				"transformer_model"
+			],
+			"color": "#E67E22",
+			"icon": "dragon-head",
+			"floor": 3,
+			"special": "grow",
+			"is_boss": true,
+			"model": "Dragon",
+			"model_size": 1.1,
+			"model_tint": "#FFB060",
+			"description": "Древний змей, спящий в корнях кленового сердца. Каждый ход крепнет — не затягивай бой.",
+			"description_en": "An ancient wyrm sleeping in the roots of the maple heart. Grows stronger every turn — don't drag the fight out."
+		},
+		{
+			"id": "scarecrow",
+			"name": "Scarecrow Daemon",
+			"title": "Пугало-демон",
+			"title_en": "Scarecrow daemon",
+			"hp": 20,
+			"attack": 4,
+			"xp_reward": 28,
+			"gold_reward": 11,
+			"cards": [
+				"git_commit",
+				"sql_query"
+			],
+			"color": "#B9770E",
+			"icon": "skeleton",
+			"floor": 2,
+			"special": "armor",
+			"model": "Skeleton",
+			"model_size": 1.05,
+			"model_tint": "#E8C97A",
+			"description": "Фоновый процесс, который давно забыли остановить. Солома глушит удары.",
+			"description_en": "A background process nobody remembered to kill. Straw muffles your blows."
+		},
+		{
+			"id": "mill_golem",
+			"name": "Mill Golem",
+			"title": "Мельничный голем",
+			"title_en": "The Mill Golem",
+			"hp": 48,
+			"attack": 5,
+			"xp_reward": 120,
+			"gold_reward": 70,
+			"cards": [
+				"kubernetes_pod",
+				"microservices",
+				"load_balancer",
+				"docker_container"
+			],
+			"color": "#7E5109",
+			"icon": "metal-golem-head",
+			"floor": 3,
+			"special": "armor",
+			"is_boss": true,
+			"model": "Puglin",
+			"model_size": 2.2,
+			"model_tint": "#C8A070",
+			"description": "Жернова вместо кулаков: мелет всё, что попадёт в хранилище. Броня гасит слабые удары.",
+			"description_en": "Millstones for fists: grinds everything that enters the vault. Armour shrugs off weak blows."
 		}
 	]
 }

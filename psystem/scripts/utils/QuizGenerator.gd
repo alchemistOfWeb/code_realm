@@ -7,18 +7,21 @@ extends RefCounted
 ##   authored    — авторский вопрос <!-- quiz: ... --> из .md                   (priority 3)
 ##   fill_gap    — пропуск выделенного **термина** в предложении из урока       (priority 2)
 ##   answer_hint — «что ожидают в ответе на вопрос собеса» (узлы-вопросы)       (priority 2)
-##   parent / member / true_false — принадлежность тем к разделам              (priority 1)
+##   definition  — «о каком понятии речь»: определение из урока → термин         (priority 2)
+##   term_fact   — «что верно о термине»: верное определение среди чужих        (priority 1)
+## Вопросы о структуре дерева («к какому разделу относится тема», «какая тема входит в раздел»)
+## проверяют не знания, а оглавление, — их нет.
 
 const NODE_TEST_MAIN := 5
 const NODE_TEST_SUB := 3
 const TREE_TEST := 10
 const TRUE_TEXT := "Верно"
 const FALSE_TEXT := "Неверно"
-const MAX_TITLE_LEN := 90
 const BLANK := "＿＿＿＿"   # полноширинные подчёркивания — не конфликтуют с markdown-курсивом
 
 static var _re_bold: RegEx
 static var _re_numbered: RegEx
+static var _re_def: RegEx
 
 
 ## Тест по одному узлу (главный узел — вместе с подтемами).
@@ -54,7 +57,10 @@ static func _context(spec_id: String) -> Dictionary:
 		_re_bold.compile("\\*\\*(.+?)\\*\\*")
 		_re_numbered = RegEx.new()
 		_re_numbered.compile("^\\d+[.)]\\s*")
-	var ctx := {"mains": [], "terms": [], "hints": [], "subs": []}
+		# «- **Термин** — определение» / «**Термин**: определение»
+		_re_def = RegEx.new()
+		_re_def.compile("^(?:[-*]\\s+)?\\*\\*([^*]+)\\*\\*\\s*(?:—|–|-|:)\\s+(.+)$")
+	var ctx := {"mains": [], "terms": [], "hints": [], "subs": [], "defs": []}
 	for node in ContentParser.get_flat_nodes(spec_id):
 		if node.is_main:
 			ctx.mains.append(node)
@@ -65,6 +71,8 @@ static func _context(spec_id: String) -> Dictionary:
 		var hint := _hint_of(node)
 		if hint != "":
 			ctx.hints.append({"hint": hint, "node_id": node.id})
+		for d in _definitions_of(node):
+			ctx.defs.append(d)
 	return ctx
 
 
@@ -83,21 +91,21 @@ static func _collect(nodes: Array, ctx: Dictionary) -> Array:
 		var hint_q := _answer_hint(node, ctx)
 		if not hint_q.is_empty():
 			pool.append(hint_q)
-		if node.is_main:
-			var member := _member(node, ctx)
-			if not member.is_empty():
-				pool.append(member)
-		else:
-			var parent_q := _parent(node, ctx)
-			if not parent_q.is_empty():
-				pool.append(parent_q)
-			var tf := _true_false(node, ctx)
-			if not tf.is_empty():
-				pool.append(tf)
+		var reverse_q := _hint_reverse(node, ctx)
+		if not reverse_q.is_empty():
+			pool.append(reverse_q)
+		var defs := 0
+		for d in ctx.defs:
+			if d.node_id != node.id or defs >= 2:
+				continue
+			var q := _definition(d, ctx) if defs % 2 == 0 else _term_fact(d, ctx)
+			if not q.is_empty():
+				pool.append(q)
+				defs += 1
 	return pool
 
 
-## Выбор вопросов по квотам: ~50% авторских, ~30% по терминам/ответам, остальное — структура.
+## Выбор вопросов по квотам: ~50% авторских, ~30% по терминам/ответам/определениям, остальное — факты о терминах.
 ## Нехватка в одной группе добирается из других. По возможности — разные темы (spread).
 static func _pick(pool: Array, count: int, spread: bool) -> Array:
 	var tiers := {3: [], 2: [], 1: []}
@@ -156,7 +164,7 @@ static func _fill_gaps(node: Dictionary, ctx: Dictionary) -> Array:
 		sentence = sentence.replace("**", "").trim_prefix("- ").trim_prefix("* ").trim_prefix("> ").strip_edges()
 		sentence = _re_numbered.sub(sentence, "")
 		var rest := sentence.replace(BLANK, "").strip_edges()
-		if rest.length() < 18 or sentence.length() > 240:
+		if rest.length() < 18 or sentence.length() > 240 or sentence.ends_with(":"):
 			continue
 		var distractors := _distractor_terms(term, line, node.id, ctx)
 		if distractors.size() < 3:
@@ -186,53 +194,66 @@ static func _answer_hint(node: Dictionary, ctx: Dictionary) -> Dictionary:
 		"Вопрос встречается в %d/100 собеседований." % node.frequency, node, "answer_hint", 2)
 
 
-static func _parent(node: Dictionary, ctx: Dictionary) -> Dictionary:
-	var parent := ContentParser.get_parent_node(node.id)
-	if parent.is_empty() or node.title.length() > MAX_TITLE_LEN:
-		return {}
-	var others := _other_titles(ctx.mains, parent.id)
-	if others.size() < 3:
-		return {}
-	var options: Array = [parent.title]
-	options.append_array(others.slice(0, 3))
-	return _make("К какому разделу относится тема «%s»?" % node.title, options, 0,
-		"«%s» — подтема раздела «%s»." % [node.title, parent.title], node, "parent", 1)
-
-
-static func _member(node: Dictionary, ctx: Dictionary) -> Dictionary:
-	var subs: Array = node.get("subnodes", [])
-	if subs.is_empty():
-		return {}
-	var correct_sub: Dictionary = subs.pick_random()
-	if correct_sub.title.length() > MAX_TITLE_LEN:
+## Обратный к answer_hint: по ожидаемому ответу узнать вопрос собеседования.
+static func _hint_reverse(node: Dictionary, ctx: Dictionary) -> Dictionary:
+	var hint := _hint_of(node)
+	if hint == "":
 		return {}
 	var others: Array = []
-	for s in ctx.subs:
-		if s.get("parent_id", "") != node.id and s.title.length() <= MAX_TITLE_LEN:
-			others.append(s.title)
+	for h in ctx.hints:
+		if h.node_id != node.id:
+			var t: String = ContentParser.get_node_data(h.node_id).get("title", "")
+			if t != "" and t != node.title and not t in others:
+				others.append(t)
 	if others.size() < 3:
 		return {}
 	others.shuffle()
-	var options: Array = [correct_sub.title]
+	var options: Array = [node.title]
 	options.append_array(others.slice(0, 3))
-	return _make("Какая из тем входит в раздел «%s»?" % node.title, options, 0,
-		"Подтемы раздела: %s." % ", ".join(subs.map(func(s): return "«%s»" % s.title)), node, "member", 1)
+	return _make("На какой вопрос собеседования это хороший ответ?\n\n«%s»" % hint, options, 0,
+		"Вопрос: **%s**" % node.title, node, "hint_reverse", 2)
 
 
-static func _true_false(node: Dictionary, ctx: Dictionary) -> Dictionary:
-	var parent := ContentParser.get_parent_node(node.id)
-	if parent.is_empty() or node.title.length() > MAX_TITLE_LEN:
+## «О каком понятии идёт речь?» — определение из урока, ответ — термин.
+static func _definition(d: Dictionary, ctx: Dictionary) -> Dictionary:
+	var others: Array = []
+	var seen := {d.term.to_lower(): true}
+	for o in ctx.defs:
+		var tl: String = o.term.to_lower()
+		if seen.has(tl) or tl in d.text.to_lower():
+			continue
+		seen[tl] = true
+		others.append(o.term)
+	if others.size() < 3:
+		for t in ctx.terms:
+			var tl: String = t.term.to_lower()
+			if not seen.has(tl) and not tl in d.text.to_lower():
+				seen[tl] = true
+				others.append(t.term)
+	if others.size() < 3:
 		return {}
-	var shown: String = parent.title
-	var truth := randf() < 0.5
-	if not truth:
-		var others := _other_titles(ctx.mains, parent.id)
-		if others.is_empty():
-			return {}
-		shown = others[0]
-	return _make("Верно ли утверждение?\n\nТема «%s» входит в раздел «%s»." % [node.title, shown],
-		[TRUE_TEXT, FALSE_TEXT], 0 if truth else 1,
-		"«%s» — подтема раздела «%s»." % [node.title, parent.title], node, "true_false", 1)
+	others.shuffle()
+	var options: Array = [d.term]
+	options.append_array(others.slice(0, 3))
+	var node := ContentParser.get_node_data(d.node_id)
+	return _make("О каком понятии идёт речь?\n\n«%s»" % d.text, options, 0,
+		"**%s** — %s\n\nТема: «%s»" % [d.term, d.text, node.get("title", "")], node, "definition", 2)
+
+
+## «Что верно о …?» — верное определение термина среди определений других терминов.
+static func _term_fact(d: Dictionary, ctx: Dictionary) -> Dictionary:
+	var others: Array = []
+	for o in ctx.defs:
+		if o.term.to_lower() != d.term.to_lower() and o.text != d.text and not d.term.to_lower() in o.text.to_lower():
+			others.append(o.text)
+	if others.size() < 3:
+		return {}
+	others.shuffle()
+	var options: Array = [d.text]
+	options.append_array(others.slice(0, 3))
+	var node := ContentParser.get_node_data(d.node_id)
+	return _make("Какое описание подходит к понятию **%s**?" % d.term, options, 0,
+		"**%s** — %s\n\nТема: «%s»" % [d.term, d.text, node.get("title", "")], node, "term_fact", 1)
 
 
 # ---------------------------------------------------------------- Вспомогательное
@@ -300,13 +321,31 @@ static func _hint_of(node: Dictionary) -> String:
 	return ""
 
 
-static func _other_titles(mains: Array, exclude_id: String) -> Array:
-	var others: Array = []
-	for m in mains:
-		if m.id != exclude_id and m.title.length() <= MAX_TITLE_LEN:
-			others.append(m.title)
-	others.shuffle()
-	return others
+## Определения из урока: строки вида «**Термин** — текст» (если термин не повторяется в тексте).
+static func _definitions_of(node: Dictionary) -> Array:
+	var result: Array = []
+	var in_code := false
+	for raw in node.get("content", "").split("\n"):
+		var line: String = raw.strip_edges()
+		if line.begins_with("```"):
+			in_code = not in_code
+			continue
+		if in_code:
+			continue
+		var m := _re_def.search(line)
+		if m == null:
+			continue
+		var term := _clean_term(m.get_string(1))
+		var text := m.get_string(2).replace("**", "").replace("`", "").strip_edges()
+		if not _good_term(term) or text.length() < 22 or text.length() > 170 or text.ends_with(":"):
+			continue
+		# Перечисления («события, интенсивность, длительность») — не определения
+		if text.count(",") >= 2 and text.split(" ", false).size() <= 9:
+			continue
+		if term.to_lower() in text.to_lower():
+			continue
+		result.append({"term": term, "text": text, "node_id": node.id})
+	return result
 
 
 static func _shuffle_options(q: Dictionary) -> void:

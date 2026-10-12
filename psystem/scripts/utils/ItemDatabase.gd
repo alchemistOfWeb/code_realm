@@ -130,4 +130,5 @@ static func stat_lines(item: Dictionary) -> PackedStringArray:
 		var w: Dictionary = XPCalculator.WEAPONS.get(item.weapon_type, {})
 		if not w.is_empty():
 			lines.insert(0, Loc.t("Атака: %s") % Loc.t(w.name))
+			lines.insert(1, Loc.t("Расход выносливости: %d") % XPCalculator.weapon_item_cost(item))
 	return lines

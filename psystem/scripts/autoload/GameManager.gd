@@ -72,6 +72,7 @@ static func default_world() -> Dictionary:
 
 ## Вызывается SaveSystem после загрузки: миграции и пересчёт производных значений.
 func after_load() -> void:
+	player_data.xp_to_next = XPCalculator.xp_to_next(int(player_data.level))
 	if not player_data.has("stash"):
 		player_data["stash"] = []
 	if player_data.equipment.is_empty() and not world.flags.get("starter_kit", false):
@@ -79,8 +80,9 @@ func after_load() -> void:
 	recalc_max_hp()
 
 
-## Новый герой: имя, внешность, расовый бонус, стартовое снаряжение.
-func create_hero(hero_name: String, look: Dictionary) -> void:
+## Новый герой: имя, внешность, расовый бонус, распределённые очки атрибутов (alloc), стартовое снаряжение.
+## Нераспределённые очки (CREATION_POINTS + расовые) остаются на потом.
+func create_hero(hero_name: String, look: Dictionary, alloc: Dictionary = {}) -> void:
 	reset_all()
 	player_data.name = hero_name
 	player_data.look = look.duplicate()
@@ -90,6 +92,12 @@ func create_hero(hero_name: String, look: Dictionary) -> void:
 			player_data.attribute_points += int(bonus[key])
 		elif player_data.attributes.has(key):
 			player_data.attributes[key] += int(bonus[key])
+	player_data.attribute_points += XPCalculator.CREATION_POINTS
+	for key in alloc:
+		var n := mini(int(alloc[key]), int(player_data.attribute_points))
+		if player_data.attributes.has(key) and n > 0:
+			player_data.attributes[key] += n * int(XPCalculator.ATTRIBUTES[key].per_point)
+			player_data.attribute_points -= n
 	give_starter_kit()
 	recalc_max_hp()
 	player_data.hp = player_data.max_hp
@@ -337,12 +345,15 @@ func complete_tree_test(spec_id: String, correct: int, total: int) -> Dictionary
 	return result
 
 
-## Итог теста узла: при зачёте узел изучается (+XP узла) и один раз даётся бонус.
-## Возвращает {passed, first, correct, total, xp, learned_now}
+## Итог теста узла: при зачёте узел изучается (+XP узла), один раз даётся бонус XP и энергия;
+## повторный зачёт — немного энергии, не чаще перезарядки.
+## Возвращает {passed, first, correct, total, xp, energy, learned_now}
 func complete_node_test(node: Dictionary, correct: int, total: int) -> Dictionary:
 	var passed := total > 0 and correct >= QuizGenerator.pass_threshold(total, XPCalculator.NODE_TEST_PASS_RATIO)
+	var prev := test_record("node:" + node.id)
+	var cooled: bool = int(Time.get_unix_time_from_system()) >= int(prev.get("last_pass", 0)) + XPCalculator.TREE_RETEST_COOLDOWN_HOURS * 3600
 	var before := _record_test("node:" + node.id, correct, total, passed)
-	var result := {"passed": passed, "first": false, "correct": correct, "total": total, "xp": 0, "learned_now": false}
+	var result := {"passed": passed, "first": false, "correct": correct, "total": total, "xp": 0, "energy": 0, "learned_now": false}
 	if not passed:
 		player_changed.emit()
 		return result
@@ -354,6 +365,11 @@ func complete_node_test(node: Dictionary, correct: int, total: int) -> Dictionar
 		var bonus := XPCalculator.node_test_bonus(node.get("difficulty", 1))
 		result.xp += bonus
 		gain_xp(bonus)
+		result.energy = XPCalculator.NODE_TEST_ENERGY
+	elif cooled:
+		result.energy = XPCalculator.NODE_RETEST_ENERGY
+	if result.energy > 0:
+		gain_energy(result.energy)
 	player_changed.emit()
 	return result
 
@@ -477,14 +493,12 @@ func apply_combat_result(enemy: Dictionary, won: bool, context: String, hp_left:
 	world.stats.fights_won = world.stats.get("fights_won", 0) + 1
 	result.xp = int(enemy.get("xp_reward", 10))
 	result.gold = int(enemy.get("gold_reward", 5))
-	result.energy = XPCalculator.COMBAT_WIN_ENERGY
 	if enemy.get("is_boss", false) or enemy.get("is_miniboss", false) or randf() < 0.15:
 		var card := CardDatabase.roll_card(CardDatabase.all_cards(), 2.5 if enemy.get("is_boss", false) else 1.5)
 		if not card.is_empty():
 			result.cards.append(card.id)
 			add_card_to_collection(card.id)
 	add_gold(result.gold)
-	gain_energy(result.energy)
 	gain_xp(result.xp)
 	player_changed.emit()
 	return result
@@ -666,7 +680,7 @@ func carried_weight() -> float:
 
 
 func carry_capacity() -> float:
-	return XPCalculator.carry_capacity(int(effective_attributes().get("max_stamina", 5)))
+	return XPCalculator.carry_capacity(int(effective_attributes().get("max_stamina", 10)))
 
 
 func is_overloaded() -> bool:
@@ -724,8 +738,13 @@ func combat_weapons() -> Array:
 ## Параметры героя для CombatState.start().
 func combat_stats() -> Dictionary:
 	var eq := equipment_stats()
+	var costs := {}
+	for slot in ["weapon", "offhand"]:
+		var item := ItemDatabase.get_item(equipped(slot))
+		if item.has("weapon_type") and not costs.has(item.weapon_type):
+			costs[item.weapon_type] = XPCalculator.weapon_item_cost(item)
 	return {"max_hp": player_data.max_hp, "hp": player_data.hp, "attributes": effective_attributes(),
-		"weapons": combat_weapons(), "damage_bonus": int(eq.get("damage", 0)), "armor": int(eq.get("armor", 0)),
+		"weapons": combat_weapons(), "weapon_costs": costs, "damage_bonus": int(eq.get("damage", 0)), "armor": int(eq.get("armor", 0)),
 		"dodge_bonus": int(eq.get("dodge", 0))}
 
 

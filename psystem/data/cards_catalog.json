@@ -2440,6 +2440,240 @@
 			"icon": "wind-slap",
 			"description": "Даёт взять 3 карты, удешевляет все карты в этот ход на 2.",
 			"description_en": "Draw 3 cards, make your cards cost 2 less this turn."
+		},
+		{
+			"id": "big_o",
+			"name": "Big O",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"draw": 1
+			},
+			"flavor_text": "O(1) — лучшая новость дня",
+			"flavor_text_en": "O(1) is the best news of the day",
+			"from_specialization": "algorithms",
+			"art_color": "#1ABC9C",
+			"icon": "chart",
+			"description": "Даёт взять 1 карту.",
+			"description_en": "Draw 1 card."
+		},
+		{
+			"id": "two_pointers",
+			"name": "Two Pointers",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"damage": 2
+			},
+			"flavor_text": "Навстречу друг другу — и в цель",
+			"flavor_text_en": "Toward each other — and on target",
+			"from_specialization": "algorithms",
+			"art_color": "#16A085",
+			"icon": "back-forth",
+			"description": "Наносит 2 урона.",
+			"description_en": "Deal 2 damage."
+		},
+		{
+			"id": "hash_map",
+			"name": "Hash Map",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"discover": 3
+			},
+			"flavor_text": "Нашёл за O(1)",
+			"flavor_text_en": "Found it in O(1)",
+			"from_specialization": "algorithms",
+			"art_color": "#00BFD8",
+			"icon": "key",
+			"description": "Показывает 3 верхних карты колоды — выбери одну.",
+			"description_en": "Look at the top 3 cards of your deck and take one."
+		},
+		{
+			"id": "stack_frame",
+			"name": "Stack",
+			"type": "creature",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"taunt": true
+			},
+			"flavor_text": "Последним пришёл — первым принял удар",
+			"flavor_text_en": "Last in, first to take the hit",
+			"from_specialization": "algorithms",
+			"art_color": "#1F8A9E",
+			"icon": "stack",
+			"attack": 1,
+			"defense": 4,
+			"description": "Taunt.",
+			"description_en": "Taunt."
+		},
+		{
+			"id": "queue_bfs",
+			"name": "BFS",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"damage_split": 4
+			},
+			"flavor_text": "Уровень за уровнем",
+			"flavor_text_en": "Level by level",
+			"from_specialization": "algorithms",
+			"art_color": "#20A4B8",
+			"icon": "mesh-network",
+			"description": "Распределяет 4 урона между врагом и его существами.",
+			"description_en": "Split 4 damage among the enemy and their creatures."
+		},
+		{
+			"id": "binary_search",
+			"name": "Binary Search",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 2,
+			"effect": {
+				"execute_below": 4
+			},
+			"flavor_text": "Пополам, ещё пополам — попался",
+			"flavor_text_en": "Halve it, halve again — gotcha",
+			"from_specialization": "algorithms",
+			"art_color": "#0E9AA7",
+			"icon": "magnifying-glass",
+			"description": "Добивает цель с HP меньше 4.",
+			"description_en": "Destroy a target with less than 4 HP."
+		},
+		{
+			"id": "memo_cache",
+			"name": "Memoization",
+			"type": "artifact",
+			"rarity": "uncommon",
+			"crystal_cost": 2,
+			"effect": {
+				"first_card_discount": 1
+			},
+			"flavor_text": "Уже считали — бери готовое",
+			"flavor_text_en": "Already computed — take it",
+			"from_specialization": "algorithms",
+			"art_color": "#48C9B0",
+			"icon": "files",
+			"description": "Артефакт: Первая карта хода дешевле на 1.",
+			"description_en": "Artifact: Your first card each turn costs 1 less."
+		},
+		{
+			"id": "binary_heap",
+			"name": "Binary Heap",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"shield": 3
+			},
+			"flavor_text": "Самое важное — всегда сверху",
+			"flavor_text_en": "The most important always on top",
+			"from_specialization": "algorithms",
+			"art_color": "#17A589",
+			"icon": "triforce",
+			"attack": 2,
+			"defense": 4,
+			"description": "При розыгрыше: даёт +3 щита.",
+			"description_en": "Battlecry: gain 3 shield."
+		},
+		{
+			"id": "merge_sort",
+			"name": "Merge Sort",
+			"type": "spell",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"damage": 3,
+				"draw": 1
+			},
+			"flavor_text": "Разделяй и властвуй",
+			"flavor_text_en": "Divide and conquer",
+			"from_specialization": "algorithms",
+			"art_color": "#13B5C8",
+			"icon": "linked-rings",
+			"description": "Наносит 3 урона, даёт взять 1 карту.",
+			"description_en": "Deal 3 damage, draw 1 card."
+		},
+		{
+			"id": "dfs_explorer",
+			"name": "DFS Explorer",
+			"type": "creature",
+			"rarity": "uncommon",
+			"crystal_cost": 3,
+			"effect": {
+				"multi_attack": 2
+			},
+			"flavor_text": "Сначала вглубь, потом посмотрим",
+			"flavor_text_en": "Go deep first, look around later",
+			"from_specialization": "algorithms",
+			"art_color": "#0B8A99",
+			"icon": "compass",
+			"attack": 2,
+			"defense": 2,
+			"description": "Атакует 2 раза за ход.",
+			"description_en": "Attacks 2 times per turn."
+		},
+		{
+			"id": "dijkstra",
+			"name": "Dijkstra",
+			"type": "spell",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"damage_all": 2,
+				"draw": 1
+			},
+			"flavor_text": "Кратчайший путь к победе",
+			"flavor_text_en": "The shortest path to victory",
+			"from_specialization": "algorithms",
+			"art_color": "#117A8B",
+			"icon": "target-arrows",
+			"description": "Наносит 2 урона врагу и всем его существам, даёт взять 1 карту.",
+			"description_en": "Deal 2 damage to the enemy and all their creatures, draw 1 card."
+		},
+		{
+			"id": "dynamic_programming",
+			"name": "Dynamic Programming",
+			"type": "artifact",
+			"rarity": "rare",
+			"crystal_cost": 4,
+			"effect": {
+				"passive_draw": 1,
+				"every": 2
+			},
+			"flavor_text": "Каждая подзадача — один раз",
+			"flavor_text_en": "Every subproblem exactly once",
+			"from_specialization": "algorithms",
+			"art_color": "#0A6E7C",
+			"icon": "spiral-arrow",
+			"description": "Артефакт: Каждый 2-й ход берёшь 1 карту.",
+			"description_en": "Artifact: Every 2 turns draw 1 card."
+		},
+		{
+			"id": "red_black_tree",
+			"name": "Red-Black Tree",
+			"type": "creature",
+			"rarity": "legendary",
+			"crystal_cost": 7,
+			"effect": {
+				"divine_shield": true,
+				"taunt": true,
+				"shield": 4
+			},
+			"flavor_text": "Высота O(log n), как ни крути",
+			"flavor_text_en": "O(log n) height, no matter what",
+			"from_specialization": "algorithms",
+			"art_color": "#F4D03F",
+			"icon": "tree-branch",
+			"attack": 5,
+			"defense": 8,
+			"description": "Taunt. Божественный щит. При розыгрыше: даёт +4 щита.",
+			"description_en": "Taunt. Divine Shield. Battlecry: gain 4 shield."
 		}
 	]
 }

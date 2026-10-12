@@ -1,5 +1,6 @@
 extends Control
-## Создание героя: имя, пол, раса (с бонусом), цвет кожи, причёска, цвет волос, борода, расцветка одежды.
+## Создание героя: имя, пол, раса (с бонусом), атрибуты (свободные очки), цвет кожи, причёска, цвет волос,
+## борода, расцветка одежды.
 ## Справа — 3D-превью (CampScene), героя можно вращать мышью.
 
 var look := Appearance.default_look("male")
@@ -14,6 +15,9 @@ var _hair_color_row: HBoxContainer
 var _beard_check: CheckBox
 var _outfit_row: HBoxContainer
 var _dragging := false
+var _alloc: Dictionary = {}          # атрибут → вложенные очки
+var _attr_box: VBoxContainer
+var _points_label: Label
 
 const NAMES := {
 	"male": ["Арен", "Борислав", "Кайл", "Дарен", "Эйвар", "Тарин", "Рольф", "Лиам"],
@@ -125,6 +129,18 @@ func _build() -> void:
 	_race_info.custom_minimum_size.x = 400
 	_race_info.theme_type_variation = &"DimLabel"
 	box.add_child(_race_info)
+
+	var attr_head := HBoxContainer.new()
+	box.add_child(attr_head)
+	var attr_caption := _caption(Loc.t("Атрибуты"))
+	attr_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	attr_head.add_child(attr_caption)
+	_points_label = Label.new()
+	_points_label.add_theme_font_override("font", Palette.FONT_UI_BOLD)
+	attr_head.add_child(_points_label)
+	_attr_box = VBoxContainer.new()
+	_attr_box.add_theme_constant_override("separation", 4)
+	box.add_child(_attr_box)
 
 	box.add_child(_caption(Loc.t("Цвет кожи")))
 	_skin_row = HBoxContainer.new()
@@ -272,6 +288,7 @@ func _refresh() -> void:
 		b.button_pressed = b.get_meta("value") == look.race
 	var race := Appearance.race(look.race)
 	_race_info.text = "%s\n%s %s" % [Loc.t(race.desc), Loc.t("Бонус:"), Loc.t(race.bonus_text)]
+	_refresh_attributes()
 	for c in _skin_row.get_children():
 		c.queue_free()
 	for i in race.skins.size():
@@ -298,6 +315,81 @@ func _refresh() -> void:
 	_scene.show_hero(look)
 
 
+## Всего свободных очков: CREATION_POINTS + расовый бонус «очко атрибутов».
+func _total_points() -> int:
+	return XPCalculator.CREATION_POINTS + int(Appearance.race(look.race).get("bonus", {}).get("attribute_points", 0))
+
+
+func _free_points() -> int:
+	var used := 0
+	for k in _alloc:
+		used += int(_alloc[k])
+	return _total_points() - used
+
+
+func _change_attr(key: String, delta: int) -> void:
+	var cur := int(_alloc.get(key, 0))
+	if (delta > 0 and _free_points() <= 0) or (delta < 0 and cur <= 0):
+		return
+	_alloc[key] = cur + delta
+	Audio.play("select")
+	_refresh_attributes()
+
+
+func _refresh_attributes() -> void:
+	while _free_points() < 0:
+		for k in _alloc:
+			if int(_alloc[k]) > 0:
+				_alloc[k] = int(_alloc[k]) - 1
+				break
+	var bonus: Dictionary = Appearance.race(look.race).get("bonus", {})
+	var free := _free_points()
+	_points_label.text = Loc.t("Свободно очков: %d") % free
+	_points_label.add_theme_color_override("font_color", Palette.MINT if free > 0 else Palette.TEXT_DIM)
+	for c in _attr_box.get_children():
+		c.queue_free()
+	for key in XPCalculator.ATTRIBUTES:
+		var a: Dictionary = XPCalculator.ATTRIBUTES[key]
+		var spent := int(_alloc.get(key, 0))
+		var value: int = int(a.start) + int(bonus.get(key, 0)) + spent * int(a.per_point)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.tooltip_text = Loc.t(a.desc)
+		_attr_box.add_child(row)
+		var icon := TextureRect.new()
+		icon.texture = Palette.icon(a.icon)
+		icon.custom_minimum_size = Vector2(18, 18)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(icon)
+		var name_label := Label.new()
+		name_label.text = Loc.t(a.name)
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.mouse_filter = Control.MOUSE_FILTER_PASS
+		name_label.tooltip_text = Loc.t(a.desc)
+		row.add_child(name_label)
+		var minus := Button.new()
+		minus.text = "−"
+		minus.custom_minimum_size = Vector2(32, 30)
+		minus.disabled = spent <= 0
+		minus.pressed.connect(_change_attr.bind(key, -1))
+		row.add_child(minus)
+		var val := Label.new()
+		val.text = str(value)
+		val.custom_minimum_size.x = 34
+		val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		val.theme_type_variation = &"MonoLabel"
+		val.add_theme_color_override("font_color", Palette.MINT if spent > 0 else Palette.TEXT)
+		row.add_child(val)
+		var plus := Button.new()
+		plus.text = "+"
+		plus.custom_minimum_size = Vector2(32, 30)
+		plus.disabled = free <= 0
+		plus.pressed.connect(_change_attr.bind(key, 1))
+		row.add_child(plus)
+
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_dragging = event.pressed
@@ -310,7 +402,7 @@ func _create() -> void:
 	if hero_name == "":
 		EventBus.notify(Loc.t("Введи имя героя"), "warning")
 		return
-	GameManager.create_hero(hero_name, look)
+	GameManager.create_hero(hero_name, look, _alloc)
 	SaveSystem.create_profile(hero_name)
 	GameManager.grant_starter_pack()
 	SaveSystem.save_all()

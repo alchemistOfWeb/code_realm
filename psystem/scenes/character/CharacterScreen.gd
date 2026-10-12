@@ -61,7 +61,7 @@ func _refresh_stats() -> void:
 	_add_bar_row(Loc.t("Энергия"), "EnergyBar", p.energy, p.max_energy, "%d / %d" % [p.energy, p.max_energy])
 	_add_text_row(Loc.t("Золото"), str(p.gold), Palette.GOLD)
 	var eq := GameManager.equipment_stats()
-	_add_text_row(Loc.t("Уклонение"), "%d%%" % XPCalculator.dodge_chance(GameManager.effective_attributes().get("agility", 0), int(eq.get("dodge", 0))), Palette.TEXT)
+	_add_text_row(Loc.t("Уклонение"), XPCalculator.format_percent(XPCalculator.dodge_chance(GameManager.effective_attributes().get("agility", 0), int(eq.get("dodge", 0)))), Palette.TEXT)
 	_add_text_row(Loc.t("Броня"), str(int(eq.get("armor", 0))), Palette.TEXT)
 
 	attr_points_label.text = Loc.t("Очки атрибутов: %d") % p.attribute_points

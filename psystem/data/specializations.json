@@ -44,6 +44,15 @@
 			"icon": "res://assets/icons/map.svg",
 			"content_file": "res://content/level_designer.md",
 			"description": "Пространство, навигация, пейсинг, блокаут, обучение через уровень, освещение и композиция."
+		},
+		{
+			"id": "algorithms",
+			"name": "Алгоритмы и структуры данных",
+			"short": "Алгоритмы",
+			"color": "#00BFD8",
+			"icon": "res://assets/icons/layers.svg",
+			"content_file": "res://content/algorithms.md",
+			"description": "Оценка сложности, массивы, хеш-таблицы, списки, стеки, деревья, кучи, графы, сортировки, бинарный поиск и динамическое программирование."
 		}
 	]
 }

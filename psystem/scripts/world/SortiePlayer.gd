@@ -105,7 +105,7 @@ func refresh_gear() -> void:
 		_gear_key = str(outfit)
 		rig.apply_equipment(outfit)
 	var attrs := GameManager.effective_attributes()
-	max_stamina = XPCalculator.RUN_STAMINA + float(attrs.get("max_stamina", 5) - 5) * 0.25
+	max_stamina = XPCalculator.RUN_STAMINA + float(attrs.get("max_stamina", 10) - 10) * 0.25
 	stamina = minf(stamina, max_stamina)
 	overloaded = GameManager.is_overloaded()
 

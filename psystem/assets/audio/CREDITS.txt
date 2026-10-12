@@ -17,3 +17,4 @@
   combat/slash.ogg, draw.ogg — Kenney "RPG Audio" — CC0
 
 3D-модели: Kenney "Mini Dungeon" — CC0 — https://kenney.nl/assets/mini-dungeon (assets/models/dungeon)
+  jingles/discovery.wav       — «открыта новая местность», синтезирован для CodeRealm (tools/gen_discovery_sound.py)

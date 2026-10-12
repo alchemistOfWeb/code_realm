@@ -57,10 +57,14 @@ func _layout() -> void:
 	var n := ids.size()
 	var angles: Array[float] = []
 	var max_sin := -1.0
+	var min_sin := 1.0
+	# При чётном числе сфер — сдвиг на полшага: ни одна не стоит ровно над/под ядром
+	var start := -PI / 2.0 + (PI / n if n % 2 == 0 else 0.0)
 	for i in n:
-		var a := -PI / 2.0 + TAU * i / maxf(n, 1)
+		var a := start + TAU * i / maxf(n, 1)
 		angles.append(a)
 		max_sin = maxf(max_sin, sin(a))
+		min_sin = minf(min_sin, sin(a))
 
 	# Масштаб сфер под размер экрана; эллипс вписывается между заголовком и нижним краем
 	var s := clampf(minf(size.x / 1450.0, size.y / 800.0), 0.6, 1.15)
@@ -68,8 +72,8 @@ func _layout() -> void:
 	var top := header.position.y + header.size.y + 8.0
 	var up := ORB_CENTER.y * s              # от центра сферы до верха свечения
 	var down := (ORB_SIZE.y - ORB_CENTER.y) * s   # от центра до низа подписи
-	var ry := maxf((size.y - 10.0 - down - top - up) / maxf(1.0 + max_sin, 1.0), 60.0)
-	var center := Vector2(size.x * 0.5, top + up + ry)
+	var ry := maxf((size.y - 10.0 - down - top - up) / maxf(max_sin - min_sin, 1.0), 60.0)
+	var center := Vector2(size.x * 0.5, top + up - ry * min_sin)
 	var rx := minf(ry * 1.6, size.x * 0.5 - ORB_SIZE.x * 0.5 * s - 10.0)
 
 	_core.base_scale = s

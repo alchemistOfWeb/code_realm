@@ -1,7 +1,7 @@
 extends Node3D
 ## Dev-просмотрщик моделей: печатает дерево узлов и анимации, делает скриншот.
 ## Godot --path . res://tools/ModelViewer.tscn -- --model=res://assets/monsters/Bat.glb [--anim=Idle] [--t=0.4]
-##   [--ual] (подключить библиотеку UAL) [--hero=male|female] [--race=elf] [--yaw=30] [--dist=3] [--h=1] --shot=C:/tmp/x.png
+##   [--ual] (подключить библиотеку UAL) [--monster=Puglin [--role=move|idle|attack]] [--hero=male|female] [--race=elf] [--yaw=30] [--dist=3] [--h=1] --shot=C:/tmp/x.png
 
 func _ready() -> void:
 	var args := {}
@@ -9,7 +9,21 @@ func _ready() -> void:
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else ""
 	var model: Node3D
-	if args.has("hero"):
+	if args.has("monster"):
+		# Монстр как в вылазке (MonsterRig) + плоскость земли — проверить, что ноги на земле
+		var mr := MonsterRig.create(args.monster)
+		add_child(mr)
+		mr.play(args.get("role", "move"))
+		var ground := MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(4, 4)
+		ground.mesh = pm
+		var gm := StandardMaterial3D.new()
+		gm.albedo_color = Color(0.3, 0.5, 0.3)
+		ground.material_override = gm
+		add_child(ground)
+		model = mr
+	elif args.has("hero"):
 		var look := HeroRig.default_look()
 		look.gender = args.hero
 		for key in ["race", "hair", "skin", "hair_color", "outfit_variant"]:

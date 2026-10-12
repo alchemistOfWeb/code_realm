@@ -21,6 +21,8 @@ const SFX := {
 	"whoosh": preload("res://assets/audio/ui/whoosh.ogg"),
 	"levelup": preload("res://assets/audio/jingles/levelup.ogg"),
 	"reward": preload("res://assets/audio/jingles/reward.ogg"),
+	# «Открыта новая местность» — синтезирован tools/gen_discovery_sound.py
+	"discovery": preload("res://assets/audio/jingles/discovery.wav"),
 	"fanfare": preload("res://assets/audio/jingles/fanfare_reward.ogg"),
 	"card_flip": preload("res://assets/audio/rpg/card_flip.ogg"),
 	"scroll_open": preload("res://assets/audio/rpg/scroll_open.ogg"),

@@ -62,6 +62,59 @@
 					"desc": "Здесь бьётся остановленное сердце города и ждёт Порченый Компилятор.", "desc_en": "The stopped heart of the city beats here, and the Corrupted Compiler awaits.",
 					"features": {"enemies": 5, "pool": ["legacy_code", "data_breach", "deadlock"], "chests": 3, "safe": true, "boss": "corrupted_compiler"}}
 			]
+		},
+		"maple_dale": {
+			"biome": "forest", "sky": "sunset", "music": 0,
+			"desc": "Багряный лес в глубоком овраге. Тропы петляют между кленовыми склонами, а на старых вышках лесничих спрятаны тайники.",
+			"desc_en": "A crimson forest in a deep ravine. Trails wind between maple slopes, and old rangers' towers hide caches.",
+			"nodes": [
+				{"id": "maple_gate", "name": "Кленовые ворота", "name_en": "Maple Gate", "kind": "meadow", "pos": [0.08, 0.5], "links": ["red_ravine", "ranger_post"], "start": true,
+					"desc": "Вход в дол: каменная арка, усыпанная листвой.", "desc_en": "The entrance to the dale: a stone arch covered with leaves.",
+					"features": {"enemies": 3, "pool": ["leaf_imp", "spam_wasp", "web_crawler"], "chests": 2, "npcs": ["lio"]}},
+				{"id": "red_ravine", "name": "Багряный овраг", "name_en": "Crimson Ravine", "kind": "forest", "pos": [0.28, 0.28], "links": ["maple_gate", "sap_cave", "hollow_giant"],
+					"desc": "Овраг рассекает пропасть — переправа только по качающимся настилам.", "desc_en": "A chasm splits the ravine — the only way across is on swaying boards.",
+					"features": {"enemies": 4, "pool": ["leaf_imp", "thorn_spider", "bug_gremlin"], "chests": 2, "platforms": true, "vertical": ["stumps"]}},
+				{"id": "ranger_post", "name": "Пост лесничих", "name_en": "Rangers' Post", "kind": "ruins", "pos": [0.3, 0.75], "links": ["maple_gate", "hollow_giant"],
+					"desc": "Брошенные дозорные башни. Говорят, лесничие прятали жалование наверху.", "desc_en": "Abandoned watchtowers. They say the rangers hid their pay at the top.",
+					"features": {"enemies": 4, "pool": ["deprecated_knight", "leaf_imp", "scraper_goblin"], "chests": 2, "safe": true, "vertical": ["tower", "tower"]}},
+				{"id": "sap_cave", "name": "Смоляная пещера", "name_en": "Sap Cave", "kind": "cave", "pos": [0.5, 0.15], "links": ["red_ravine", "maple_heart"], "floor": 2,
+					"desc": "Стены сочатся янтарной смолой, в которой застыли древние баги.", "desc_en": "The walls ooze amber sap with ancient bugs frozen inside.",
+					"features": {"enemies": 4, "pool": ["memory_leak", "thorn_spider", "segfault"], "chests": 3, "safe": true}},
+				{"id": "hollow_giant", "name": "Дупло великана", "name_en": "Giant's Hollow", "kind": "forest", "pos": [0.55, 0.55], "links": ["red_ravine", "ranger_post", "maple_heart"],
+					"desc": "Исполинский клён с дуплом размером с дом. Наверх ведут пни-ступени.", "desc_en": "A colossal maple with a hollow the size of a house. Stumps lead upward.",
+					"features": {"enemies": 5, "pool": ["thorn_spider", "bug_gremlin", "python_constrictor"], "chests": 3, "riddle_gate": true, "npcs": ["oracle"], "vertical": ["stumps", "tower"]}},
+				{"id": "maple_heart", "name": "Сердце клёна", "name_en": "Maple Heart", "kind": "forest", "pos": [0.88, 0.4], "links": ["sap_cave", "hollow_giant"],
+					"desc": "В корнях древнего клёна спит Кленовый змей.", "desc_en": "The Maple Wyrm sleeps among the roots of the ancient maple.",
+					"features": {"enemies": 4, "pool": ["leaf_imp", "thorn_spider", "deprecated_knight"], "chests": 3, "boss": "maple_wyrm", "platforms": true}}
+			]
+		},
+		"valley_of_mills": {
+			"biome": "meadow", "sky": "day", "music": 0,
+			"desc": "Холмистая долина ветряных мельниц. Жернова остановились, а поля заполонили пугала-демоны.",
+			"desc_en": "A hilly valley of windmills. The millstones have stopped and scarecrow daemons have overrun the fields.",
+			"nodes": [
+				{"id": "mill_road", "name": "Мельничный тракт", "name_en": "Mill Road", "kind": "meadow", "pos": [0.08, 0.45], "links": ["windmill_hill", "river_ford"], "start": true,
+					"desc": "Пыльная дорога между холмами. Ветряки скрипят без ветра.", "desc_en": "A dusty road between the hills. The windmills creak without wind.",
+					"features": {"enemies": 3, "pool": ["scarecrow", "spam_wasp", "forest_rat"], "chests": 2, "npcs": ["greta"]}},
+				{"id": "windmill_hill", "name": "Холм ветряков", "name_en": "Windmill Hill", "kind": "meadow", "pos": [0.3, 0.2], "links": ["mill_road", "scarecrow_field", "old_aqueduct"],
+					"desc": "Каменные мельничные башни — забраться на них можно только по уступам.", "desc_en": "Stone mill towers — the only way up is along the ledges.",
+					"features": {"enemies": 4, "pool": ["scarecrow", "recursive_frog", "leaf_imp"], "chests": 2, "vertical": ["tower", "tower"]}},
+				{"id": "river_ford", "name": "Брод", "name_en": "The Ford", "kind": "riverside", "pos": [0.3, 0.75], "links": ["mill_road", "scarecrow_field", "sunken_cellar"],
+					"desc": "Мельничная река, плоты на привязи и скользкие камни.", "desc_en": "The mill river, rafts on tethers and slippery stones.",
+					"features": {"enemies": 3, "pool": ["recursive_frog", "python_constrictor", "scarecrow"], "chests": 2, "platforms": true, "vertical": ["stumps"]}},
+				{"id": "scarecrow_field", "name": "Поле пугал", "name_en": "Scarecrow Field", "kind": "meadow", "pos": [0.52, 0.48], "links": ["windmill_hill", "river_ford", "grain_vault"],
+					"desc": "Сотни пугал смотрят в одну сторону. Некоторые — шевелятся.", "desc_en": "Hundreds of scarecrows stare the same way. Some of them move.",
+					"features": {"enemies": 6, "pool": ["scarecrow", "bug_gremlin", "deprecated_knight"], "chests": 3, "vertical": ["stumps", "tower"]}},
+				{"id": "old_aqueduct", "name": "Старый акведук", "name_en": "Old Aqueduct", "kind": "ruins", "pos": [0.55, 0.12], "links": ["windmill_hill", "grain_vault"],
+					"desc": "Руины акведука над пересохшим каналом. Дверь в хранилище запечатана загадкой.", "desc_en": "Aqueduct ruins over a dry canal. The vault door is sealed with a riddle.",
+					"features": {"enemies": 4, "pool": ["deprecated_knight", "scraper_goblin", "scarecrow"], "chests": 2, "safe": true, "riddle_gate": true, "npcs": ["cipher"], "platforms": true}},
+				{"id": "sunken_cellar", "name": "Затопленный погреб", "name_en": "Sunken Cellar", "kind": "dungeon", "pos": [0.55, 0.85], "links": ["river_ford", "grain_vault"], "floor": 2,
+					"desc": "Погреба мельников ушли под воду. В бочках что-то булькает.", "desc_en": "The millers' cellars sank under water. Something bubbles in the barrels.",
+					"features": {"enemies": 5, "pool": ["infinite_loop", "memory_leak", "deadlock"], "chests": 3, "safe": true}},
+				{"id": "grain_vault", "name": "Зерновое хранилище", "name_en": "Grain Vault", "kind": "tomb", "pos": [0.88, 0.5], "links": ["scarecrow_field", "old_aqueduct", "sunken_cellar"], "floor": 3,
+					"desc": "Каменное хранилище под холмом. Здесь крутятся жернова Мельничного голема.", "desc_en": "A stone vault beneath the hill. Here the Mill Golem's millstones turn.",
+					"features": {"enemies": 5, "pool": ["legacy_code", "scarecrow", "deadlock"], "chests": 3, "boss": "mill_golem"}}
+			]
 		}
 	}
 }

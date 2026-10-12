@@ -1,6 +1,6 @@
 # Генерация data/world_map.json: 100 локаций глобальной карты (позиции, биомы, уровни).
 # Запуск (из папки psystem): python tools/gen_world_map.py
-# Две локации открыты (whisper_grove, ferrograd_ruins), остальные — «в разработке».
+# Открыты четыре локации (OPEN), остальные — «в разработке».
 import json, math, random, os
 
 random.seed(42)
@@ -72,7 +72,8 @@ BIOMES = {
         ("worm_tunnels", "Тоннели Червей", "Worm Tunnels"), ("glowing_abyss", "Светящаяся бездна", "Glowing Abyss"),
         ("mountain_king", "Чертоги Горного Короля", "Halls of the Mountain King")]),
 }
-OPEN = {"whisper_grove": ((0.255, 0.50), 1), "ferrograd_ruins": ((0.405, 0.52), 3)}
+OPEN = {"whisper_grove": ((0.255, 0.50), 1), "ferrograd_ruins": ((0.405, 0.52), 3),
+        "maple_dale": ((0.3088, 0.5001), 5), "valley_of_mills": ((0.3516, 0.6027), 7)}
 
 
 def dist(a, b):

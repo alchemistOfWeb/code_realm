@@ -106,9 +106,12 @@ func _run() -> void:
 	print("== XP и уровни")
 	gm.gain_xp(20)
 	check(gm.player_data.level == 2 and gm.player_data.xp == 0, "20 XP → уровень 2")
-	check(gm.player_data.xp_to_next == 30 and gm.player_data.max_hp == XPCalculator.max_hp_for_level(2) and gm.player_data.attribute_points == 1, "уровень 2: 30 XP до след., HP 21, 1 очко")
+	check(gm.player_data.xp_to_next == 40 and gm.player_data.max_hp == XPCalculator.max_hp_for_level(2) and gm.player_data.attribute_points == 1, "уровень 2: 40 XP до след. (xₙ = xₙ₋₁ + 10·n), HP 21, 1 очко")
 	gm.gain_xp(65)
-	check(gm.player_data.level == 3 and gm.player_data.xp == 35, "ещё 65 XP → уровень 3, 35 XP")
+	check(gm.player_data.level == 3 and gm.player_data.xp == 25 and gm.player_data.xp_to_next == 70, "ещё 65 XP → уровень 3, 25 XP, до 4-го — 70")
+	check(XPCalculator.dodge_chance(3) == 1.5 and XPCalculator.ATTRIBUTES.max_stamina.start == 10 and XPCalculator.ATTRIBUTES.strength.start == 1, "ловкость +0.5% уклонения; старт: выносливость 10, остальное 1")
+	var hero_alloc := GameManager.default_player_data()
+	check(hero_alloc.attributes.max_mana == 1, "стартовая мана 1")
 
 	print("== Энергия")
 	check(gm.spend_energy(30) and gm.player_data.energy == 20, "трата энергии: 50 → 20")
@@ -466,7 +469,7 @@ func _run() -> void:
 
 	var locs := WorldData.map_locations()
 	var playable := locs.filter(func(l): return WorldData.is_playable(l.id))
-	check(locs.size() == 100 and playable.size() == 2, "карта мира: 100 локаций, 2 доступны")
+	check(locs.size() == 100 and playable.size() == 4, "карта мира: 100 локаций, 4 доступны")
 	var wg := WorldData.location("whisper_grove")
 	var graph_ok := true
 	for id in wg.order:
@@ -482,7 +485,8 @@ func _run() -> void:
 	check(WorldData.location_progress("whisper_grove") > 0.0, "процент исследования растёт (%d%%)" % roundi(WorldData.location_progress("whisper_grove") * 100))
 
 	var gen_bad := 0
-	for loc_id in ["whisper_grove", "ferrograd_ruins"]:
+	var vertical_total := 0
+	for loc_id in ["whisper_grove", "ferrograd_ruins", "maple_dale", "valley_of_mills"]:
 		var loc := WorldData.location(loc_id)
 		for id in loc.order:
 			var nd: Dictionary = loc.nodes[id]
@@ -490,7 +494,7 @@ func _run() -> void:
 				continue
 			var nbs: Array = []
 			for l in nd.links:
-				nbs.append({"id": l, "name": loc.nodes[l].name, "kind": loc.nodes[l].kind})
+				nbs.append({"id": l, "name": loc.nodes[l].name, "kind": loc.nodes[l].kind, "pos": loc.nodes[l].pos})
 			for sd in 3:
 				var od := OutdoorGenerator.generate(nd, nbs, 500 + sd, "", {})
 				if od.exits.size() != nbs.size() or od.chests.size() != int(nd.features.get("chests", 2)):
@@ -499,9 +503,11 @@ func _run() -> void:
 					gen_bad += 1
 				if od.grid[od.start.y * od.w + od.start.x] == OutdoorGenerator.BLOCK:
 					gen_bad += 1
-	check(gen_bad == 0, "генератор поверхности: выходы, сундуки, платформы и старт корректны")
+				vertical_total += od.vertical.size()
+	check(gen_bad == 0, "генератор поверхности: выходы, сундуки, платформы и старт корректны (4 локации)")
+	check(vertical_total > 20, "башни и вышки с сундуками на полянах: %d" % vertical_total)
 	var exits_bad := 0
-	for loc_id in ["whisper_grove", "ferrograd_ruins"]:
+	for loc_id in ["whisper_grove", "ferrograd_ruins", "maple_dale", "valley_of_mills"]:
 		var loc := WorldData.location(loc_id)
 		for id in loc.order:
 			var nd: Dictionary = loc.nodes[id]

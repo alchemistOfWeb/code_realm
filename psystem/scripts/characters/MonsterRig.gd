@@ -24,6 +24,8 @@ var cfg: Dictionary = {}
 var anim: AnimationPlayer
 var _model: Node3D
 var _current := ""
+## Библиотеки UAL для монстров без позиционных треков (общая на все UAL-модели).
+static var _ual_rot_only: AnimationLibrary
 
 
 static func create(model: String, size_mul: float = 1.0, tint: Color = Color.WHITE) -> MonsterRig:
@@ -48,7 +50,7 @@ func build(model: String, size_mul: float, tint: Color) -> void:
 			anim = AnimationPlayer.new()
 			_model.add_child(anim)
 			anim.root_node = anim.get_path_to(_model)
-		anim.add_animation_library("ual", HeroRig.animation_library())
+		anim.add_animation_library("ual", _rotation_only_library())
 	if anim:
 		for role in ["idle", "move"]:
 			var a: String = cfg.anims.get(role, "")
@@ -83,6 +85,23 @@ func play_once(role: String) -> float:
 	anim.stop()
 	anim.play(a, 0.08)
 	return anim.get_animation(a).length
+
+
+## Анимации UAL сняты с манекена человеческого роста: их позиционные треки ставят таз на его высоту,
+## и низкие монстры (Puglin — гоблин) парят над землёй. Оставляем только повороты костей —
+## кости остаются на своих местах из позы покоя, ноги стоят на земле.
+static func _rotation_only_library() -> AnimationLibrary:
+	if _ual_rot_only:
+		return _ual_rot_only
+	var src := HeroRig.animation_library()
+	_ual_rot_only = AnimationLibrary.new()
+	for name in src.get_animation_list():
+		var a: Animation = src.get_animation(name).duplicate(true)
+		for t in range(a.get_track_count() - 1, -1, -1):
+			if a.track_get_type(t) == Animation.TYPE_POSITION_3D:
+				a.remove_track(t)
+		_ual_rot_only.add_animation(name, a)
+	return _ual_rot_only
 
 
 ## Рост модели в позе покоя (по AABB мешей).
