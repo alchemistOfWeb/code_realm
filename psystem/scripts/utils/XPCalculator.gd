@@ -36,19 +36,19 @@ const MAX_LEGENDARY_COPIES := 1
 ## Оружие: урон = base + per × атрибут (+ урон снаряжения), стоимость в выносливости.
 ## Доступные в бою атаки зависят от экипированного оружия (без оружия — кулаки).
 const WEAPONS := {
-	"fists": {"name": "Кулаки", "icon": "fist", "attr": "strength", "base": 1, "per": 1, "cost": 2,
+	"fists": {"name": "Кулаки", "icon": "fist", "attr": "strength", "base": 1, "per": 1, "cost": 4,
 		"desc": "Без оружия: урон 1 + Сила."},
-	"sword": {"name": "Меч", "icon": "ancient-sword", "attr": "strength", "base": 2, "per": 1, "cost": 4,
+	"sword": {"name": "Меч", "icon": "ancient-sword", "attr": "strength", "base": 2, "per": 1, "cost": 8,
 		"desc": "Урон 2 + Сила. Цель — враг или его существо."},
-	"dagger": {"name": "Кинжал", "icon": "broad-dagger", "attr": "agility", "base": 1, "per": 1, "cost": 2,
+	"dagger": {"name": "Кинжал", "icon": "broad-dagger", "attr": "agility", "base": 1, "per": 1, "cost": 4,
 		"desc": "Урон 1 + Ловкость. Дешёвый быстрый удар."},
-	"bow": {"name": "Лук", "icon": "bow-arrow", "attr": "agility", "base": 1, "per": 1, "cost": 3,
+	"bow": {"name": "Лук", "icon": "bow-arrow", "attr": "agility", "base": 1, "per": 1, "cost": 6,
 		"desc": "Урон 1 + Ловкость. Стреляет через Taunt прямо во врага."},
-	"axe": {"name": "Топор", "icon": "battle-axe", "attr": "strength", "base": 3, "per": 1, "cost": 5,
+	"axe": {"name": "Топор", "icon": "battle-axe", "attr": "strength", "base": 3, "per": 1, "cost": 10,
 		"desc": "Урон 3 + Сила. Тяжёлый удар."},
-	"hammer": {"name": "Молот", "icon": "flat-hammer", "attr": "strength", "base": 2, "per": 1, "cost": 4,
+	"hammer": {"name": "Молот", "icon": "flat-hammer", "attr": "strength", "base": 2, "per": 1, "cost": 8,
 		"desc": "Урон 2 + Сила. Сначала сбивает щит и божественный щит цели."},
-	"spear": {"name": "Копьё", "icon": "barbed-spear", "attr": "agility", "base": 2, "per": 1, "cost": 3,
+	"spear": {"name": "Копьё", "icon": "barbed-spear", "attr": "agility", "base": 2, "per": 1, "cost": 6,
 		"desc": "Урон 2 + Ловкость. Удар по существу задевает и героя за ним (1 урон)."},
 }
 ## Руны: тратят ману (мана не восстанавливается в бою).
@@ -118,10 +118,11 @@ static func xp_to_next(level: int) -> int:
 	return 10 + 5 * level * (level + 1)
 
 
-## Расход выносливости атакой оружием: базовый для вида оружия + у тяжёлых (от 6 кг) +1.
+## Расход выносливости атакой оружием: базовый для вида оружия (меч, в т. ч. ржавый, — 8; остальное
+## оружие — относительно него) + у тяжёлых (от 6 кг) +2.
 static func weapon_item_cost(item: Dictionary) -> int:
 	var w: Dictionary = WEAPONS.get(item.get("weapon_type", ""), WEAPONS.fists)
-	return int(item.get("stamina_cost", int(w.cost) + (1 if float(item.get("weight", 1.0)) >= 6.0 else 0)))
+	return int(item.get("stamina_cost", int(w.cost) + (2 if float(item.get("weight", 1.0)) >= 6.0 else 0)))
 
 
 ## HP персонажа: 15 + 3 за уровень (бой и экспедиции).
