@@ -5,7 +5,9 @@ extends RefCounted
 ## Сетка 1 клетка = 1 м: 0 — непроходимо (лес, скалы, стены руин), 1 — поляна, 2 — тропа,
 ## 3 — пропасть или река (смертельно: падение = гибель). Поляны соединены извилистыми тропами (MST).
 ## Если у подлокации features.platforms — карту рассекает пропасть/река поперёк, перейти её можно
-## только прыжками по движущимся платформам; дальние выходы и босс — на другой стороне.
+## только прыжками по движущимся платформам.
+## Выходы — тропы, уходящие за край карты в сторону соседней подлокации (по её положению на карте
+## локации). Переход — когда герой уходит по тропе за край; «указатель» (arrive) — точка появления.
 
 const BLOCK := 0
 const FLOOR := 1
@@ -100,34 +102,49 @@ static func generate(node: Dictionary, neighbors: Array, seed_value: int, entry:
 			for x in range(chasm.position.x, chasm.end.x):
 				_put(grid, w, h, x, y, CHASM)
 
-	# --- Старт и выходы
+	# --- Выходы: тропа от ближайшей поляны к краю карты — в ту сторону, где сосед лежит на карте локации.
+	# Раскладка не зависит от того, откуда пришли (исследованная часть карты запоминается);
+	# entry влияет только на точку появления — «указатель» у начала тропы.
 	var occupied := {}
 	var start_c: Dictionary = clearings[0]
 	var exits: Array = []
-	var far: Array = clearings.duplicate()
-	far.sort_custom(func(a, b): return a.center.distance_to(start_c.center) > b.center.distance_to(start_c.center))
-	var back_id := entry if entry != "" else ""
-	var forward: Array = neighbors.filter(func(n): return n.id != back_id)
-	var back: Array = neighbors.filter(func(n): return n.id == back_id)
-	# Выход «назад» — в стартовой поляне; остальные — в дальних полянах
-	for n in back:
-		exits.append(_exit(n, _edge_cell(grid, w, h, start_c, rng, occupied, true), node))
-	var fi := 0
-	for n in forward:
-		var c: Dictionary = far[mini(fi, far.size() - 1)]
-		if c == start_c and far.size() > 1:
-			c = far[0]
-		exits.append(_exit(n, _edge_cell(grid, w, h, c, rng, occupied, false), node))
-		fi += 1
+	var used_border: Array = []
+	var npos := _pos_of(node)
+	for n in neighbors:
+		var d := _pos_of(n) - npos
+		if d.length() < 0.001:
+			d = Vector2(1, 0)
+		var border := _border_point(w, h, d.normalized(), chasm, used_border)
+		used_border.append(border)
+		var out := _outward(w, h, border)
+		var perp := Vector2i(-out.y, out.x)
+		var side := 0 if (not has_chasm or border.x < chasm.position.x) else 1
+		var group := clearings.filter(func(c): return c.side == side)
+		if group.is_empty():
+			group = clearings
+		var from_c := _nearest(group, Vector2(border))
+		_carve_path(grid, w, h, from_c.center, Vector2(border - out * 6) + Vector2(0.5, 0.5), rng)
+		# Последние метры тропы — прямой проход шириной 3 клетки до самого края
+		for k in 8:
+			for lat in [-1, 0, 1]:
+				var c: Vector2i = border - out * k + perp * lat
+				if _in(w, h, c.x, c.y) and grid[c.y * w + c.x] != CHASM:
+					grid[c.y * w + c.x] = PATH
+		var e := _exit(n, border, node)
+		e.dir = out
+		e.arrive = border - out * 5
+		for k in range(0, 8):
+			for lat in [-1, 0, 1]:
+				occupied[border - out * k + perp * lat] = true
+		exits.append(e)
 	var start := Vector2i(start_c.center)
 	occupied[start] = true
-	# Вход «из соседа»: появляемся рядом с выходом, ведущим обратно
 	for e in exits:
 		if e.to == entry:
-			start = _toward(e.cell, Vector2i(start_c.center), 3)
+			start = e.arrive
 	if f.get("riddle_gate", false):
 		for e in exits:
-			if e.to != entry and WorldData.NODE_KINDS.get(e.to_kind, {}).get("underground", false):
+			if WorldData.NODE_KINDS.get(e.to_kind, {}).get("underground", false):
 				e.sealed = true
 				break
 		if not exits.any(func(e): return e.get("sealed", false)) and exits.size() > 1:
@@ -144,6 +161,9 @@ static func generate(node: Dictionary, neighbors: Array, seed_value: int, entry:
 	var pool_clearings: Array = clearings.filter(func(c): return c != start_c)
 	if pool_clearings.is_empty():
 		pool_clearings = clearings
+
+	var far: Array = clearings.duplicate()
+	far.sort_custom(func(a, b): return a.center.distance_to(start_c.center) > b.center.distance_to(start_c.center))
 
 	# --- NPC — поближе к старту
 	var near: Array = clearings.duplicate()
@@ -243,26 +263,58 @@ static func _free_cell(grid: PackedByteArray, w: int, h: int, c: Dictionary, rng
 	return Vector2i(c.center)
 
 
-## Клетка у края поляны (для выходов: указатель, вход в пещеру).
-static func _edge_cell(grid: PackedByteArray, w: int, h: int, c: Dictionary, rng: RandomNumberGenerator, occupied: Dictionary, near_start: bool) -> Vector2i:
-	for attempt in 60:
-		var a := rng.randf() * TAU
-		if near_start:
-			a = PI + rng.randf_range(-1.0, 1.0)     # стартовые выходы — к левому краю
-		var cell := Vector2i(c.center + Vector2(cos(a), sin(a)) * maxf(c.radius - 1.2, 1.0))
-		if _in(w, h, cell.x, cell.y) and grid[cell.y * w + cell.x] == FLOOR and not occupied.has(cell):
-			for dy in range(-1, 2):
-				for dx in range(-1, 2):
-					occupied[cell + Vector2i(dx, dy)] = true
-			return cell
-	return Vector2i(c.center)
+static func _pos_of(n: Dictionary) -> Vector2:
+	var p: Array = n.get("pos", [0.5, 0.5])
+	return Vector2(float(p[0]), float(p[1]))
 
 
-static func _toward(from: Vector2i, to: Vector2i, cells: int) -> Vector2i:
-	var d := Vector2(to - from)
-	if d.length() < 0.01:
-		return from
-	return from + Vector2i((d.normalized() * cells).round())
+## Точка на краю карты (клетка с x = 1 / w−2 или y = 1 / h−2) по направлению dir от центра.
+## Не ближе 6 клеток к углам, не на пропасти и не ближе 8 клеток к уже занятым выходам.
+static func _border_point(w: int, h: int, dir: Vector2, chasm: Rect2i, used: Array) -> Vector2i:
+	var c := Vector2(w * 0.5, h * 0.5)
+	var tx := INF
+	var ty := INF
+	if absf(dir.x) > 0.0001:
+		tx = ((w - 2 - c.x) if dir.x > 0 else (1 - c.x)) / dir.x
+	if absf(dir.y) > 0.0001:
+		ty = ((h - 2 - c.y) if dir.y > 0 else (1 - c.y)) / dir.y
+	var vertical := tx < ty
+	var p := c + dir * minf(tx, ty)
+	var cell := Vector2i(roundi(p.x), roundi(p.y))
+	if vertical:
+		cell.x = w - 2 if dir.x > 0 else 1
+	else:
+		cell.y = h - 2 if dir.y > 0 else 1
+	for attempt in 12:
+		if vertical:
+			cell.y = clampi(cell.y, 6, h - 7)
+		else:
+			cell.x = clampi(cell.x, 6, w - 7)
+			if chasm.size.x > 0 and cell.x > chasm.position.x - 4 and cell.x < chasm.end.x + 3:
+				cell.x = chasm.position.x - 4 if p.x < chasm.position.x + chasm.size.x * 0.5 else chasm.end.x + 3
+		var clash := false
+		for u in used:
+			if Vector2(u).distance_to(Vector2(cell)) < 8.0:
+				clash = true
+		if not clash:
+			break
+		var step := 8 * (1 if attempt % 2 == 0 else -1) * (attempt / 2 + 1)
+		if vertical:
+			cell.y += step
+		else:
+			cell.x += step
+	return cell
+
+
+## Направление «наружу» для клетки на краю карты.
+static func _outward(w: int, h: int, cell: Vector2i) -> Vector2i:
+	if cell.x <= 1:
+		return Vector2i(-1, 0)
+	if cell.x >= w - 2:
+		return Vector2i(1, 0)
+	if cell.y <= 1:
+		return Vector2i(0, -1)
+	return Vector2i(0, 1)
 
 
 static func _pick_riddle(rng: RandomNumberGenerator, used: Dictionary) -> String:

@@ -46,35 +46,50 @@ static func _build_outdoor(root: Node3D, data: Dictionary, sky: String) -> Dicti
 	root.add_child(we)
 	root.add_child(env[1])
 
-	# --- Земля одним мешем, без клеток пропасти; за пределами сетки — продолжение рельефа
+	# --- Расширенная сетка (карта + поля вокруг) и рельеф: непроходимое — возвышенности
+	var ext := _extend(data)
+	var ew: int = ext.ew
+	var eh: int = ext.eh
+	var eg: PackedByteArray = ext.grid
+	var edist := _block_distance(eg, ew, eh)
+	var terrain := _terrain(ext, edist, kind, chasm)
+	data["terrain"] = terrain
+
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for z in range(-MARGIN, h + MARGIN):
-		var run_start := -99999
-		for x in range(-MARGIN, w + MARGIN + 1):
-			var solid_ground := x < w + MARGIN and not _is_chasm(grid, w, h, chasm, x, z)
-			if solid_ground and run_start == -99999:
-				run_start = x
-			elif not solid_ground and run_start != -99999:
-				_quad(st, Vector3(run_start, 0, z), Vector3(x, 0, z + 1))
-				run_start = -99999
+	var hv: PackedFloat32Array = terrain.hv
+	var vw := ew + 1
+	for ez in eh:
+		for ex in ew:
+			if eg[ez * ew + ex] == OutdoorGenerator.CHASM:
+				continue
+			var x0 := float(ex - MARGIN)
+			var z0 := float(ez - MARGIN)
+			var p0 := Vector3(x0, hv[ez * vw + ex], z0)
+			var p1 := Vector3(x0 + 1, hv[ez * vw + ex + 1], z0)
+			var p2 := Vector3(x0 + 1, hv[(ez + 1) * vw + ex + 1], z0 + 1)
+			var p3 := Vector3(x0, hv[(ez + 1) * vw + ex], z0 + 1)
+			for p in [p0, p1, p2, p0, p2, p3]:
+				st.set_uv(Vector2(p.x, p.z))
+				st.add_vertex(p)
+	st.index()
 	st.generate_normals()
 	var ground_mesh := st.commit()
 	var mat := WorldStyle.ground_material(_biome_of(kind))
-	var mask := Image.create(w, h, false, Image.FORMAT_L8)
-	for y in h:
-		for x in w:
-			var v := grid[y * w + x]
-			mask.set_pixel(x, y, Color.WHITE if v == OutdoorGenerator.PATH else Color.BLACK)
+	var mask := Image.create(ew, eh, false, Image.FORMAT_L8)
+	for ez in eh:
+		for ex in ew:
+			mask.set_pixel(ex, ez, Color.WHITE if eg[ez * ew + ex] == OutdoorGenerator.PATH else Color.BLACK)
 	# Маска тропы в 4× разрешении со сглаживанием — края без «ступенек»
-	mask.resize(w * 4, h * 4, Image.INTERPOLATE_CUBIC)
+	mask.resize(ew * 4, eh * 4, Image.INTERPOLATE_CUBIC)
 	mat.set_shader_parameter("use_path", true)
 	mat.set_shader_parameter("path_tex", ImageTexture.create_from_image(mask))
-	mat.set_shader_parameter("path_rect", Vector4(0, 0, w, h))
+	mat.set_shader_parameter("path_rect", Vector4(-MARGIN, -MARGIN, ew, eh))
 	var gmi := MeshInstance3D.new()
 	gmi.mesh = ground_mesh
 	gmi.material_override = mat
 	root.add_child(gmi)
+	# Земля — препятствие и для камеры (слой 4): камера не заходит внутрь холмов
 	var ground_body := StaticBody3D.new()
 	ground_body.collision_layer = 1
 	var gcs := CollisionShape3D.new()
@@ -111,19 +126,18 @@ static func _build_outdoor(root: Node3D, data: Dictionary, sky: String) -> Dicti
 			root.add_child(abyss)
 			_mist(root, Vector3(chasm.position.x + chasm.size.x * 0.5, -6.0, h * 0.5), Vector3(chasm.size.x, 3.0, h + 20))
 
-	# --- Стены-границы (невидимые коробки вдоль непроходимых клеток)
+	# --- Граница проходимой зоны: у подножия крутого склона (там же кусты, камни, стены руин)
 	var walls := StaticBody3D.new()
-	walls.collision_layer = WALL_LAYER
+	walls.collision_layer = 1
 	root.add_child(walls)
-	var dist := _block_distance(grid, w, h)
-	for y in h:
-		for x in w:
-			if grid[y * w + x] == OutdoorGenerator.BLOCK and dist[y * w + x] == 1:
+	for ez in eh:
+		for ex in ew:
+			if eg[ez * ew + ex] == OutdoorGenerator.BLOCK and edist[ez * ew + ex] == 1:
 				var cs := CollisionShape3D.new()
 				var box := BoxShape3D.new()
-				box.size = Vector3(1, 5, 1)
+				box.size = Vector3(1, 4, 1)
 				cs.shape = box
-				cs.position = Vector3(x + 0.5, 2.5, y + 0.5)
+				cs.position = Vector3(ex - MARGIN + 0.5, 2.0, ez - MARGIN + 0.5)
 				walls.add_child(cs)
 
 	# --- Поиск пути
@@ -138,30 +152,116 @@ static func _build_outdoor(root: Node3D, data: Dictionary, sky: String) -> Dicti
 			if v == OutdoorGenerator.BLOCK or v == OutdoorGenerator.CHASM:
 				astar.set_point_solid(Vector2i(x, y), true)
 
-	_vegetation(root, data, dist, rng)
+	_vegetation(root, data, ext, edist, terrain, rng)
 	return {"astar": astar, "fall_y": fall_y}
+
+
+## Сетка с полями MARGIN вокруг карты: рельеф, растительность и тропы выходов, уходящие за край.
+static func _extend(data: Dictionary) -> Dictionary:
+	var w: int = data.w
+	var h: int = data.h
+	var ew := w + MARGIN * 2
+	var eh := h + MARGIN * 2
+	var eg := PackedByteArray()
+	eg.resize(ew * eh)
+	eg.fill(OutdoorGenerator.BLOCK)
+	var grid: PackedByteArray = data.grid
+	for y in h:
+		for x in w:
+			eg[(y + MARGIN) * ew + x + MARGIN] = grid[y * w + x]
+	var chasm: Rect2i = data.chasm
+	if chasm.size.x > 0:
+		for y in eh:
+			for x in range(chasm.position.x, chasm.end.x):
+				eg[y * ew + x + MARGIN] = OutdoorGenerator.CHASM
+	var rng := RandomNumberGenerator.new()
+	rng.seed = w * 7919 + h * 104729 + data.exits.size()
+	for e in data.exits:
+		if e.get("kind", "") != "path" or not e.has("dir"):
+			continue
+		var d: Vector2i = e.dir
+		var perp := Vector2i(-d.y, d.x)
+		var wob := 0.0
+		for k in range(1, 20):
+			if k > 3:
+				wob = clampf(wob + rng.randf_range(-0.6, 0.6), -3.0, 3.0)
+			var c: Vector2i = e.cell + d * k + perp * roundi(wob) + Vector2i(MARGIN, MARGIN)
+			for lat in [-1, 0, 1]:
+				var q: Vector2i = c + perp * lat
+				if q.x >= 0 and q.y >= 0 and q.x < ew and q.y < eh and eg[q.y * ew + q.x] == OutdoorGenerator.BLOCK:
+					eg[q.y * ew + q.x] = OutdoorGenerator.PATH
+	return {"ew": ew, "eh": eh, "grid": eg}
+
+
+## Высоты вершин рельефа: проходимые клетки — 0, дальше от них — крутой склон и холмы.
+## Кромка пропасти остаётся на уровне 0 (там стоят обрывы).
+const HILL := [0.0, 1.35, 2.15, 2.75, 3.15, 3.4, 3.6]
+
+
+static func _terrain(ext: Dictionary, edist: PackedInt32Array, kind: String, chasm: Rect2i) -> Dictionary:
+	var ew: int = ext.ew
+	var eh: int = ext.eh
+	var eg: PackedByteArray = ext.grid
+	var vw := ew + 1
+	var vh := eh + 1
+	var amp: float = {"meadow": 0.75, "forest": 1.0, "riverside": 0.85, "ruins": 0.9}.get(kind, 1.0)
+	var noise := FastNoiseLite.new()
+	noise.seed = ew * 13 + eh
+	noise.frequency = 0.09
+	var hv := PackedFloat32Array()
+	hv.resize(vw * vh)
+	for vz in vh:
+		for vx in vw:
+			var dmin := 99
+			for o in [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 0)]:
+				var cx: int = vx + o.x
+				var cz: int = vz + o.y
+				if cx < 0 or cz < 0 or cx >= ew or cz >= eh:
+					continue
+				var i := cz * ew + cx
+				var v := eg[i]
+				var d := 0
+				if v == OutdoorGenerator.BLOCK:
+					d = edist[i] if edist[i] > 0 else 10
+				dmin = mini(dmin, d)
+			if dmin == 99:
+				dmin = 10
+			var hgt := 0.0
+			if dmin > 0:
+				hgt = float(HILL[mini(dmin, HILL.size() - 1)]) * amp + noise.get_noise_2d(vx, vz) * 0.55 * minf(dmin, 3) / 3.0
+				if chasm.size.x > 0:
+					var wx := float(vx - MARGIN)
+					var dx := minf(absf(wx - chasm.position.x), absf(wx - chasm.end.x))
+					hgt *= clampf(dx / 4.0, 0.0, 1.0)
+			hv[vz * vw + vx] = maxf(hgt, 0.0)
+	return {"ew": ew, "eh": eh, "hv": hv}
+
+
+## Высота рельефа в мировой точке (точно по треугольникам меша земли).
+static func height_at(terrain: Dictionary, x: float, z: float) -> float:
+	if terrain.is_empty():
+		return 0.0
+	var ew: int = terrain.ew
+	var eh: int = terrain.eh
+	var vw := ew + 1
+	var fx := clampf(x + MARGIN, 0.0, ew - 0.001)
+	var fz := clampf(z + MARGIN, 0.0, eh - 0.001)
+	var ix := int(fx)
+	var iz := int(fz)
+	var ux := fx - ix
+	var uz := fz - iz
+	var hv: PackedFloat32Array = terrain.hv
+	var h00 := hv[iz * vw + ix]
+	var h10 := hv[iz * vw + ix + 1]
+	var h11 := hv[(iz + 1) * vw + ix + 1]
+	var h01 := hv[(iz + 1) * vw + ix]
+	if ux >= uz:
+		return h00 + (h10 - h00) * ux + (h11 - h10) * uz
+	return h00 + (h11 - h01) * ux + (h01 - h00) * uz
 
 
 static func _biome_of(kind: String) -> String:
 	return {"meadow": "meadow", "forest": "forest", "riverside": "riverside", "ruins": "ruins"}.get(kind, "forest")
-
-
-static func _is_chasm(grid: PackedByteArray, w: int, h: int, chasm: Rect2i, x: int, z: int) -> bool:
-	if chasm.size.x > 0 and x >= chasm.position.x and x < chasm.end.x:
-		return true
-	if x >= 0 and z >= 0 and x < w and z < h:
-		return grid[z * w + x] == OutdoorGenerator.CHASM
-	return false
-
-
-static func _quad(st: SurfaceTool, a: Vector3, b: Vector3) -> void:
-	var p0 := Vector3(a.x, 0, a.z)
-	var p1 := Vector3(b.x, 0, a.z)
-	var p2 := Vector3(b.x, 0, b.z)
-	var p3 := Vector3(a.x, 0, b.z)
-	for p in [p0, p1, p2, p0, p2, p3]:
-		st.set_uv(Vector2(p.x, p.z))
-		st.add_vertex(p)
 
 
 ## Обрывы по краям пропасти: вертикальные скальные стены и камни на кромке.
@@ -256,11 +356,14 @@ static func _xf(pos: Vector3, yaw: float, s: float) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), pos)
 
 
-## Растительность и руины по типу подлокации.
-static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, rng: RandomNumberGenerator) -> void:
+## Растительность и руины по типу подлокации. Работает по расширенной сетке: лес на склонах вокруг
+## полян и вдоль троп, уходящих за край карты; всё ставится на высоту рельефа.
+static func _vegetation(root: Node3D, data: Dictionary, ext: Dictionary, edist: PackedInt32Array, terrain: Dictionary, rng: RandomNumberGenerator) -> void:
 	var w: int = data.w
 	var h: int = data.h
-	var grid: PackedByteArray = data.grid
+	var ew: int = ext.ew
+	var eh: int = ext.eh
+	var eg: PackedByteArray = ext.grid
 	var kind: String = data.kind
 	var trees_by_model := {}
 	var small_by_model := {}
@@ -275,49 +378,51 @@ static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, 
 			tree_models = ["CommonTree_1", "CommonTree_3", "Pine_1", "Pine_3", "TwistedTree_2"]
 	var q := WorldStyle.quality()
 	var density: float = {"forest": 0.55, "meadow": 0.32, "riverside": 0.45, "ruins": 0.35}.get(kind, 0.45) * float(q.veg)
-	# Деревья по кромке и в глубине леса
-	for y in h:
-		for x in w:
-			var d := dist[y * w + x]
-			if d < 2 or d > 7:
+	# Деревья на склонах вокруг полян и вдоль троп
+	for ez in eh:
+		for ex in ew:
+			var i := ez * ew + ex
+			if eg[i] != OutdoorGenerator.BLOCK:
 				continue
+			var d := edist[i]
+			if d < 3 or d > 8:
+				continue   # не ближе 3 м от проходимой зоны: кроны не нависают над тропой и камерой
 			if rng.randf() > density * (1.2 if d <= 4 else 0.7):
 				continue
-			var cell := Vector2i(x / 3, y / 3)   # не больше одного дерева на 3×3 м
+			var cell := Vector2i(ex / 3, ez / 3)   # не больше одного дерева на 3×3 м
 			if occupied.has(cell):
 				continue
 			occupied[cell] = true
 			var model: String = tree_models[rng.randi() % tree_models.size()]
 			var s := rng.randf_range(0.75, 1.15) * (0.45 if model.begins_with("Twisted") else 1.0)
-			if not trees_by_model.has(model):
-				trees_by_model[model] = []
-			trees_by_model[model].append(_xf(Vector3(x + rng.randf(), 0, y + rng.randf()), rng.randf() * TAU, s))
-	# Лес за пределами сетки — силуэты до горизонта
+			var px := ex - MARGIN + rng.randf()
+			var pz := ez - MARGIN + rng.randf()
+			_add(trees_by_model, model, _xf(Vector3(px, height_at(terrain, px, pz) - 0.1, pz), rng.randf() * TAU, s))
+	# Лес до горизонта — силуэты на дальних холмах
 	var outer := {}
 	var outer_count := 0
-	for i in int(q.outer_trees) * 3:
+	for i in int(q.outer_trees) * 4:
 		if outer_count >= int(q.outer_trees):
 			break
-		var p := Vector3(rng.randf_range(-MARGIN + 2, w + MARGIN - 2), 0, rng.randf_range(-MARGIN + 2, h + MARGIN - 2))
-		if p.x >= -1 and p.x <= w and p.z >= -1 and p.z <= h:
-			continue
-		var ch: Rect2i = data.chasm
-		if ch.size.x > 0 and p.x > ch.position.x - 2 and p.x < ch.end.x + 2:
+		var px := rng.randf_range(-MARGIN + 2, w + MARGIN - 2)
+		var pz := rng.randf_range(-MARGIN + 2, h + MARGIN - 2)
+		var ei := (int(pz) + MARGIN) * ew + int(px) + MARGIN
+		if eg[ei] != OutdoorGenerator.BLOCK or (edist[ei] >= 0 and edist[ei] < 8):
 			continue
 		var model: String = tree_models[rng.randi() % tree_models.size()]
-		if not outer.has(model):
-			outer[model] = []
-		outer[model].append(_xf(p, rng.randf() * TAU, rng.randf_range(0.9, 1.3) * (0.45 if model.begins_with("Twisted") else 1.0)))
+		_add(outer, model, _xf(Vector3(px, height_at(terrain, px, pz) - 0.1, pz), rng.randf() * TAU, rng.randf_range(0.9, 1.3) * (0.45 if model.begins_with("Twisted") else 1.0)))
 		outer_count += 1
 	for model in trees_by_model:
 		scatter(root, N + model + ".gltf", trees_by_model[model], q.tree_shadows)
-	# Силуэты за краем карты: без теней и с большей дальностью (видны с края поляны)
+	# Силуэты за краем: без теней и с большей дальностью (видны с края поляны)
 	for model in outer:
 		scatter(root, N + model + ".gltf", outer[model], false, float(q.view_dist) + 20.0)
 	_canopy_colliders(root, trees_by_model, w, h)
 
-	# Кусты на кромке, трава и цветы на полянах
-	var edge_models := ["Bush_Common", "Bush_Common_Flowers", "Fern_1", "Plant_1_Big"]
+	# Кусты и камни у подножия склонов (там, где проходимая зона кончается), трава и цветы на полянах
+	var edge_models := ["Bush_Common", "Bush_Common_Flowers", "Bush_Common", "Rock_Medium_1", "Fern_1", "Plant_1_Big"]
+	if kind == "ruins":
+		edge_models = ["Rock_Medium_1", "Rock_Medium_2", "Bush_Common", "Rock_Medium_3", "Plant_1_Big"]
 	var ground_models := ["Grass_Common_Short", "Grass_Wispy_Short", "Grass_Common_Tall", "Flower_3_Group", "Flower_4_Group", "Clover_1", "Clover_2", "Plant_7", "Pebble_Round_2", "Pebble_Square_3"]
 	if kind == "forest":
 		ground_models += ["Mushroom_Common", "Fern_1", "Plant_1"]
@@ -325,29 +430,48 @@ static func _vegetation(root: Node3D, data: Dictionary, dist: PackedInt32Array, 
 		ground_models += ["Flower_3_Single", "Flower_4_Single", "Flower_3_Group", "Flower_4_Group"]
 	elif kind == "riverside":
 		ground_models += ["Grass_Wispy_Tall", "Grass_Wispy_Tall", "Pebble_Round_4"]
-	for y in h:
-		for x in w:
-			var i := y * w + x
-			var v := grid[i]
+	for ez in eh:
+		for ex in ew:
+			var i := ez * ew + ex
+			var v := eg[i]
 			var r := rng.randf()
-			if v == OutdoorGenerator.BLOCK and dist[i] == 1 and r < 0.55:
-				_add(small_by_model, edge_models[rng.randi() % edge_models.size()], _xf(Vector3(x + rng.randf(), 0, y + rng.randf()), rng.randf() * TAU, rng.randf_range(0.6, 1.0)))
-			elif v == OutdoorGenerator.FLOOR and r < 0.07 * float(q.veg) and not _near_entity(data, Vector2i(x, y)):
+			var px := ex - MARGIN + rng.randf()
+			var pz := ez - MARGIN + rng.randf()
+			if v == OutdoorGenerator.BLOCK and edist[i] == 1 and r < 0.6 * float(q.veg):
+				var m: String = edge_models[rng.randi() % edge_models.size()]
+				var big := 0.55 if m.begins_with("Rock") else 1.0
+				# Ближе к подножию, чтобы куст или камень закрывал край склона
+				var foot := _toward_walkable(eg, ew, eh, ex, ez)
+				px = ex - MARGIN + 0.5 + foot.x * 0.3
+				pz = ez - MARGIN + 0.5 + foot.y * 0.3
+				_add(small_by_model, m, _xf(Vector3(px, height_at(terrain, px, pz) - (0.2 if big < 1.0 else 0.05), pz), rng.randf() * TAU, rng.randf_range(0.75, 1.1) * big))
+			elif v == OutdoorGenerator.FLOOR and r < 0.07 * float(q.veg) and not _near_entity(data, Vector2i(ex - MARGIN, ez - MARGIN)):
 				var m: String = ground_models[rng.randi() % ground_models.size()]
 				var s := 0.45 if (m.begins_with("Flower") or m.begins_with("Grass_Common_Tall")) else 0.6
-				_add(small_by_model, m, _xf(Vector3(x + rng.randf(), 0, y + rng.randf()), rng.randf() * TAU, s * rng.randf_range(0.8, 1.2)))
-			elif v == OutdoorGenerator.PATH and r < 0.05:
-				_add(small_by_model, "RockPath_Round_Small_%d" % (1 + rng.randi() % 3), _xf(Vector3(x + 0.5, 0.0, y + 0.5), rng.randf() * TAU, rng.randf_range(0.6, 0.9)))
-			elif v == OutdoorGenerator.BLOCK and dist[i] == 2 and r < 0.08:
-				_add(small_by_model, "Rock_Medium_%d" % (1 + rng.randi() % 3), _xf(Vector3(x + rng.randf(), -0.2, y + rng.randf()), rng.randf() * TAU, rng.randf_range(0.5, 0.9)))
+				_add(small_by_model, m, _xf(Vector3(px, 0, pz), rng.randf() * TAU, s * rng.randf_range(0.8, 1.2)))
+			elif v == OutdoorGenerator.PATH and r < 0.05 and not _near_entity(data, Vector2i(ex - MARGIN, ez - MARGIN)):
+				_add(small_by_model, "RockPath_Round_Small_%d" % (1 + rng.randi() % 3), _xf(Vector3(ex - MARGIN + 0.5, 0.0, ez - MARGIN + 0.5), rng.randf() * TAU, rng.randf_range(0.6, 0.9)))
+			elif v == OutdoorGenerator.BLOCK and edist[i] == 2 and r < 0.08:
+				_add(small_by_model, "Rock_Medium_%d" % (1 + rng.randi() % 3), _xf(Vector3(px, height_at(terrain, px, pz) - 0.3, pz), rng.randf() * TAU, rng.randf_range(0.6, 1.0)))
 	for m in small_by_model:
 		var big: bool = m.begins_with("Bush") or m.begins_with("Rock")
 		scatter(root, N + m + ".gltf", small_by_model[m], big and q.shadows, float(q.view_dist) * (0.8 if big else 0.55))
 
 	if kind == "ruins":
-		_ruins(root, data, dist, rng)
+		_ruins(root, data, terrain, rng)
 	if kind == "forest" or kind == "riverside":
 		_fireflies(root, Vector3(w * 0.5, 1.5, h * 0.5), Vector3(w, 2.5, h))
+
+
+## Направление (в клетках) к ближайшей проходимой соседней клетке — для кустов у подножия склона.
+static func _toward_walkable(eg: PackedByteArray, ew: int, eh: int, ex: int, ez: int) -> Vector2:
+	var acc := Vector2.ZERO
+	for o in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var x: int = ex + o.x
+		var z: int = ez + o.y
+		if x >= 0 and z >= 0 and x < ew and z < eh and eg[z * ew + x] in [OutdoorGenerator.FLOOR, OutdoorGenerator.PATH]:
+			acc += Vector2(o)
+	return acc.normalized() if acc.length() > 0.01 else Vector2.ZERO
 
 
 ## Кроны деревьев — препятствие только для камеры (слой 4): пружина камеры не заходит в листву.
@@ -381,20 +505,20 @@ static func _near_entity(data: Dictionary, c: Vector2i) -> bool:
 	if c.distance_to(data.start) < 2.5:
 		return true
 	for e in data.exits:
-		if c.distance_to(e.cell) < 2.5:
+		if c.distance_to(e.cell) < 2.5 or c.distance_to(e.get("arrive", e.cell)) < 2.5:
 			return true
 	return false
 
 
-## Руины: обломки стен и арки по краям полян, колонны, плиты, лоза, черепки.
-static func _ruins(root: Node3D, data: Dictionary, dist: PackedInt32Array, rng: RandomNumberGenerator) -> void:
+## Руины: высокие обломки стен и арки по краям полян (граница проходимой зоны), колонны, плиты, лоза, черепки.
+static func _ruins(root: Node3D, data: Dictionary, terrain: Dictionary, rng: RandomNumberGenerator) -> void:
 	var w: int = data.w
 	var by_model := {}
 	for c in data.clearings:
 		var n := int(c.radius * 1.2)
 		for i in n:
 			var a := TAU * i / n + rng.randf_range(-0.15, 0.15)
-			if rng.randf() < 0.35:
+			if rng.randf() < 0.2:
 				continue
 			var p: Vector2 = c.center + Vector2(cos(a), sin(a)) * (c.radius + 0.8)
 			var cell := Vector2i(p)
@@ -405,10 +529,11 @@ static func _ruins(root: Node3D, data: Dictionary, dist: PackedInt32Array, rng: 
 			var model: String = ["Wall_UnevenBrick_Straight", "Wall_UnevenBrick_Window_Wide_Round", "Wall_Arch", "Wall_UnevenBrick_Straight", "Corner_Exterior_Brick"][rng.randi() % 5]
 			var yaw := -a + PI / 2
 			var s := rng.randf_range(0.85, 1.05)
-			var xf := Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s * rng.randf_range(0.55, 1.0), s)), Vector3(p.x, -0.1, p.y))
+			var gy := height_at(terrain, p.x, p.y) * 0.5 - 0.1
+			var xf := Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s * rng.randf_range(0.75, 1.15), s)), Vector3(p.x, gy, p.y))
 			_add(by_model, model, xf)
 			if rng.randf() < 0.3:
-				_add(by_model, "Prop_Vine%d" % (1 + rng.randi() % 2), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, 2.6, p.y) + Vector3(cos(a), 0, sin(a)) * -0.3))
+				_add(by_model, "Prop_Vine%d" % (1 + rng.randi() % 2), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, gy + 2.7, p.y) + Vector3(cos(a), 0, sin(a)) * -0.3))
 		# Плиты пола и черепки внутри поляны
 		for i in int(c.radius):
 			var a := rng.randf() * TAU

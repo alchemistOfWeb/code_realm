@@ -146,22 +146,33 @@ static func generate(floor_num: int, seed_value: int, used: Dictionary = {}, opt
 	elif floor_num == 2:
 		result.boss = {"id": "data_breach", "cell": _free_cell(er, rng, occupied)}
 
-	# --- Выходы в соседние подлокации: «назад» — в стартовой комнате, главный — лестница в комнате выхода
-	var neighbors: Array = opts.get("neighbors", [])
+	# --- Выходы в соседние подлокации. Раскладка не зависит от того, откуда пришли (карта запоминается):
+	# самый «западный» сосед по карте локации — в стартовой комнате, следующий — главная лестница
+	# в комнате выхода (за решёткой / стражем), остальные — в других комнатах. entry — только точка появления.
+	var neighbors: Array = opts.get("neighbors", []).duplicate()
+	neighbors.sort_custom(func(a, b): return float(a.get("pos", [0, 0])[0]) < float(b.get("pos", [0, 0])[0]))
 	var entry: String = opts.get("entry", "")
-	var forward := neighbors.filter(func(n): return n.id != entry)
-	for n in neighbors.filter(func(n): return n.id == entry):
-		var cell := _free_cell(start_room.rect, rng, occupied)
-		result.exits.append(_exit(n, cell))
 	var other_rooms := pool.duplicate()
 	other_rooms.reverse()
-	for i in forward.size():
-		var cell: Vector2i = result.exit if i == 0 else _free_cell(other_rooms[(i - 1) % maxi(other_rooms.size(), 1)].rect, rng, occupied) if not other_rooms.is_empty() else result.exit
-		result.exits.append(_exit(forward[i], cell))
-	if entry != "":
-		for e in result.exits:
-			if e.to == entry:
-				result.start = e.cell + Vector2i(1, 0) if _walkable(grid, w, h, e.cell + Vector2i(1, 0)) else start_room.center
+	for i in neighbors.size():
+		var cell: Vector2i
+		if i == 0:
+			cell = _free_cell(start_room.rect, rng, occupied)
+		elif i == 1:
+			cell = result.exit
+		elif not other_rooms.is_empty():
+			cell = _free_cell(other_rooms[(i - 2) % other_rooms.size()].rect, rng, occupied)
+		else:
+			cell = result.exit
+		result.exits.append(_exit(neighbors[i], cell))
+	for e in result.exits:
+		e.arrive = e.cell
+		for o in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(2, 0), Vector2i(-2, 0)]:
+			if _walkable(grid, w, h, e.cell + o * 2) and _walkable(grid, w, h, e.cell + o):
+				e.arrive = e.cell + o * 2
+				break
+		if entry != "" and e.to == entry:
+			result.start = e.arrive
 
 	# --- Сундуки
 	var chest_count: int = int(opts.get("chests", 1 + (1 if rng.randf() < 0.5 else 0)))

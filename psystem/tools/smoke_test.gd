@@ -46,6 +46,40 @@ func _auto_play_turn(cs: CombatState) -> void:
 		cs.weapon_attack(w, cs.valid_attack_targets(cs.enemy)[0])
 
 
+## Перетаскивание мышью: нажать, протащить, отпустить (через Viewport, как настоящий ввод).
+func _drag(from: Vector2, to: Vector2) -> void:
+	Input.use_accumulated_input = false
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = from
+	press.global_position = from
+	press.button_mask = MOUSE_BUTTON_MASK_LEFT
+	var hover := InputEventMouseMotion.new()
+	hover.position = from
+	hover.global_position = from
+	Input.parse_input_event(hover)
+	await get_tree().process_frame
+	Input.parse_input_event(press)
+	await get_tree().process_frame
+	for i in 8:
+		var m := InputEventMouseMotion.new()
+		var p := from.lerp(to, (i + 1) / 8.0)
+		m.position = p
+		m.global_position = p
+		m.relative = (to - from) / 8.0
+		m.button_mask = MOUSE_BUTTON_MASK_LEFT
+		Input.parse_input_event(m)
+		await get_tree().process_frame
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	release.position = to
+	release.global_position = to
+	Input.parse_input_event(release)
+	await get_tree().process_frame
+
+
 func check(cond: bool, label: String) -> void:
 	_checks += 1
 	if cond:
@@ -147,10 +181,51 @@ func _run() -> void:
 	check(main.current_screen_key() == "mini_tree", "назад → MiniTree")
 	bus.go("character", {"tab": 1})
 	await get_tree().process_frame
-	check(main.current_screen_key() == "character", "экран персонажа")
+	check(main.current_screen_key() == "character" and main._stack.size() == 2, "персонаж — раздел: история урока и дерева не копится")
+	# Перетаскивание мышью: щит из инвентаря в слот «Вторая рука», затем обратно в инвентарь
+	gm.player_data.inventory.append("shield_round")
+	gm.equipment_changed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var eqp = main._stack[-1].tabs.get_node("Equipment")
+	var src: Control = null
+	for t in eqp._inv_grid.get_children():
+		if t is ItemTile and t.item.get("id") == "shield_round":
+			src = t
+	var dst: Control = eqp._slot_tiles["offhand"]
+	var found := src != null
+	# В headless GUI не получает ввод мыши — там вызываем обработчики перетаскивания напрямую
+	var real_mouse := DisplayServer.get_name() != "headless"
+	var data := {"type": "item", "id": "shield_round", "from": "inventory", "slot": ""}
+	check(eqp._can_drop_slot(Vector2.ZERO, data, "offhand") and not eqp._can_drop_slot(Vector2.ZERO, data, "weapon"), "щит можно бросить только во вторую руку")
+	if real_mouse and src:
+		await _drag(src.get_global_rect().get_center(), dst.get_global_rect().get_center())
+	else:
+		eqp._drop_slot(Vector2.ZERO, data, "offhand")
+	await get_tree().process_frame
+	check(found and gm.equipped("offhand") == "shield_round", "перетаскивание в слот надевает предмет")
+	var slot_tile: Control = eqp._slot_tiles["offhand"].get_child(-1)
+	if real_mouse:
+		await _drag(slot_tile.get_global_rect().get_center(), eqp._inv_grid.get_global_rect().get_center())
+	else:
+		eqp._drop_list(Vector2.ZERO, {"type": "item", "id": "shield_round", "from": "slot", "slot": "offhand"}, "inventory")
+	await get_tree().process_frame
+	check(gm.equipped("offhand") == "" and "shield_round" in gm.player_data.inventory, "перетаскивание из слота в инвентарь снимает")
+	gm.player_data.inventory.erase("shield_round")
+	gm.equipment_changed.emit()
+	bus.go("shop")
+	await get_tree().process_frame
 	bus.go("settings")
 	await get_tree().process_frame
-	check(main.current_screen_key() == "settings", "экран настроек")
+	check(main.current_screen_key() == "settings" and main._stack.size() == 2, "переходы между разделами без истории")
+	bus.back()
+	await get_tree().process_frame
+	check(main.current_screen_key() == "world", "назад из раздела — сразу на главный экран")
+	bus.go("world_map")
+	await get_tree().process_frame
+	bus.go("location", {"location_id": "whisper_grove"})
+	await get_tree().process_frame
+	check(main._stack.size() == 3, "карта локации вложена в карту мира (цепочка вложенности)")
 	bus.navigate_home.emit()
 	await get_tree().process_frame
 	check(main._stack.size() == 1, "домой → WorldTree")
@@ -287,7 +362,7 @@ func _run() -> void:
 	var cs2 := CombatState.new()
 	cs2.start(CardDatabase.all_enemies()[0], ["sql_query", "sql_query", "sql_query", "git_commit", "try_except"], {"max_hp": 20, "hp": 20, "attributes": {"strength": 1, "agility": 1, "max_mana": 10, "max_stamina": 10}, "weapons": ["sword"]})
 	var hp_before: int = cs2.enemy.hp
-	check(cs2.weapon_attack("sword", {"side": "enemy", "kind": "hero", "uid": -1}) and cs2.enemy.hp == hp_before - 4, "меч: 2 + 2×Сила = 4 урона")
+	check(cs2.weapon_attack("sword", {"side": "enemy", "kind": "hero", "uid": -1}) and cs2.enemy.hp == hp_before - 3, "меч: 2 + Сила = 3 урона")
 	check(cs2.use_rune("shield") and cs2.player.shield == 4 and cs2.player.mana == 7, "руна щита: +4 щита, −3 маны")
 	check(not cs2.weapon_attack("axe", {"side": "enemy", "kind": "hero", "uid": -1}), "топора нет в экипировке — атака им недоступна")
 	var cs3 := CombatState.new()
@@ -365,6 +440,19 @@ func _run() -> void:
 	check(gm.sell_item("shield_round") == 30 and gm.player_data.gold == gold_before + 30, "продажа за половину цены")
 	gm.player_data.gold = 0
 	check(gm.buy_block_reason("claymore") != "", "без золота купить нельзя")
+	var w_before := gm.carried_weight()
+	check(gm.move_item("sword_rusty", "inventory", "stash") and "sword_rusty" in gm.player_data.stash and gm.carried_weight() < w_before, "склад: вещь со склада не утяжеляет героя")
+	check(gm.equip("sword_rusty", "weapon", "stash") and "bow_hunter" in gm.player_data.stash and gm.equipped("weapon") == "sword_rusty", "надеть со склада: старое оружие уходит на склад")
+	gm.unequip("weapon", "stash")
+	check(gm.equipped("weapon") == "" and gm.player_data.stash.size() == 2, "снять в склад")
+	check(gm.move_item("bow_hunter", "stash", "inventory") and gm.equip("bow_hunter"), "склад → инвентарь → надеть")
+	check(is_equal_approx(gm.carry_capacity(), XPCalculator.carry_capacity(gm.effective_attributes().max_stamina)) and not gm.is_overloaded(), "переносимый вес %.0f кг, перегруза нет" % gm.carry_capacity())
+	for i in 8:
+		gm.player_data.inventory.append("hammer_war")
+	check(gm.is_overloaded(), "8 боевых молотов — перегруз")
+	for i in 8:
+		gm.drop_item("hammer_war")
+	check(not gm.is_overloaded(), "выбросил — перегруза нет")
 	var outfit := gm.hero_outfit()
 	check(outfit.outfit.body == "peasant" and outfit.weapon == "Bow_Wooden", "вид экипировки для модели героя")
 	ss.save_all()
@@ -412,6 +500,30 @@ func _run() -> void:
 				if od.grid[od.start.y * od.w + od.start.x] == OutdoorGenerator.BLOCK:
 					gen_bad += 1
 	check(gen_bad == 0, "генератор поверхности: выходы, сундуки, платформы и старт корректны")
+	var exits_bad := 0
+	for loc_id in ["whisper_grove", "ferrograd_ruins"]:
+		var loc := WorldData.location(loc_id)
+		for id in loc.order:
+			var nd: Dictionary = loc.nodes[id]
+			if WorldData.is_underground(nd):
+				continue
+			var nbs: Array = []
+			for l in nd.links:
+				nbs.append({"id": l, "name": loc.nodes[l].name, "kind": loc.nodes[l].kind, "pos": loc.nodes[l].pos})
+			var a := OutdoorGenerator.generate(nd, nbs, 77, "", {})
+			for l in nd.links:
+				var b := OutdoorGenerator.generate(nd, nbs, 77, l, {})
+				if b.grid != a.grid or str(b.exits) != str(a.exits):
+					exits_bad += 1
+				var e: Dictionary = b.exits.filter(func(x): return x.to == l)[0]
+				if b.start != e.arrive:
+					exits_bad += 1
+			for e in a.exits:
+				var c: Vector2i = e.cell
+				var on_edge: bool = c.x == 1 or c.y == 1 or c.x == a.w - 2 or c.y == a.h - 2
+				if not on_edge or a.grid[c.y * a.w + c.x] != OutdoorGenerator.PATH or a.grid[e.arrive.y * a.w + e.arrive.x] != OutdoorGenerator.PATH:
+					exits_bad += 1
+	check(exits_bad == 0, "выходы — тропы к краю карты; раскладка не зависит от входа, появление у указателя")
 
 	print("== Вылазка")
 	gm.grant_starter_pack()
@@ -454,15 +566,33 @@ func _run() -> void:
 	bus.back()
 	await get_tree().process_frame
 	check(main.current_screen_key() == "sortie" and sw.run.fights == 1 and enemy_index in WorldData.node_state("ferrograd_ruins", "rusty_galleries").kills, "победа: враг повержен и не вернётся")
-	# Переход в соседнюю подлокацию
-	var exit_it: Dictionary = sw._interactables.filter(func(it): return it.kind == "exit")[0]
-	var to_id: String = exit_it.exit.to
-	sw._player.global_position = exit_it.pos + Vector3(1.5, 0.2, 0)
-	sw._discover_exits()
+	# Инвентарь (I) поверх вылазки
+	bus.go("inventory", {"overlay": true})
+	await get_tree().process_frame
+	check(main.current_screen_key() == "inventory" and sw._covered and not main.get_node("HUD").visible, "инвентарь в вылазке, мир на паузе")
+	bus.back()
+	await get_tree().process_frame
+	# Карта локации (M) поверх вылазки
+	sw._open_location_map()
+	await get_tree().process_frame
+	check(main.current_screen_key() == "location" and main._stack[-1]._in_sortie and not main.get_node("HUD").visible, "M — карта всей локации поверх вылазки")
+	bus.back()
+	await get_tree().process_frame
+	# Переход в соседнюю подлокацию: подойти к проходу и шагнуть в него
+	var from_id: String = sw.node_id
+	sw._update_minimap()
+	sw.run.seed_override = -1   # память исследованного не пишется для dev-seed
+	sw._store_explored()
+	var explored_before: String = WorldData.node_state("ferrograd_ruins", from_id).get("explored", "")
+	var ex: Dictionary = sw._exits[0]
+	var to_id: String = ex.exit.to
+	sw._player.global_position = ex.trigger + Vector3(0, 0.1, 0)
+	ex.armed = true
+	sw._check_exits()
 	check(WorldData.is_open("ferrograd_ruins", to_id), "подход к переходу открывает «%s» на карте" % to_id)
-	sw._use_exit(exit_it)
 	await get_tree().create_timer(1.0).timeout
-	check(sw.node_id == to_id and WorldData.node_state("ferrograd_ruins", to_id).visited, "переход в соседнюю подлокацию без новой траты энергии")
+	check(sw.node_id == to_id and WorldData.node_state("ferrograd_ruins", to_id).visited, "шаг в проход — переход в соседнюю подлокацию без новой траты энергии")
+	check(explored_before != "" and from_id in WorldData.node_state("ferrograd_ruins", to_id).exits, "исследованное запомнено, обратный проход известен без уведомления")
 	# Пауза (P) и меню (Esc)
 	sw._toggle_pause()
 	check(sw._paused and sw._world.process_mode == Node.PROCESS_MODE_DISABLED and sw._menu == null, "P — пауза без меню")

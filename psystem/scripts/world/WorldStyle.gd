@@ -100,6 +100,9 @@ static func ground_material(biome: String = "forest") -> ShaderMaterial:
 	m.set_shader_parameter("color_b", Color(pal[1]))
 	m.set_shader_parameter("color_c", Color(pal[2]))
 	m.set_shader_parameter("path_color", Color(pal[3]))
+	m.set_shader_parameter("rock_color", Color({"meadow": "#6F7448", "riverside": "#5E6656", "ruins": "#7A7064"}.get(biome, "#6B6253")))
+	if biome in ["cave", "tomb", "dungeon"]:
+		m.set_shader_parameter("rock_amount", 0.0)
 	if biome in ["cave", "tomb", "dungeon"]:
 		m.set_shader_parameter("scale", 0.15)
 		m.set_shader_parameter("roughness_value", 0.85)

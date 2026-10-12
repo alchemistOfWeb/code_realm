@@ -14,6 +14,10 @@ const MAX_DECK_SIZE := 30
 ## Вылазки: выносливость бега (в секундах бега) и её восстановление.
 const RUN_STAMINA := 6.0
 const RUN_STAMINA_REGEN := 1.6
+## Переносимый вес (кг): база + за каждое очко выносливости. Перегруз — медленный шаг без бега.
+const CARRY_BASE := 15.0
+const CARRY_PER_STAMINA := 3.0
+const OVERLOAD_SPEED := 0.55
 
 # Карточный бой
 const START_HAND := 4
@@ -30,14 +34,14 @@ const MAX_LEGENDARY_COPIES := 1
 const WEAPONS := {
 	"fists": {"name": "Кулаки", "icon": "fist", "attr": "strength", "base": 1, "per": 1, "cost": 1,
 		"desc": "Без оружия: урон 1 + Сила."},
-	"sword": {"name": "Меч", "icon": "ancient-sword", "attr": "strength", "base": 2, "per": 2, "cost": 3,
-		"desc": "Урон 2 + 2×Сила. Цель — враг или его существо."},
+	"sword": {"name": "Меч", "icon": "ancient-sword", "attr": "strength", "base": 2, "per": 1, "cost": 3,
+		"desc": "Урон 2 + Сила. Цель — враг или его существо."},
 	"dagger": {"name": "Кинжал", "icon": "broad-dagger", "attr": "agility", "base": 1, "per": 1, "cost": 1,
 		"desc": "Урон 1 + Ловкость. Дешёвый быстрый удар."},
 	"bow": {"name": "Лук", "icon": "bow-arrow", "attr": "agility", "base": 1, "per": 1, "cost": 2,
 		"desc": "Урон 1 + Ловкость. Стреляет через Taunt прямо во врага."},
-	"axe": {"name": "Топор", "icon": "battle-axe", "attr": "strength", "base": 3, "per": 2, "cost": 4,
-		"desc": "Урон 3 + 2×Сила. Тяжёлый удар."},
+	"axe": {"name": "Топор", "icon": "battle-axe", "attr": "strength", "base": 3, "per": 1, "cost": 4,
+		"desc": "Урон 3 + Сила. Тяжёлый удар."},
 	"hammer": {"name": "Молот", "icon": "flat-hammer", "attr": "strength", "base": 2, "per": 1, "cost": 3,
 		"desc": "Урон 2 + Сила. Сначала сбивает щит и божественный щит цели."},
 	"spear": {"name": "Копьё", "icon": "barbed-spear", "attr": "agility", "base": 2, "per": 1, "cost": 2,
@@ -66,15 +70,19 @@ const UNCOMMON_CHANCE := 0.20
 
 ## Атрибуты персонажа: стартовое значение, прирост за очко, описание эффекта.
 const ATTRIBUTES := {
-	"max_mana": {"name": "Макс. мана", "start": 10, "per_point": 1, "icon": "sparkles",
+	"max_mana": {"name": "Макс. мана", "start": 5, "per_point": 1, "icon": "sparkles",
 		"desc": "Мана для активации рун в бою"},
 	"strength": {"name": "Сила", "start": 1, "per_point": 1, "icon": "sword",
-		"desc": "+2 урона мечом и луком за очко"},
+		"desc": "+1 урон мечом, топором, молотом и кулаками за очко"},
 	"agility": {"name": "Ловкость", "start": 1, "per_point": 1, "icon": "zap",
 		"desc": "+1 урон кинжалом, +3% уклонения за очко"},
-	"max_stamina": {"name": "Макс. выносливость", "start": 10, "per_point": 1, "icon": "flame",
-		"desc": "Выносливость для атак оружием"},
+	"max_stamina": {"name": "Макс. выносливость", "start": 5, "per_point": 1, "icon": "flame",
+		"desc": "Выносливость для атак оружием, бега в вылазках и переносимого веса"},
 }
+
+
+static func carry_capacity(max_stamina: int) -> float:
+	return CARRY_BASE + CARRY_PER_STAMINA * max_stamina
 
 
 ## XP для перехода с уровня level на level+1. Уровень 1 → 20 XP.

@@ -70,6 +70,15 @@ static func shop_items(category: String) -> Array:
 	return list
 
 
+## Вес предмета в кг (поле weight; по умолчанию 1).
+static func weight(item: Dictionary) -> float:
+	return float(item.get("weight", 1.0))
+
+
+static func format_weight(kg: float) -> String:
+	return ("%.1f" % kg).trim_suffix(".0")
+
+
 static func sell_price(item: Dictionary) -> int:
 	return maxi(1, int(item.get("price", 0) * SELL_RATIO)) if item.get("price", 0) > 0 else 1
 

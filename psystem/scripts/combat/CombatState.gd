@@ -61,9 +61,9 @@ func start(enemy_info: Dictionary, deck_ids: Array, player_stats: Dictionary) ->
 	player.name = Loc.t("Ты")
 	player.max_hp = player_stats.get("max_hp", 20)
 	player.hp = clampi(player_stats.get("hp", player.max_hp), 1, player.max_hp)
-	player.max_mana = attributes.get("max_mana", 10)
+	player.max_mana = attributes.get("max_mana", 5)
 	player.mana = player.max_mana
-	player.max_stamina = attributes.get("max_stamina", 10)
+	player.max_stamina = attributes.get("max_stamina", 5)
 	player.stamina = player.max_stamina
 	weapons = player_stats.get("weapons", ["fists"]).duplicate()
 	if weapons.is_empty():

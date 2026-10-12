@@ -2,6 +2,9 @@ extends Control
 ## Карта локации: подлокации-кружки, связанные тропами (связный граф).
 ## Начать вылазку можно только в открытую подлокацию: стартовую или ту, проход в которую уже найден
 ## из соседней. Найденные проходы позволяют потом сразу отправляться в дальнюю точку.
+## Во время вылазки (params.in_sortie, клавиша M) — карта всей локации: «ты здесь», исследованная часть
+## текущей подлокации, быстрое перемещение в открытые подлокации (params.on_travel) и переход к карте мира.
+## params.view_only — только просмотр (из карты мира во время вылазки).
 
 const CANVAS := Vector2(1280, 600)
 const SHADER := preload("res://shaders/world_map.gdshader")
@@ -17,13 +20,30 @@ var _title: Label
 var _progress: Label
 var _selected := ""
 var _icon_cache := {}
+var _in_sortie := false
+var _view_only := false
+var _current := ""
+var _minimap_tex: Texture2D
+var _on_travel: Callable
+var _here: Label
 
 
 func setup(params: Dictionary) -> void:
 	location_id = params.get("location_id", "whisper_grove")
+	_in_sortie = params.get("in_sortie", false)
+	_view_only = params.get("view_only", false)
+	_current = params.get("current", "")
+	_minimap_tex = params.get("minimap", null)
+	_on_travel = params.get("on_travel", Callable())
 	_loc = WorldData.location(location_id)
 	_build()
-	_select(params.get("node_id", _first_interesting()))
+	_select(params.get("node_id", _current if _current != "" else _first_interesting()))
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _in_sortie and event.is_action_pressed("map"):
+		get_viewport().set_input_as_handled()
+		EventBus.back()
 
 
 func on_resume() -> void:
@@ -98,10 +118,17 @@ func _build() -> void:
 	top.add_theme_constant_override("separation", 14)
 	add_child(top)
 	var back := Button.new()
-	back.text = Loc.t("Карта мира")
+	back.text = Loc.t("Карта мира") if not (_in_sortie or _view_only) else (Loc.t("К вылазке (%s)") % Settings.action_key_name("map") if _in_sortie else Loc.t("Назад"))
 	back.icon = Palette.icon("arrow-left")
 	back.pressed.connect(EventBus.back)
 	top.add_child(back)
+	if _in_sortie:
+		var world := Button.new()
+		world.text = Loc.t("Карта мира")
+		world.icon = Palette.game_icon("treasure-map")
+		world.add_theme_constant_override("icon_max_width", 20)
+		world.pressed.connect(func(): EventBus.go("world_map", {"view_only": true}))
+		top.add_child(world)
 	var tb := VBoxContainer.new()
 	tb.add_theme_constant_override("separation", 0)
 	top.add_child(tb)
@@ -149,6 +176,18 @@ func _layout() -> void:
 	for id in _nodes:
 		var n: Dictionary = _loc.nodes[id]
 		_nodes[id].position = area.position + Vector2(n.pos[0], n.pos[1]) * area.size - _nodes[id].size * 0.5
+	if _current != "" and _nodes.has(_current):
+		if _here == null:
+			_here = Label.new()
+			_here.text = Loc.t("▼ Ты здесь")
+			_here.add_theme_font_override("font", Palette.FONT_UI_BOLD)
+			_here.add_theme_color_override("font_color", Palette.MINT)
+			_here.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+			_here.add_theme_constant_override("outline_size", 6)
+			_here.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_canvas.add_child(_here)
+		var m: Control = _nodes[_current]
+		_here.position = m.position + Vector2(m.size.x * 0.5 - 40, -26)
 	_paths.queue_redraw()
 
 
@@ -199,8 +238,11 @@ func _on_node(node_id: String) -> void:
 	if status == "hidden":
 		EventBus.notify(Loc.t("Эта часть локации ещё не исследована"), "info")
 		return
-	if _selected == node_id and status in ["open", "visited", "cleared"]:
-		_start(node_id)
+	if _selected == node_id and status in ["open", "visited", "cleared"] and not _view_only:
+		if _in_sortie:
+			_travel(node_id)
+		else:
+			_start(node_id)
 		return
 	Audio.play("select")
 	_select(node_id)
@@ -270,6 +312,40 @@ func _select(node_id: String) -> void:
 		pl.text = Loc.t("Исследовано: %d%%") % pct
 		pl.add_theme_color_override("font_color", Palette.MINT)
 		_panel_box.add_child(pl)
+	if _in_sortie and node_id == _current:
+		var here := Label.new()
+		here.text = Loc.t("Ты здесь. Исследованная часть подлокации:")
+		here.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		here.custom_minimum_size.x = 280
+		here.add_theme_color_override("font_color", Palette.MINT)
+		_panel_box.add_child(here)
+		if _minimap_tex:
+			var mm := TextureRect.new()
+			mm.texture = _minimap_tex
+			mm.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			mm.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			mm.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			mm.custom_minimum_size = Vector2(290, 180)
+			_panel_box.add_child(mm)
+		status = "current"
+	elif _in_sortie and status in ["open", "visited", "cleared"]:
+		var tr := Button.new()
+		tr.text = Loc.t("Быстрое перемещение")
+		tr.icon = Palette.game_icon("footprint")
+		tr.add_theme_constant_override("icon_max_width", 22)
+		tr.theme_type_variation = &"AccentButton"
+		tr.custom_minimum_size.y = 46
+		tr.pressed.connect(_travel.bind(node_id))
+		_panel_box.add_child(tr)
+		var th := Label.new()
+		th.text = Loc.t("Проход сюда найден — перейдёшь к его указателю без траты энергии.")
+		th.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		th.custom_minimum_size.x = 280
+		th.theme_type_variation = &"DimLabel"
+		_panel_box.add_child(th)
+		status = "travel"
+	if _view_only and status in ["open", "visited", "cleared"]:
+		status = "view"
 	match status:
 		"open", "visited", "cleared":
 			var go := Button.new()
@@ -295,8 +371,10 @@ func _select(node_id: String) -> void:
 			lock.custom_minimum_size.x = 280
 			lock.add_theme_color_override("font_color", Palette.ENERGY)
 			_panel_box.add_child(lock)
+	if _in_sortie or _view_only:
+		return
 	var hint := Label.new()
-	hint.text = Loc.t("Управление в вылазке: WASD — ходьба, Shift — бег, %s — прыжок, E — действие, %s — пауза, Esc — меню.") % [Settings.action_key_name("jump"), Settings.action_key_name("pause")]
+	hint.text = Loc.t("Управление в вылазке: WASD — ходьба, Shift — бег, %s — прыжок, E — действие, %s — инвентарь, %s — карта локации, %s — пауза, Esc — меню. Переходы — тропы за край карты и входы в пещеры.") % [Settings.action_key_name("jump"), Settings.action_key_name("inventory"), Settings.action_key_name("map"), Settings.action_key_name("pause")]
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size.x = 280
 	hint.theme_type_variation = &"DimLabel"
@@ -309,6 +387,14 @@ static func _enemy_name(enemy_id: String) -> String:
 		if e.id == enemy_id:
 			return Loc.f(e, "name")
 	return enemy_id
+
+
+func _travel(node_id: String) -> void:
+	Audio.play("whoosh")
+	var cb := _on_travel
+	EventBus.back()
+	if cb.is_valid():
+		cb.call(node_id)
 
 
 func _start(node_id: String) -> void:

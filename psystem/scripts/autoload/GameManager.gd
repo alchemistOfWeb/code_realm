@@ -59,7 +59,8 @@ static func default_player_data() -> Dictionary:
 		"created_at": Time.get_datetime_string_from_system(),
 		"name": Loc.t("Странник"),
 		"look": Appearance.default_look(),
-		"inventory": [],        # id предметов (повторы — несколько экземпляров)
+		"inventory": [],        # id предметов (повторы — несколько экземпляров); число слотов не ограничено
+		"stash": [],            # склад на базе: не входит в переносимый вес
 		"equipment": {},        # слот → id предмета
 	}
 
@@ -71,6 +72,8 @@ static func default_world() -> Dictionary:
 
 ## Вызывается SaveSystem после загрузки: миграции и пересчёт производных значений.
 func after_load() -> void:
+	if not player_data.has("stash"):
+		player_data["stash"] = []
 	if player_data.equipment.is_empty() and not world.flags.get("starter_kit", false):
 		give_starter_kit()
 	recalc_max_hp()
@@ -595,8 +598,9 @@ func sell_item(item_id: String) -> int:
 	return gold
 
 
-## Надеть предмет из инвентаря (slot "" — родной слот предмета). Старый предмет возвращается в инвентарь.
-func equip(item_id: String, slot: String = "") -> bool:
+## Надеть предмет (slot "" — родной слот предмета). source — откуда берём: "inventory" или "stash" (склад базы).
+## Снятый старый предмет попадает туда же, откуда взят новый (обмен при перетаскивании).
+func equip(item_id: String, slot: String = "", source: String = "inventory") -> bool:
 	var item := ItemDatabase.get_item(item_id)
 	if item.is_empty():
 		return false
@@ -604,25 +608,69 @@ func equip(item_id: String, slot: String = "") -> bool:
 		slot = item.slot
 	if not ItemDatabase.fits(item, slot):
 		return false
-	var i: int = player_data.inventory.find(item_id)
+	var list: Array = player_data.get(source, [])
+	var i: int = list.find(item_id)
 	if i < 0:
 		return false
-	player_data.inventory.remove_at(i)
+	list.remove_at(i)
 	var old := equipped(slot)
 	if old != "":
-		player_data.inventory.append(old)
+		list.append(old)
 	player_data.equipment[slot] = item_id
 	_after_equipment_change()
 	return true
 
 
-func unequip(slot: String) -> void:
+## Снять предмет в инвентарь или на склад (target "stash").
+func unequip(slot: String, target: String = "inventory") -> void:
 	var old := equipped(slot)
 	if old == "":
 		return
 	player_data.equipment.erase(slot)
-	player_data.inventory.append(old)
+	player_data.get(target, player_data.inventory).append(old)
 	_after_equipment_change()
+
+
+## Переложить предмет между инвентарём и складом базы (from/to: "inventory" | "stash").
+func move_item(item_id: String, from: String, to: String) -> bool:
+	if from == to:
+		return false
+	var src: Array = player_data.get(from, [])
+	var i: int = src.find(item_id)
+	if i < 0:
+		return false
+	src.remove_at(i)
+	player_data[to].append(item_id)
+	equipment_changed.emit()
+	return true
+
+
+## Выбросить предмет из инвентаря (в вылазке, чтобы избавиться от перегруза).
+func drop_item(item_id: String) -> bool:
+	var i: int = player_data.inventory.find(item_id)
+	if i < 0:
+		return false
+	player_data.inventory.remove_at(i)
+	equipment_changed.emit()
+	return true
+
+
+## Переносимый вес: надетое + инвентарь (склад не считается).
+func carried_weight() -> float:
+	var total := 0.0
+	for id in player_data.inventory:
+		total += ItemDatabase.weight(ItemDatabase.get_item(id))
+	for slot in player_data.equipment:
+		total += ItemDatabase.weight(ItemDatabase.get_item(player_data.equipment[slot]))
+	return total
+
+
+func carry_capacity() -> float:
+	return XPCalculator.carry_capacity(int(effective_attributes().get("max_stamina", 5)))
+
+
+func is_overloaded() -> bool:
+	return carried_weight() > carry_capacity() + 0.001
 
 
 func _after_equipment_change() -> void:

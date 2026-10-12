@@ -159,7 +159,7 @@ static func node_status(loc_id: String, node_id: String) -> String:
 	return "hidden"
 
 
-## Доля исследования подлокации: посещение, найденные проходы, сундуки, побеждённые враги.
+## Доля исследования подлокации: посещение, открытая часть карты, найденные проходы, сундуки, побеждённые враги.
 static func node_progress(loc_id: String, node_id: String) -> float:
 	var st := node_state(loc_id, node_id)
 	if not st.visited:
@@ -168,7 +168,8 @@ static func node_progress(loc_id: String, node_id: String) -> float:
 	var exits: float = float(st.exits.size()) / maxf(links.size(), 1)
 	var chests: float = float(st.chests.size()) / st.total_chests if st.total_chests > 0 else 1.0
 	var kills: float = float(st.kills.size()) / st.total_enemies if st.total_enemies > 0 else 1.0
-	return clampf(0.3 + exits * 0.3 + chests * 0.2 + kills * 0.2, 0.0, 1.0)
+	var seen: float = clampf(float(st.get("explored_pct", 0.0)) / 0.9, 0.0, 1.0)   # 90% проходимых клеток — «всё»
+	return clampf(0.15 + seen * 0.2 + exits * 0.25 + chests * 0.2 + kills * 0.2, 0.0, 1.0)
 
 
 static func location_progress(loc_id: String) -> float:

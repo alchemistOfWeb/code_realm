@@ -8,6 +8,8 @@ extends Control
 const CARD_SCENE := preload("res://scenes/combat/CardVisual.tscn")
 const TOKEN_SCRIPT := preload("res://scenes/combat/CreatureToken.gd")
 const HAND_SCALE := 0.52
+## Увеличенная карта при наведении на карту в руке (описание читается полностью).
+const PREVIEW_SCALE := 1.45
 const EVENT_DELAY := 0.32
 
 var state: CombatState
@@ -35,7 +37,8 @@ var _runes_box: HBoxContainer
 var _end_btn: Button
 var _log: RichTextLabel
 var _hint: Label
-var _preview: Control
+var _preview: Label
+var _hover_card: Control
 var _artifacts_player: HBoxContainer
 var _artifacts_enemy: HBoxContainer
 var _tokens := {}             # "side:uid" -> token
@@ -241,8 +244,10 @@ func _build() -> void:
 	_log.scroll_following = true
 	_log.add_theme_font_size_override("normal_font_size", 12)
 	log_panel.add_child(_log)
-	_preview = Control.new()
-	_preview.custom_minimum_size = Vector2(220, 180)
+	_preview = Label.new()
+	_preview.custom_minimum_size = Vector2(220, 0)
+	_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_preview.add_theme_font_size_override("font_size", 13)
 	_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	side_col.add_child(_preview)
 
@@ -368,6 +373,7 @@ func _fill_artifacts(box: HBoxContainer, artifacts: Array) -> void:
 
 
 func _fill_hand() -> void:
+	_hide_preview()
 	for child in _hand.get_children():
 		child.queue_free()
 	for i in state.player.hand.size():
@@ -383,19 +389,34 @@ func _fill_hand() -> void:
 		if _targeting.get("mode") == "card" and _targeting.get("index") == i:
 			cv.modulate = Color(1.3, 1.25, 0.8)
 		cv.clicked.connect(func(_id): _on_hand_card(i))
-		cv.mouse_entered.connect(_show_preview.bind(card))
+		cv.mouse_entered.connect(_show_preview.bind(shown, cv))
+		cv.mouse_exited.connect(_hide_preview)
 
 
-func _show_preview(card: Dictionary) -> void:
-	for child in _preview.get_children():
-		child.queue_free()
+## Крупная копия карты над наведённой картой руки + полный текст в боковой колонке.
+func _show_preview(card: Dictionary, source: Control) -> void:
+	_hide_preview()
 	var cv := CARD_SCENE.instantiate()
-	cv.card_scale = 0.62
+	cv.card_scale = PREVIEW_SCALE
 	cv.hover_lift = false
 	cv.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_preview.add_child(cv)
+	add_child(cv)
 	cv.setup(card, 0)
-	cv.position = Vector2(48, 0)
+	var big: Vector2 = CardVisualSize * PREVIEW_SCALE
+	var view := get_viewport_rect().size
+	var pos := Vector2(source.global_position.x + source.size.x * 0.5 - big.x * 0.5, source.global_position.y - big.y - 14)
+	pos.x = clampf(pos.x, 8, view.x - big.x - 8)
+	pos.y = clampf(pos.y, 8, view.y - big.y - 8)
+	cv.global_position = pos
+	_hover_card = cv
+	_preview.text = "%s
+%s" % [card.get("name", ""), card.get("description", "")]
+
+
+func _hide_preview() -> void:
+	if is_instance_valid(_hover_card):
+		_hover_card.queue_free()
+	_hover_card = null
 
 
 func _update_hint() -> void:

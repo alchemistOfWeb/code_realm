@@ -5,8 +5,10 @@ extends Control
 ## Поток: карта локации → вылазка (−10 энергии) → подлокация; найденные переходы открывают соседние
 ## точки на карте. Поражение в бою — возврат в лагерь (без потери золота). Падение в пропасть —
 ## гибель: вся энергия теряется, герой возвращается на базу.
-## Управление: WASD, Shift — бег (выносливость), Space — прыжок, E — действие, M — карта,
-## P — пауза, Esc — меню. Камера: ПКМ — вращение, колесо — приближение, Q/R — поворот.
+## Управление: WASD, Shift — бег (выносливость), Space — прыжок, E — действие, I — инвентарь,
+## M — карта локации (с переходом к карте мира и быстрым перемещением), P — пауза, Esc — меню.
+## Переходы в соседние подлокации — тропы за край карты и входы в пещеры: уйди по ним (без кнопки).
+## Исследованная часть карты подлокации и найденные проходы запоминаются. Камера: ПКМ — вращение, колесо — приближение, Q/R — поворот.
 
 const NPC_LOOKS := {
 	"greta": {"look": {"gender": "female", "race": "dwarf", "skin": 1, "hair": "Hair_Buns", "hair_color": 5, "outfit_variant": 1},
@@ -24,6 +26,8 @@ const NPC_LOOKS := {
 const INTERACT_DIST := 1.8
 const DISCOVER_DIST := 4.0
 const FOG_RADIUS := 9
+## Указатель / проход считается найденным, когда герой подходит ближе этого.
+const SIGN_DIST := 6.0
 
 var location_id := ""
 var node_id := ""
@@ -36,6 +40,8 @@ var _viewport: SubViewport
 var _world: Node3D
 var _player: SortiePlayer
 var _interactables: Array = []      # {kind, node, pos, prompt, ...}
+var _exits: Array = []              # {exit, trigger, armed, root, barrier, dir}
+var _explored_save_t := 0.0
 var _gates: Array = []
 var _gears: Array = []
 var _enemies: Array = []
@@ -67,7 +73,6 @@ var _minimap: TextureRect
 var _pause_label: Control
 var _menu: Control
 var _fade: ColorRect
-var _big_map := false
 var _fps_label: Label
 var _player_blob: MeshInstance3D   # тень-пятно героя, когда тени выключены
 var _fps_t := 0.0
@@ -207,7 +212,7 @@ func _build_ui() -> void:
 	_layout_minimap()
 
 	var help := Label.new()
-	help.text = Loc.t("WASD — ходьба · Shift — бег · %s — прыжок · E — действие · M — карта · %s — пауза · Esc — меню · ПКМ — камера") % [Settings.action_key_name("jump"), Settings.action_key_name("pause")]
+	help.text = Loc.t("WASD — ходьба · Shift — бег · %s — прыжок · E — действие · %s — инвентарь · %s — карта · %s — пауза · Esc — меню · ПКМ — камера") % [Settings.action_key_name("jump"), Settings.action_key_name("inventory"), Settings.action_key_name("map"), Settings.action_key_name("pause")]
 	help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 	help.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	help.add_theme_constant_override("outline_size", 5)
@@ -258,17 +263,11 @@ func _build_ui() -> void:
 
 
 func _layout_minimap() -> void:
-	_minimap.set_anchors_preset(Control.PRESET_TOP_RIGHT if not _big_map else Control.PRESET_CENTER)
-	if _big_map:
-		_minimap.offset_left = -380
-		_minimap.offset_right = 380
-		_minimap.offset_top = -260
-		_minimap.offset_bottom = 260
-	else:
-		_minimap.offset_left = -250
-		_minimap.offset_top = 12
-		_minimap.offset_right = -12
-		_minimap.offset_bottom = 200
+	_minimap.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_minimap.offset_left = -250
+	_minimap.offset_top = 12
+	_minimap.offset_right = -12
+	_minimap.offset_bottom = 200
 
 
 func _update_hud() -> void:
@@ -293,6 +292,10 @@ func _update_hud() -> void:
 		lines.append("[color=#F5C542]◆ %s[/color]\n[color=#8C8CB0]%s[/color]" % [Loc.t("Найди проходы"), ", ".join(unfound)])
 	if _gates_closed():
 		lines.append("[color=#F5C542]◆ %s[/color]" % Loc.t("Путь дальше перекрыт решёткой"))
+	if GameManager.is_overloaded():
+		lines.append("[color=#FF6B6B]◆ %s[/color]\n[color=#8C8CB0]%s[/color]" % [Loc.t("Перегруз: %s / %s кг") % [
+			ItemDatabase.format_weight(GameManager.carried_weight()), ItemDatabase.format_weight(GameManager.carry_capacity())],
+			Loc.t("Шаг медленный, бег недоступен. Открой инвентарь (%s) и выброси лишнее.") % Settings.action_key_name("inventory")])
 	if _boss_alive():
 		lines.append("[color=#FF6B6B]◆ %s[/color]" % Loc.t("Победи стража этого места"))
 	_quests.text = "\n".join(lines)
@@ -308,13 +311,14 @@ func _load_node(id: String, entry_from: String) -> void:
 		_world.queue_free()
 		_world = null
 	_interactables.clear()
+	_exits.clear()
 	_gates.clear()
 	_gears.clear()
 	_enemies.clear()
 	var neighbors: Array = []
 	for link in node.get("links", []):
 		var n := WorldData.node(location_id, link)
-		neighbors.append({"id": link, "name": n.get("name", link), "kind": n.get("kind", "")})
+		neighbors.append({"id": link, "name": n.get("name", link), "kind": n.get("kind", ""), "pos": n.get("pos", [0.5, 0.5])})
 	var seed_value: int = WorldData.node_seed(location_id, id) if int(run.seed_override) < 0 else int(run.seed_override)
 	var f: Dictionary = node.get("features", {})
 	if WorldData.is_underground(node):
@@ -340,6 +344,13 @@ func _load_node(id: String, entry_from: String) -> void:
 	_build_entities(float(built.fall_y))
 	if node.kind == "dungeon":
 		_dungeon_decor()
+	if entry_from != "":
+		# Пришли по проходу — он уже известен (без повторного уведомления)
+		WorldData.mark_exit(location_id, id, entry_from)
+		# Пришли в подземелье «с той стороны» — через главный выход за решёткой: она открыта изнутри
+		for e in data.exits:
+			if e.to == entry_from and data.get("underground", false) and e.cell == data.get("exit", Vector2i(-99, -99)):
+				_open_gates(true)
 	_init_minimap()
 	var total_enemies: int = data.enemies.size() + (0 if data.boss.is_empty() else 1)
 	WorldData.visit_node(location_id, id, data.chests.size(), total_enemies)
@@ -481,90 +492,130 @@ func _platform_visual(size: Vector3) -> Node3D:
 	return root
 
 
+## Переход в соседнюю подлокацию. На поверхности — тропа, уходящая за край карты (или вход в пещеру /
+## склеп в склоне холма): уйди по ней — и окажешься в соседней подлокации. Указатель у начала тропы —
+## только ориентир и точка появления (сюда же ведёт быстрое перемещение). В подземельях — лестницы.
 func _make_exit(e: Dictionary) -> void:
+	var under: bool = data.get("underground", false)
+	var trigger := _cell_pos(e.cell)
 	var root := Node3D.new()
-	root.position = _cell_pos(e.cell)
 	_world.add_child(root)
-	var color := Color("#7FDBFF")
-	match e.kind:
-		"stairs_down", "stairs_up":
-			var stairs := LevelBuilder.place(root, LevelBuilder.D + "stairs.glb", Vector3.ZERO)
-			CharacterRig.tint(stairs, Color(0.9, 0.8, 0.65))
-			if e.kind == "stairs_up":
-				color = Color("#FFF2B0")
-		"cave", "crypt":
-			color = Color("#B08CFF") if e.kind == "cave" else Color("#9FB8E8")
-			var arch_path := LevelBuilder.V + ("Wall_Arch.gltf" if e.kind == "crypt" else "")
-			if e.kind == "crypt":
-				var arch := LevelBuilder.place(root, arch_path, Vector3(0, 0, 0.4), 0.0, 1.0)
-				CharacterRig.tint(arch, Color(0.75, 0.78, 0.85))
-			else:
-				for k in 3:
-					var a := PI * (0.15 + 0.35 * k)
-					LevelBuilder.place(root, LevelBuilder.N + "Rock_Medium_%d.gltf" % (1 + k), Vector3(cos(a) * 1.3, -0.3, 0.6 + sin(a) * 0.4), a, 0.65)
-			var hole := MeshInstance3D.new()
-			var disc := CylinderMesh.new()
-			disc.top_radius = 0.9
-			disc.bottom_radius = 0.9
-			disc.height = 0.02
-			hole.mesh = disc
-			var hm := StandardMaterial3D.new()
-			hm.albedo_color = Color("#05040A")
-			hm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			hole.material_override = hm
-			hole.position = Vector3(0, 0.03, 0)
-			root.add_child(hole)
-		_:
-			# Указатель на тропе
-			var post := MeshInstance3D.new()
-			var cyl := CylinderMesh.new()
-			cyl.top_radius = 0.07
-			cyl.bottom_radius = 0.09
-			cyl.height = 1.8
-			post.mesh = cyl
-			var pm := StandardMaterial3D.new()
-			pm.albedo_color = Color("#6B4A2E")
-			post.material_override = pm
-			post.position.y = 0.9
-			root.add_child(post)
-			var board := MeshInstance3D.new()
-			var bm := BoxMesh.new()
-			bm.size = Vector3(1.1, 0.32, 0.06)
-			board.mesh = bm
-			var bmat := StandardMaterial3D.new()
-			bmat.albedo_color = Color("#A27A4E")
-			board.material_override = bmat
-			board.position = Vector3(0.35, 1.5, 0)
-			board.rotation.y = randf_range(-0.4, 0.4)
-			root.add_child(board)
-			color = Color("#FFE08A")
-	var ring := MeshInstance3D.new()
-	var tor := TorusMesh.new()
-	tor.inner_radius = 0.95
-	tor.outer_radius = 1.1
-	ring.mesh = tor
-	var rm := StandardMaterial3D.new()
-	rm.albedo_color = color
-	rm.emission_enabled = true
-	rm.emission = color
-	rm.emission_energy_multiplier = 1.5
-	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	ring.material_override = rm
-	ring.position.y = 0.05
-	root.add_child(ring)
-	var light := OmniLight3D.new()
-	light.light_color = color
-	light.light_energy = 1.3
-	light.omni_range = 3.5
-	light.position.y = 1.2
-	root.add_child(light)
-	var sealed: bool = e.get("sealed", false)
-	var label_text := ("🔒 " if sealed else "→ ") + String(e.to_name)
-	_label3d(root, label_text, color.lightened(0.3), 2.3, 44)
-	var prompt := Loc.t("E — перейти: %s") % e.to_name
-	if sealed:
-		prompt = Loc.t("E — проход запечатан загадкой")
-	_interactables.append({"kind": "exit", "node": root, "pos": root.position, "exit": e, "prompt": prompt})
+	var ex := {"exit": e, "trigger": trigger, "armed": true, "root": root, "barrier": null, "dir": Vector3.ZERO}
+	var label_pos := Vector3.ZERO
+	if under:
+		root.position = trigger
+		var stairs := LevelBuilder.place(root, LevelBuilder.D + "stairs.glb", Vector3.ZERO)
+		CharacterRig.tint(stairs, Color(0.9, 0.8, 0.65))
+		var lamp := OmniLight3D.new()
+		lamp.light_color = Color("#FFD9A0")
+		lamp.light_energy = 0.8
+		lamp.omni_range = 3.0
+		lamp.position.y = 1.6
+		root.add_child(lamp)
+		label_pos = Vector3(0, 2.2, 0)
+	else:
+		var out := Vector3(e.dir.x, 0, e.dir.y)
+		ex.dir = out
+		var perp := Vector3(-out.z, 0, out.x)
+		match e.kind:
+			"path":
+				# Указатель у начала тропы: столб и доска со стрелкой в сторону выхода
+				root.position = _cell_pos(e.arrive) + perp * 1.9
+				_signpost(root, atan2(out.x, out.z))
+				label_pos = Vector3(0, 2.15, 0)
+			_:
+				# Вход в склоне холма у края карты
+				root.position = trigger + out * 0.45
+				root.rotation.y = atan2(-out.x, -out.z)   # лицом к поляне
+				_cave_mouth(root, e.kind)
+				label_pos = Vector3(0, 2.9, 0)
+		if e.get("sealed", false):
+			# Проход замурован: стена с запертой дверью поперёк тропы — открывается загадкой
+			var gate_pos := _cell_pos(e.cell) - out * 2.0
+			var g := Node3D.new()
+			g.position = gate_pos
+			g.rotation.y = atan2(out.x, out.z)
+			_world.add_child(g)
+			LevelBuilder.place(g, LevelBuilder.V + "Wall_UnevenBrick_Door_Round.gltf", Vector3.ZERO)
+			for side in [-2.0, 2.0]:
+				LevelBuilder.place(g, LevelBuilder.V + "Wall_UnevenBrick_Straight.gltf", Vector3(side, -0.15, 0), 0.0, 1.0)
+			var door := LevelBuilder.place(g, LevelBuilder.V + "Door_1_Round.gltf", Vector3(-0.53, 0, -0.1))
+			g.set_meta("door", door)
+			# Боковые стены — навсегда, дверной проём — пока проход запечатан
+			for part in [[Vector3(-2.0, 1.6, 0), false], [Vector3(2.0, 1.6, 0), false], [Vector3(0, 1.6, 0), true]]:
+				var body := StaticBody3D.new()
+				body.collision_layer = LevelBuilder.WALL_LAYER
+				var cs := CollisionShape3D.new()
+				var box := BoxShape3D.new()
+				box.size = Vector3(2.0, 3.2, 0.6)
+				cs.shape = box
+				cs.position = part[0]
+				body.add_child(cs)
+				g.add_child(body)
+				if part[1]:
+					g.set_meta("door_body", body)
+			ex.barrier = g
+			_interactables.append({"kind": "sealed", "node": g, "pos": gate_pos - out * 0.6, "prompt": Loc.t("E — проход запечатан загадкой")})
+	var l := _label3d(root, ("🔒 " if e.get("sealed", false) else "→ ") + String(e.to_name), Color("#FFE8B0"), label_pos.y, 40)
+	l.position = label_pos
+	l.visibility_range_end = 16.0
+	# Появились рядом с проходом — он сработает только после того, как герой отойдёт
+	if _player and Vector2(_player.position.x - trigger.x, _player.position.z - trigger.z).length() < 3.5:
+		ex.armed = false
+	_exits.append(ex)
+
+
+func _signpost(root: Node3D, yaw: float) -> void:
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color("#6B4A2E")
+	var post := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.07
+	cyl.bottom_radius = 0.09
+	cyl.height = 1.8
+	post.mesh = cyl
+	post.material_override = wood
+	post.position.y = 0.9
+	root.add_child(post)
+	var board := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.08, 0.3, 1.0)
+	board.mesh = bm
+	var bmat := StandardMaterial3D.new()
+	bmat.albedo_color = Color("#A27A4E")
+	board.material_override = bmat
+	board.rotation.y = yaw
+	board.position = Vector3(0, 1.5, 0) + Vector3(sin(yaw), 0, cos(yaw)) * 0.35
+	root.add_child(board)
+	if not WorldStyle.quality().shadows:
+		root.add_child(WorldStyle.blob_shadow(0.3))
+
+
+## Тёмный проём в склоне: камни аркой (пещера) или каменная арка (склеп, подземелье).
+func _cave_mouth(root: Node3D, kind: String) -> void:
+	var hole := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.9, 2.3)
+	hole.mesh = quad
+	var hm := StandardMaterial3D.new()
+	hm.albedo_color = Color("#040308")
+	hm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	hole.material_override = hm
+	hole.position = Vector3(0, 1.1, -0.35)
+	root.add_child(hole)
+	if kind == "cave":
+		for k in 5:
+			var a := PI * (0.05 + 0.225 * k)
+			LevelBuilder.place(root, LevelBuilder.N + "Rock_Medium_%d.gltf" % (1 + k % 3), Vector3(cos(a) * 1.45, sin(a) * 1.9 - 0.2, -0.2), a * 1.7, 0.75 + 0.1 * (k % 2))
+	else:
+		var arch := LevelBuilder.place(root, LevelBuilder.V + "Wall_Arch.gltf", Vector3(0, -0.1, -0.15), 0.0, 1.0)
+		CharacterRig.tint(arch, Color(0.75, 0.78, 0.85) if kind == "crypt" else Color(0.85, 0.75, 0.6))
+	var glow := OmniLight3D.new()
+	glow.light_color = Color("#B08CFF") if kind == "cave" else Color("#9FB8E8")
+	glow.light_energy = 0.9
+	glow.omni_range = 3.5
+	glow.position = Vector3(0, 1.4, 0.8)
+	root.add_child(glow)
 
 
 func _spawn_npc(npc_id: String, cell: Vector2i) -> void:
@@ -776,7 +827,11 @@ func _process(delta: float) -> void:
 	if _covered or _ended or _paused or _transitioning:
 		return
 	_update_focus()
-	_discover_exits()
+	_check_exits()
+	_explored_save_t -= delta
+	if _explored_save_t <= 0.0:
+		_explored_save_t = 3.0
+		_store_explored()
 	_map_timer -= delta
 	if _map_timer <= 0.0:
 		_map_timer = 0.15
@@ -799,19 +854,48 @@ func _update_focus() -> void:
 		_prompt_label.text = best.prompt
 
 
-## Подошёл к переходу — он открыт на карте локации навсегда.
-func _discover_exits() -> void:
-	for it in _interactables:
-		if it.kind != "exit":
+## Проходы: подошёл к указателю или входу — проход найден (открыт на карте локации навсегда);
+## ушёл по тропе за край / шагнул в пещеру или на лестницу — переход в соседнюю подлокацию.
+func _check_exits() -> void:
+	var p := _player.global_position
+	for ex in _exits:
+		var e: Dictionary = ex.exit
+		var sealed: bool = e.get("sealed", false)
+		var trig: Vector3 = ex.trigger
+		var flat := Vector2(p.x - trig.x, p.z - trig.z)
+		if not sealed:
+			var near_sign := flat.length() < SIGN_DIST
+			if e.has("arrive"):
+				near_sign = near_sign or Vector2(p.x, p.z).distance_to(Vector2(e.arrive) + Vector2(0.5, 0.5)) < SIGN_DIST
+			if near_sign:
+				_discover(e)
+		if not ex.armed:
+			if flat.length() > 3.5:
+				ex.armed = true
 			continue
-		var e: Dictionary = it.exit
-		if e.get("sealed", false):
+		if sealed:
 			continue
-		if _player.global_position.distance_to(it.pos) < DISCOVER_DIST:
-			if WorldData.mark_exit(location_id, node_id, e.to):
-				Audio.play("reward")
-				EventBus.notify(Loc.t("Найден проход: %s. Теперь туда можно отправиться прямо с карты локации.") % e.to_name, "success")
-				_update_hud()
+		var crossed := false
+		var dir: Vector3 = ex.dir
+		if dir != Vector3.ZERO:
+			var along := flat.dot(Vector2(dir.x, dir.z))
+			var lateral := absf(flat.cross(Vector2(dir.x, dir.z)))
+			crossed = along > -0.6 and lateral < 2.6
+		else:
+			crossed = flat.length() < 0.9
+		if crossed:
+			ex.armed = false
+			_use_exit(ex)
+			return
+
+
+func _discover(e: Dictionary) -> void:
+	var was_open := WorldData.is_open(location_id, e.to)
+	if WorldData.mark_exit(location_id, node_id, e.to):
+		_update_hud()
+		if not was_open:
+			Audio.play("reward")
+			EventBus.notify(Loc.t("Найден проход: %s. Теперь туда можно отправиться прямо с карты локации.") % e.to_name, "success")
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -830,10 +914,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("pause") and _menu == null:
 		get_viewport().set_input_as_handled()
 		_toggle_pause()
-	elif event.is_action_pressed("map") and _menu == null:
+	elif event.is_action_pressed("map") and _menu == null and not _paused:
 		get_viewport().set_input_as_handled()
-		_big_map = not _big_map
-		_layout_minimap()
+		_open_location_map()
+	elif event.is_action_pressed("inventory") and _menu == null and not _paused:
+		get_viewport().set_input_as_handled()
+		Audio.play("open")
+		EventBus.go("inventory", {"overlay": true})
 	elif event.is_action_pressed("interact") and not _focus.is_empty() and not _paused and _menu == null:
 		get_viewport().set_input_as_handled()
 		_interact(_focus)
@@ -854,14 +941,13 @@ func _interact(it: Dictionary) -> void:
 		"chest":
 			_player.act("PickUp_Table")
 			_open_chest(it)
-		"exit":
-			_use_exit(it)
+		"sealed":
+			EventBus.go("riddle", {"riddle_id": data.riddle_id, "overlay": true})
 
 
-func _use_exit(it: Dictionary) -> void:
-	var e: Dictionary = it.exit
+func _use_exit(ex: Dictionary) -> void:
+	var e: Dictionary = ex.exit
 	if e.get("sealed", false):
-		EventBus.go("riddle", {"riddle_id": data.riddle_id, "overlay": true})
 		return
 	if _gates_closed() and e.cell in _gated_cells():
 		EventBus.notify(Loc.t("Путь перекрыт решёткой"), "warning")
@@ -869,7 +955,19 @@ func _use_exit(it: Dictionary) -> void:
 	if _boss_alive() and data.underground and e.cell == data.get("exit", Vector2i(-99, -99)):
 		EventBus.notify(Loc.t("Страж этого места не даст пройти — победи его"), "warning")
 		return
-	WorldData.mark_exit(location_id, node_id, e.to)
+	_discover(e)
+	_go_to_node(e.to, node_id)
+
+
+## Быстрое перемещение с карты локации (M) в открытую подлокацию: появление у её указателя.
+func _fast_travel(id: String) -> void:
+	if id == node_id or _transitioning or not WorldData.is_open(location_id, id):
+		return
+	_go_to_node(id, _entry_for(id))
+
+
+func _go_to_node(id: String, entry: String) -> void:
+	_store_explored()
 	_transitioning = true
 	_prompt.visible = false
 	_player.input_enabled = false
@@ -877,7 +975,7 @@ func _use_exit(it: Dictionary) -> void:
 	SaveSystem.save_all()
 	var tw := create_tween()
 	tw.tween_property(_fade, "modulate:a", 1.0, 0.5)
-	tw.tween_callback(_load_node.bind(e.to, node_id))
+	tw.tween_callback(_load_node.bind(id, entry))
 
 
 func _gated_cells() -> Array:
@@ -888,6 +986,7 @@ func _gated_cells() -> Array:
 # ---------------------------------------------------------------- Перекрытие экранами
 
 func on_cover() -> void:
+	_store_explored()
 	_covered = true
 	_prompt.visible = false
 	if _player:
@@ -902,6 +1001,7 @@ func on_resume() -> void:
 		_world.process_mode = Node.PROCESS_MODE_INHERIT
 	if _player and not _paused:
 		_player.input_enabled = true
+		_player.refresh_gear()
 	_update_hud()
 	if not _combat_result.is_empty():
 		var r := _combat_result
@@ -1019,10 +1119,21 @@ func _on_riddle_finished(riddle_id: String, solved: bool) -> void:
 	if data.get("gate_mode") == "warden":
 		_pending_actions.append({"world": "_leave", "npc": "warden"})
 	# Запечатанный загадкой проход открывается
-	for it in _interactables:
-		if it.kind == "exit" and it.exit.get("sealed", false):
-			it.exit.sealed = false
-			it.prompt = Loc.t("E — перейти: %s") % it.exit.to_name
+	for ex in _exits:
+		if ex.exit.get("sealed", false):
+			ex.exit.sealed = false
+			if is_instance_valid(ex.barrier):
+				var g: Node3D = ex.barrier
+				var door_body: Node = g.get_meta("door_body")
+				if is_instance_valid(door_body):
+					door_body.queue_free()
+				var door: Node3D = g.get_meta("door")
+				if is_instance_valid(door):
+					door.create_tween().tween_property(door, "rotation:y", deg_to_rad(-100), 1.2).set_trans(Tween.TRANS_CUBIC)
+				Audio.play("gate")
+			for it in _interactables.duplicate():
+				if it.kind == "sealed":
+					_interactables.erase(it)
 			EventBus.notify(Loc.t("Печать спала — проход открыт!"), "success")
 
 
@@ -1058,22 +1169,27 @@ func _on_safe_finished(safe_id: String, opened: bool) -> void:
 	SaveSystem.save_all()
 
 
-func _open_gates() -> void:
+func _open_gates(silent := false) -> void:
 	if _gates.is_empty():
 		return
-	Audio.play("gate")
+	if not silent:
+		Audio.play("gate")
 	for g in _gates:
 		var n: Node3D = g.node
 		if is_instance_valid(g.body):
 			g.body.queue_free()
 		astar.set_point_solid(g.cell, false)
-		var tw := n.create_tween()
-		tw.tween_property(n, "position:y", -2.0, 1.2).set_trans(Tween.TRANS_CUBIC)
+		if silent:
+			n.position.y = -2.0
+		else:
+			var tw := n.create_tween()
+			tw.tween_property(n, "position:y", -2.0, 1.2).set_trans(Tween.TRANS_CUBIC)
 	_gates.clear()
 	for it in _interactables.duplicate():
 		if it.kind == "gate":
 			_interactables.erase(it)
-	EventBus.notify(Loc.t("Решётка поднята!"), "success")
+	if not silent:
+		EventBus.notify(Loc.t("Решётка поднята!"), "success")
 	_update_hud()
 
 
@@ -1163,7 +1279,37 @@ func _init_minimap() -> void:
 	_terrain_image = Image.create(data.w, data.h, false, Image.FORMAT_RGBA8)
 	_map_tex = ImageTexture.create_from_image(_map_image)
 	_minimap.texture = _map_tex
+	_restore_explored()
 	_update_minimap()
+
+
+## Исследованная часть карты хранится в состоянии подлокации (сжатая маска клеток).
+func _store_explored() -> void:
+	if _explored.is_empty() or node_id == "" or int(run.get("seed_override", -1)) >= 0:
+		return
+	var st := WorldData.node_state(location_id, node_id)
+	st["explored"] = Marshalls.raw_to_base64(_explored.compress(FileAccess.COMPRESSION_DEFLATE))
+	st["explored_size"] = _explored.size()
+	var walk := 0
+	var seen := 0
+	var grid: PackedByteArray = data.grid
+	for i in grid.size():
+		if grid[i] == OutdoorGenerator.FLOOR or grid[i] == OutdoorGenerator.PATH:
+			walk += 1
+			seen += _explored[i]
+	st["explored_pct"] = float(seen) / maxf(walk, 1)
+
+
+func _restore_explored() -> void:
+	var st := WorldData.node_state(location_id, node_id)
+	if int(st.get("explored_size", 0)) != _explored.size() or int(run.get("seed_override", -1)) >= 0:
+		return
+	var raw := Marshalls.base64_to_raw(String(st.get("explored", ""))).decompress(_explored.size(), FileAccess.COMPRESSION_DEFLATE)
+	if raw.size() != _explored.size():
+		return
+	for i in raw.size():
+		if raw[i] == 1:
+			_reveal_cell(i % data.w, i / data.w)
 
 
 func _update_minimap() -> void:
@@ -1188,8 +1334,10 @@ func _update_minimap() -> void:
 				_dot(c, Color("#C792EA"))
 			"safe", "chest":
 				_dot(c, Palette.GOLD)
-			"exit":
+			"sealed":
 				_dot(c, Color("#7FDBFF"), true)
+	for ex in _exits:
+		_dot(Vector2i(int(ex.trigger.x), int(ex.trigger.z)), Color("#7FDBFF"), true)
 	for e in _enemies:
 		if is_instance_valid(e):
 			_dot(Vector2i(int(e.global_position.x), int(e.global_position.z)), Palette.HP)
@@ -1236,6 +1384,14 @@ func _dot(c: Vector2i, color: Color, big := false, force := false) -> void:
 
 
 # ---------------------------------------------------------------- Пауза, меню и итоги
+
+## M — карта всей локации поверх вылазки: где ты, найденные проходы, быстрое перемещение, карта мира.
+func _open_location_map() -> void:
+	_store_explored()
+	Audio.play("open")
+	EventBus.go("location", {"location_id": location_id, "in_sortie": true, "current": node_id,
+		"minimap": _map_tex, "on_travel": _fast_travel})
+
 
 ## P — просто пауза: мир замирает, по центру белая надпись «ПАУЗА».
 func _toggle_pause() -> void:
@@ -1301,6 +1457,7 @@ func _on_fell() -> void:
 func _end_run(reason: String) -> void:
 	if _ended:
 		return
+	_store_explored()
 	_ended = true
 	if is_instance_valid(_menu):
 		_menu.queue_free()

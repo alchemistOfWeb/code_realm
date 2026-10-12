@@ -27,6 +27,9 @@ var max_stamina := 6.0
 var exhausted := false
 var dead := false
 var sprinting := false
+## Перегруз (вес больше переносимого): медленный шаг, бег недоступен.
+var overloaded := false
+var _gear_key := ""
 
 var cam_root: Node3D
 var camera: Camera3D
@@ -61,9 +64,7 @@ func _ready() -> void:
 	rig = HeroRig.new()
 	add_child(rig)
 	rig.apply_look(GameManager.player_data.get("look", Appearance.default_look()))
-	rig.apply_equipment(GameManager.hero_outfit())
-	var attrs := GameManager.effective_attributes()
-	max_stamina = XPCalculator.RUN_STAMINA + float(attrs.get("max_stamina", 10) - 10) * 0.25
+	refresh_gear()
 	stamina = max_stamina
 	_build_camera.call_deferred()
 	# Фонарь героя: тёплый свет вокруг (в подземельях особенно важен)
@@ -95,6 +96,18 @@ func _build_camera() -> void:
 	_spring.add_child(camera)
 	camera.current = true
 	_apply_camera()
+
+
+## Вид снаряжения, запас бега и перегруз — после смены экипировки (инвентарь в вылазке).
+func refresh_gear() -> void:
+	var outfit := GameManager.hero_outfit()
+	if str(outfit) != _gear_key:
+		_gear_key = str(outfit)
+		rig.apply_equipment(outfit)
+	var attrs := GameManager.effective_attributes()
+	max_stamina = XPCalculator.RUN_STAMINA + float(attrs.get("max_stamina", 5) - 5) * 0.25
+	stamina = minf(stamina, max_stamina)
+	overloaded = GameManager.is_overloaded()
 
 
 func set_lantern(energy: float) -> void:
@@ -165,7 +178,7 @@ func _physics_process(delta: float) -> void:
 		dir = Vector3(v.x, 0, v.y).rotated(Vector3.UP, cam_yaw)
 	var moving := dir.length() > 0.1
 	# Бег и выносливость
-	var want_sprint := input_enabled and moving and Input.is_action_pressed("sprint")
+	var want_sprint := input_enabled and moving and Input.is_action_pressed("sprint") and not overloaded
 	sprinting = want_sprint and not exhausted and stamina > 0.0
 	if sprinting:
 		stamina = maxf(0.0, stamina - delta)
@@ -181,6 +194,8 @@ func _physics_process(delta: float) -> void:
 	var speed := SPRINT_SPEED if sprinting else RUN_SPEED
 	if exhausted and moving:
 		speed = WALK_SPEED
+	if overloaded:
+		speed = RUN_SPEED * XPCalculator.OVERLOAD_SPEED
 	# Горизонтальное движение (в воздухе — ограниченный контроль)
 	var target := dir.normalized() * speed if moving else Vector3.ZERO
 	var accel := 14.0 if on_floor else 14.0 * AIR_CONTROL

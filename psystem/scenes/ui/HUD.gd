@@ -46,6 +46,7 @@ func _add_nav_buttons() -> void:
 	var defs := [
 		[Loc.t("Карта мира"), "treasure-map", Loc.t("Карта мира: локации и вылазки"), func(): EventBus.go("world_map")],
 		[Loc.t("Лавка"), "shop", Loc.t("Лавка снаряжения: оружие и броня"), func(): EventBus.go("shop")],
+		[Loc.t("Склад"), "wooden-crate", Loc.t("Снаряжение и склад базы: перетаскивай вещи между инвентарём и складом"), func(): EventBus.go("character", {"tab": 1})],
 	]
 	for d in defs:
 		var b := Button.new()

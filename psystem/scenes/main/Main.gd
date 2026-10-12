@@ -7,6 +7,9 @@ extends Control
 ## Экран может реализовать setup(params) и on_resume() (вызывается при возврате на него).
 ## params.replace = true — заменить верхний экран вместо добавления.
 ## params.overlay = true — экран-оверлей: предыдущий экран остаётся видимым под ним.
+## Разделы (SECTIONS: карта мира, лавка, персонаж, настройки, титры, дерево специализации) не копят историю:
+## переход в раздел убирает со стека всё выше главного экрана, и «назад» ведёт сразу на WorldTree.
+## Исключение — цепочка вложенности: из вылазки и главного меню разделы открываются поверх (params.nested тоже).
 ##
 ## Dev-аргументы (после "--" в командной строке):
 ##   --screen=menu | creator | credits | shop | map | location:<id> | sortie:<loc>:<node> | world | mini:<spec_id> | lesson:<node_id> | character[:tab] | settings
@@ -35,7 +38,11 @@ const SCREENS := {
 	"dialogue": "res://scenes/dialogue/DialogueScreen.tscn",
 	"riddle": "res://scenes/dungeon/RiddleScreen.tscn",
 	"safe": "res://scenes/dungeon/SafeScreen.tscn",
+	"inventory": "res://scenes/character/InventoryScreen.gd",
 }
+const SECTIONS := ["world_map", "shop", "character", "settings", "credits", "mini_tree"]
+## Пока на стеке эти экраны, разделы открываются вложенно (вылазку нельзя «потерять» переходом в лавку).
+const NESTING_ROOTS := ["sortie", "main_menu", "creator"]
 const RAYS := preload("res://shaders/rays.gdshader")
 ## Экраны на всё окно: без верхней панели HUD.
 const FULLSCREEN := ["main_menu", "creator", "credits", "sortie"]
@@ -127,6 +134,9 @@ func _push(key: String, params: Dictionary) -> void:
 	if params.get("root", false):
 		while not _stack.is_empty():
 			_stack.pop_back().queue_free()
+	elif key in SECTIONS and not params.get("overlay", false) and not params.get("nested", false) and _sections_flat():
+		while _stack.size() > 1:
+			_stack.pop_back().queue_free()
 	if params.get("replace", false) and _stack.size() > 1:
 		_stack.pop_back().queue_free()
 	if not _stack.is_empty() and _stack[-1].has_method("on_cover"):
@@ -136,7 +146,8 @@ func _push(key: String, params: Dictionary) -> void:
 			_stack[-1].show()   # оверлей лежит поверх видимого экрана (в т.ч. после replace)
 		else:
 			_stack[-1].hide()
-	var screen: Control = load(SCREENS[key]).instantiate()
+	var res: Resource = load(SCREENS[key])
+	var screen: Control = res.new() if res is GDScript else (res as PackedScene).instantiate()
 	screen.set_meta("screen_key", key)
 	screen_root.add_child(screen)
 	_stack.append(screen)
@@ -144,6 +155,16 @@ func _push(key: String, params: Dictionary) -> void:
 		screen.setup(params)
 	_update_chrome()
 	_fade_in(screen)
+
+
+## Переход между разделами без истории: на стеке нет вылазки / меню, корень — WorldTree.
+func _sections_flat() -> bool:
+	if _stack.is_empty() or _stack[0].get_meta("screen_key", "") != "world":
+		return false
+	for s in _stack:
+		if s.get_meta("screen_key", "") in NESTING_ROOTS:
+			return false
+	return true
 
 
 func _pop() -> void:
@@ -184,6 +205,9 @@ func _update_chrome() -> void:
 	if _stack.is_empty():
 		return
 	var full := current_screen_key() in FULLSCREEN
+	for s in _stack:
+		if s.get_meta("screen_key", "") == "sortie":
+			full = true   # во время вылазки HUD базы недоступен (лавка, карта мира и т. п.)
 	$HUD.visible = not full
 	screen_root.offset_top = 0.0 if full else HUD_HEIGHT
 
@@ -445,6 +469,12 @@ func _apply_dev_args(args: Dictionary) -> void:
 			"combat":
 				GameManager.grant_starter_pack()
 				EventBus.go("combat", {"enemy_id": parts[1] if parts.size() > 1 else "syntax_error", "context": "training"})
+				if args.has("hover"):
+					# Dev: увеличенная карта, как при наведении на карту руки
+					await get_tree().create_timer(1.2).timeout
+					var cs = _stack[-1]
+					var i := clampi(args.hover.to_int(), 0, cs._hand.get_child_count() - 1)
+					cs._show_preview(cs.state.player.hand[i], cs._hand.get_child(i))
 				if args.has("layout"):
 					await get_tree().create_timer(1.0).timeout
 					var col: Control = _stack[-1]._hand.get_parent()
@@ -479,11 +509,19 @@ func _apply_dev_args(args: Dictionary) -> void:
 						target = sw.data.platforms[0].a
 						sw._player.global_position = target + Vector3(-4.5, 0.3, 0)
 					elif args.look == "exit" and not sw.data.exits.is_empty():
-						target = Vector3(sw.data.exits[-1].cell.x + 0.5, 0, sw.data.exits[-1].cell.y + 0.5)
-						var toward_center: Vector3 = (Vector3(sw.data.w * 0.5, 0, sw.data.h * 0.5) - target).normalized()
-						sw._player.global_position = target + toward_center * 3.5 + Vector3(0, 0.3, 0)
+						var e: Dictionary = sw.data.exits[int(args.get("exit", "0")) % sw.data.exits.size()]
+						target = Vector3(e.cell.x + 0.5, 0, e.cell.y + 0.5)
+						var a: Vector2i = e.get("arrive", e.cell)
+						sw._player.global_position = Vector3(a.x + 0.5, 0.3, a.y + 0.5) - (target - Vector3(a.x + 0.5, 0, a.y + 0.5)).normalized() * 3.0
 					var d: Vector3 = target - sw._player.global_position
 					sw._player.face_yaw(atan2(d.x, d.z))
+				if args.has("open"):
+					# Dev: открыть инвентарь (I) или карту локации (M) поверх вылазки
+					await get_tree().create_timer(1.0).timeout
+					if args.open == "inventory":
+						EventBus.go("inventory", {"overlay": true})
+					elif args.open == "map":
+						_stack[-1]._open_location_map()
 				if args.has("walk"):
 					var steps: int = args.walk.to_int()
 					await get_tree().create_timer(1.0).timeout

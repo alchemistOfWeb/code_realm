@@ -47,13 +47,13 @@ const INPUT_ACTIONS := {
 	"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 	"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 	"interact": [KEY_E], "pause": [KEY_P], "sprint": [KEY_SHIFT],
-	"jump": [KEY_SPACE], "map": [KEY_M], "camera_left": [KEY_Q], "camera_right": [KEY_R],
+	"jump": [KEY_SPACE], "map": [KEY_M], "inventory": [KEY_I], "camera_left": [KEY_Q], "camera_right": [KEY_R],
 }
 ## Действия, которые можно переназначить в настройках (порядок — как в списке).
 const REBINDABLE := {
 	"move_forward": "Вперёд", "move_back": "Назад", "move_left": "Влево", "move_right": "Вправо",
 	"sprint": "Бег (тратит выносливость)", "jump": "Прыжок", "interact": "Действие",
-	"pause": "Пауза", "map": "Карта", "camera_left": "Повернуть камеру влево", "camera_right": "Повернуть камеру вправо",
+	"pause": "Пауза", "map": "Карта", "inventory": "Инвентарь", "camera_left": "Повернуть камеру влево", "camera_right": "Повернуть камеру вправо",
 }
 
 

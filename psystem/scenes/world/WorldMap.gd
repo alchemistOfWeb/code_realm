@@ -25,6 +25,12 @@ var _drag_moved := 0.0
 var _panel: PanelContainer
 var _panel_box: VBoxContainer
 var _selected := ""
+## Просмотр из вылазки: карты локаций открываются только для просмотра.
+var _view_only := false
+
+
+func setup(params: Dictionary) -> void:
+	_view_only = params.get("view_only", false)
 
 
 func _ready() -> void:
@@ -374,7 +380,7 @@ func _refresh_panel() -> void:
 
 func _open_location(loc_id: String) -> void:
 	Audio.play("open")
-	EventBus.go("location", {"location_id": loc_id})
+	EventBus.go("location", {"location_id": loc_id, "view_only": _view_only})
 
 
 # ---------------------------------------------------------------- Панорама и масштаб
