@@ -300,7 +300,10 @@ func _refresh_card_collection() -> void:
 		cv.card_scale = GRID_CARD_SCALE
 		cards_grid.add_child(cv)
 		var is_owned := owned.has(card_id)
-		cv.setup(CardDatabase.get_card(card_id), int(owned.get(card_id, 0)), not is_owned)
+		var shown := CardDatabase.get_card(card_id)
+		if is_owned:
+			shown = CardDatabase.leveled(shown, GameManager.card_best_level(card_id))
+		cv.setup(shown, int(owned.get(card_id, 0)), not is_owned)
 		if is_owned:
 			cv.clicked.connect(_show_card_detail)
 	if ids.is_empty():
@@ -313,7 +316,7 @@ func _refresh_card_collection() -> void:
 
 ## Крупный просмотр карты поверх экрана.
 func _show_card_detail(card_id: String) -> void:
-	var card := CardDatabase.get_card(card_id)
+	var card := CardDatabase.leveled(CardDatabase.get_card(card_id), GameManager.card_best_level(card_id))
 	var overlay := Control.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -368,8 +371,10 @@ func _show_card_detail(card_id: String) -> void:
 	flavor.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	flavor.theme_type_variation = &"DimLabel"
 	info.add_child(flavor)
+	if int(GameManager.card_collection.get(card_id, 0)) >= 2:
+		info.add_child(_merge_panel(card_id, overlay))
 	var hint := Label.new()
-	hint.text = Loc.t("Клик — закрыть")
+	hint.text = Loc.t("Клик по фону — закрыть")
 	hint.theme_type_variation = &"DimLabel"
 	info.add_child(hint)
 	overlay.modulate.a = 0.0
@@ -378,6 +383,79 @@ func _show_card_detail(card_id: String) -> void:
 	overlay.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.pressed:
 			overlay.queue_free())
+
+
+## Улучшение карты слиянием (как в Two Worlds): выбери две копии — останется одна с суммой уровней.
+## Стоимость не меняется, характеристики растут; уровень карты не выше уровня героя.
+func _merge_panel(card_id: String, overlay: Control) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	box.mouse_filter = Control.MOUSE_FILTER_STOP
+	var title := Label.new()
+	title.text = Loc.t("Улучшение: слей две копии — уровни сложатся (макс. уровень героя %d)") % GameManager.player_data.level
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_color_override("font_color", Color("#FFD24A"))
+	box.add_child(title)
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 6)
+	box.add_child(row)
+	var result := Label.new()
+	result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	result.theme_type_variation = &"DimLabel"
+	box.add_child(result)
+	var merge := Button.new()
+	merge.text = Loc.t("Объединить")
+	merge.theme_type_variation = &"AccentButton"
+	merge.disabled = true
+	box.add_child(merge)
+	var copies := GameManager.card_copies(card_id)
+	var picked: Array = []
+	var buttons: Array = []
+	var update := func():
+		merge.disabled = true
+		if picked.size() < 2:
+			result.text = Loc.t("Выбери две копии.")
+			return
+		var reason := GameManager.merge_block_reason(card_id, picked[0], picked[1])
+		if reason != "":
+			result.text = reason
+			return
+		var lv: int = int(copies[picked[0]]) + int(copies[picked[1]])
+		var after := CardDatabase.leveled(CardDatabase.get_card(card_id), lv)
+		var text := Loc.t("Получится: уровень %d. %s") % [lv, after.get("description", "")]
+		if after.get("type", "") == "creature":
+			text += " " + Loc.t("Атака / защита: %d / %d") % [after.attack, after.defense]
+		result.text = text
+		merge.disabled = false
+	for i in copies.size():
+		var b := Button.new()
+		b.toggle_mode = true
+		b.text = Loc.t("Ур. %d") % int(copies[i])
+		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		b.toggled.connect(func(on: bool):
+			if on:
+				picked.append(i)
+				if picked.size() > 2:
+					buttons[picked.pop_front()].set_pressed_no_signal(false)
+			else:
+				picked.erase(i)
+			update.call())
+		buttons.append(b)
+		row.add_child(b)
+	# По умолчанию — две младшие копии
+	if copies.size() >= 2:
+		buttons[copies.size() - 1].button_pressed = true
+		buttons[copies.size() - 2].button_pressed = true
+	merge.pressed.connect(func():
+		var lv := GameManager.merge_cards(card_id, picked[0], picked[1])
+		if lv > 0:
+			Audio.play("card_flip")
+			EventBus.notify(Loc.t("Карта улучшена до уровня %d") % lv, "success")
+			overlay.queue_free()
+			_refresh_card_collection()
+			_show_card_detail(card_id))
+	update.call()
+	return box
 
 
 var _deck_builder: Control

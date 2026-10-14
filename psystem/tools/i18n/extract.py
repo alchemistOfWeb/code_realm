@@ -7,7 +7,9 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 EN = os.path.join(ROOT, "locale", "en.json")
 LIT = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
 CYR = re.compile("[Ѐ-ӿ]")
-SKIP_GD = {"smoke_test.gd", "ContentParser.gd", "QuizGenerator.gd", "ClaudeNotesExporter.gd", "model_viewer.gd", "PythonRunner.gd"}
+SKIP_GD = {"smoke_test.gd", "ContentParser.gd", "QuizGenerator.gd", "ClaudeNotesExporter.gd", "model_viewer.gd", "PythonRunner.gd", "quiz_report.gd"}
+# Плагин редактора локаций работает в редакторе Godot (не интерфейс игры) — не переводится
+SKIP_DIRS = (os.sep + "addons" + os.sep, os.sep + "editor_locations" + os.sep)
 keys = {}
 
 
@@ -23,7 +25,7 @@ def unescape(s):
 # --- GDScript
 for path in glob.glob(os.path.join(ROOT, "**", "*.gd"), recursive=True):
     name = os.path.basename(path)
-    if name in SKIP_GD:
+    if name in SKIP_GD or any(d in path for d in SKIP_DIRS):
         continue
     for line in open(path, encoding="utf-8"):
         if line.lstrip().startswith("#"):

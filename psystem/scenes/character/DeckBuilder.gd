@@ -260,7 +260,7 @@ func _collection_cell(card: Dictionary) -> Control:
 	var cv := CARD_SCENE.instantiate()
 	cv.card_scale = CARD_SCALE
 	cell.add_child(cv)
-	cv.setup(card, free)
+	cv.setup(CardDatabase.leveled(card, GameManager.card_best_level(id)), free)
 	cv.drag_payload = {"from": "collection", "id": id}
 	var reason := GameManager.deck_add_block_reason(id)
 	if free <= 0:

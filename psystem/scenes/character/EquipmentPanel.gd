@@ -47,8 +47,9 @@ func _ready() -> void:
 		var stash := _grid_panel(col, "stash")
 		_stash_title = stash[0]
 		_stash_grid = stash[1]
+		_build_drop_zone(col, "sell")
 	else:
-		_build_drop_zone(col)
+		_build_drop_zone(col, "drop")
 	GameManager.equipment_changed.connect(refresh)
 	refresh()
 
@@ -174,10 +175,12 @@ func _grid_panel(parent: Control, kind: String) -> Array:
 	return [title, grid]
 
 
-func _build_drop_zone(parent: Control) -> void:
+## Зона сброса: "drop" — выбросить (в вылазке), "sell" — продать за полцены (на базе).
+func _build_drop_zone(parent: Control, kind: String) -> void:
+	var color: Color = Palette.HP if kind == "drop" else Palette.GOLD
 	_drop_zone = PanelContainer.new()
-	_drop_zone.add_theme_stylebox_override("panel", Palette.box(Color("#2A1018", 0.6), Color(Palette.HP, 0.6), 2, 10, 12, 12))
-	_drop_zone.custom_minimum_size.y = 64
+	_drop_zone.add_theme_stylebox_override("panel", Palette.box(Color(color.darkened(0.8), 0.6), Color(color, 0.6), 2, 10, 12, 12))
+	_drop_zone.custom_minimum_size.y = 64 if kind == "drop" else 40
 	parent.add_child(_drop_zone)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -185,18 +188,19 @@ func _build_drop_zone(parent: Control) -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_drop_zone.add_child(row)
 	var icon := TextureRect.new()
-	icon.texture = Palette.icon("x")
+	icon.texture = Palette.icon("x") if kind == "drop" else Palette.icon("coins")
 	icon.custom_minimum_size = Vector2(22, 22)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.modulate = Palette.HP
+	icon.modulate = color
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(icon)
 	var l := Label.new()
-	l.text = Loc.t("Выбросить: перетащи сюда предмет, чтобы избавиться от перегруза")
-	l.add_theme_color_override("font_color", Palette.HP.lightened(0.3))
+	l.text = Loc.t("Выбросить: перетащи сюда предмет, чтобы избавиться от перегруза") if kind == "drop" else Loc.t("Продать за ½ цены: перетащи сюда вещь (из инвентаря, со склада или с героя)")
+	l.add_theme_color_override("font_color", color.lightened(0.3))
+	l.add_theme_font_size_override("font_size", 13 if kind == "sell" else 16)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(l)
-	_drop_zone.set_drag_forwarding(_no_drag, _can_drop_list.bind("drop"), _drop_list.bind("drop"))
+	_drop_zone.set_drag_forwarding(_no_drag, _can_drop_list.bind(kind), _drop_list.bind(kind))
 
 
 # ---------------------------------------------------------------- Обновление
@@ -327,11 +331,16 @@ func _can_drop_list(_at: Vector2, data: Variant, kind: String) -> bool:
 		return false
 	if kind == "drop":
 		return data.from in ["inventory", "slot"]
+	if kind == "sell":
+		return ItemDatabase.sell_price(ItemDatabase.get_item(data.id)) > 0
 	return data.from != kind
 
 
 func _drop_list(_at: Vector2, data: Variant, kind: String) -> void:
 	var it := ItemDatabase.get_item(data.id)
+	if kind == "sell":
+		_confirm_sell(data, it)
+		return
 	if kind == "drop":
 		if data.from == "slot":
 			GameManager.unequip(data.slot)
@@ -344,6 +353,28 @@ func _drop_list(_at: Vector2, data: Variant, kind: String) -> void:
 	else:
 		GameManager.move_item(data.id, data.from, kind)
 	Audio.play("cloth")
+
+
+func _confirm_sell(data: Dictionary, it: Dictionary) -> void:
+	var price := ItemDatabase.sell_price(it)
+	var dialog := ConfirmationDialog.new()
+	dialog.title = Loc.t("Продать предмет?")
+	dialog.dialog_text = Loc.t("Продать «%s» за %d золота?") % [it.get("name", ""), price]
+	dialog.ok_button_text = Loc.t("Продать")
+	dialog.cancel_button_text = Loc.t("Отмена")
+	dialog.confirmed.connect(func():
+		var source: String = data.from
+		if source == "slot":
+			GameManager.unequip(data.slot, "inventory")
+			source = "inventory"
+		var gold := GameManager.sell_item(data.id, source)
+		if gold > 0:
+			Audio.play("coins")
+			EventBus.notify(Loc.t("Продано: %s (+%d золота)") % [it.get("name", ""), gold], "success"))
+	dialog.close_requested.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered()
 
 
 func _refresh_summary() -> void:

@@ -24,6 +24,8 @@ const STATUS_IN_PROGRESS := "in_progress"
 var player_data: Dictionary = default_player_data()
 ## Коллекция карт: card_id -> количество
 var card_collection: Dictionary = {}
+## Уровни копий карт (улучшение слиянием): card_id -> [уровень, ...] по убыванию; копии без записи — уровень 1
+var card_levels: Dictionary = {}
 ## Прогресс знаний: node_id -> "learned" | "in_progress"
 var knowledge_progress: Dictionary = {}
 ## Узлы, за которые XP уже выдан (защита от повторного фарма после сброса): node_id -> true
@@ -113,6 +115,7 @@ func give_starter_kit() -> void:
 func reset_all() -> void:
 	player_data = default_player_data()
 	card_collection = {}
+	card_levels = {}
 	knowledge_progress = {}
 	rewarded_nodes = {}
 	claude_notes = {}
@@ -600,12 +603,14 @@ func buy_item(item_id: String) -> bool:
 	return true
 
 
-## Продать предмет из инвентаря (не надетый). Возвращает полученное золото.
-func sell_item(item_id: String) -> int:
-	var i: int = player_data.inventory.find(item_id)
+## Продать предмет (не надетый) из инвентаря или склада базы (source: "inventory" | "stash").
+## Возвращает полученное золото.
+func sell_item(item_id: String, source: String = "inventory") -> int:
+	var src: Array = player_data.get(source, player_data.inventory)
+	var i: int = src.find(item_id)
 	if i < 0:
 		return 0
-	player_data.inventory.remove_at(i)
+	src.remove_at(i)
 	var gold := ItemDatabase.sell_price(ItemDatabase.get_item(item_id))
 	add_gold(gold)
 	equipment_changed.emit()
@@ -780,6 +785,71 @@ func hero_outfit() -> Dictionary:
 
 func add_card_to_collection(card_id: String) -> void:
 	card_collection[card_id] = card_collection.get(card_id, 0) + 1
+
+
+## Уровни всех копий карты по убыванию (длина = числу копий).
+func card_copies(card_id: String) -> Array:
+	var count := int(card_collection.get(card_id, 0))
+	var levels: Array = card_levels.get(card_id, []).duplicate()
+	levels.sort()
+	levels.reverse()
+	levels.resize(mini(levels.size(), count))
+	while levels.size() < count:
+		levels.append(1)
+	return levels
+
+
+## Почему нельзя слить две копии уровней a и b (индексы в card_copies). "" — можно.
+## Уровни складываются (как слияние в Two Worlds); выше уровня героя карта не поднимается.
+func merge_block_reason(card_id: String, i: int, j: int) -> String:
+	var copies := card_copies(card_id)
+	if i == j or i < 0 or j < 0 or i >= copies.size() or j >= copies.size():
+		return Loc.t("Выбери две разные копии")
+	var total: int = int(copies[i]) + int(copies[j])
+	if total > int(player_data.level):
+		return Loc.t("Уровень карты не может быть выше уровня героя (%d)") % player_data.level
+	return ""
+
+
+## Слить две копии: остаётся одна копия с суммой уровней. Возвращает новый уровень (0 — нельзя).
+func merge_cards(card_id: String, i: int, j: int) -> int:
+	if merge_block_reason(card_id, i, j) != "":
+		return 0
+	var copies := card_copies(card_id)
+	var total: int = int(copies[i]) + int(copies[j])
+	copies.remove_at(maxi(i, j))
+	copies.remove_at(mini(i, j))
+	copies.append(total)
+	copies.sort()
+	copies.reverse()
+	card_collection[card_id] = copies.size()
+	card_levels[card_id] = copies.filter(func(l): return l > 1)
+	if card_levels[card_id].is_empty():
+		card_levels.erase(card_id)
+	# Копий стало меньше — лишнее вхождение в колоде убирается
+	while deck_count(card_id) > copies.size():
+		combat_deck.erase(card_id)
+	deck_changed.emit()
+	player_changed.emit()
+	return total
+
+
+## Колода для боя: карты с уровнями — в колоду идут сильнейшие копии.
+func combat_deck_entries() -> Array:
+	var used := {}
+	var out: Array = []
+	for id in combat_deck:
+		var copies := card_copies(id)
+		var k: int = used.get(id, 0)
+		used[id] = k + 1
+		out.append({"id": id, "level": int(copies[k]) if k < copies.size() else 1})
+	return out
+
+
+## Лучший уровень карты в коллекции (для отображения).
+func card_best_level(card_id: String) -> int:
+	var copies := card_copies(card_id)
+	return int(copies[0]) if not copies.is_empty() else 1
 
 
 func collection_size() -> int:

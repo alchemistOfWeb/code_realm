@@ -12,6 +12,10 @@ const PAD := 4                      # метров рамки вокруг пр�
 
 static var _image_cache: Dictionary = {}
 
+
+static func clear_cache(loc_id: String) -> void:
+	_image_cache.erase(loc_id)
+
 var location_id := ""
 var _loc: Dictionary = {}
 var _surf: Dictionary = {}
@@ -64,6 +68,16 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func on_resume() -> void:
+	# После редактора локации поверхность могла измениться — перечитать рельеф и метки
+	var surf := OutdoorGenerator.generate_surface(location_id)
+	if not is_same(surf, _surf):
+		_surf = surf
+		_map_rect.texture = _topo_texture()
+		for m in _markers:
+			m.button.queue_free()
+		_markers.clear()
+		_build_markers()
+		_place_markers.call_deferred()
 	_refresh_markers()
 	_refresh_header()
 	_select(_selected)

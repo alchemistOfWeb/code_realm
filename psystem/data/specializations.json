@@ -16,7 +16,7 @@
 			"color": "#9B59B6",
 			"icon": "res://assets/icons/bot.svg",
 			"content_file": "res://content/ai_developer.md",
-			"description": "RAG, эмбеддинги, промпт-инжиниринг, агенты, fine-tuning, evaluation. Вопросы собеседований Junior AI Engineer."
+			"description": "Как устроены LLM, эмбеддинги и векторный поиск, RAG, промпты, агенты, дообучение, оценка качества, продакшн, безопасность и база классического ML."
 		},
 		{
 			"id": "python_backend",

@@ -93,6 +93,7 @@ static func _build_outdoor(root: Node3D, data: Dictionary, sky: String) -> Dicti
 	var gmi := MeshInstance3D.new()
 	gmi.mesh = ground_mesh
 	gmi.material_override = mat
+	gmi.name = "Ground"
 	root.add_child(gmi)
 	# Невидимых стен нет: крутые склоны (> 50°) физически не дают подняться — герой соскальзывает
 	var ground_body := StaticBody3D.new()
@@ -313,6 +314,10 @@ static func _xf(pos: Vector3, yaw: float, s: float) -> Transform3D:
 ## Растительность долины: леса у лесных районов, редкие деревья на лугах; деревья растут только на
 ## нормальной земле — не на скальных склонах, холмах и не вплотную к камням. Стволы и камни — с коллизией.
 ## Всё ставится на высоту рельефа, в стороне от дорог и построек.
+## Модели для объектов, добавленных в редакторе локаций (тип → модель Stylized Nature).
+const PROP_MODELS := {"tree": "CommonTree_1", "pine": "Pine_2", "dead_tree": "DeadTree_1", "rock": "Rock_Medium_2", "bush": "Bush_Common_Flowers"}
+
+
 static func _vegetation(root: Node3D, data: Dictionary, rng: RandomNumberGenerator) -> void:
 	var w: int = data.w
 	var h: int = data.h
@@ -372,6 +377,22 @@ static func _vegetation(root: Node3D, data: Dictionary, rng: RandomNumberGenerat
 			var gy := height_at(terrain, px, pz)
 			_add(trees_by_model, model, _xf(Vector3(px, gy - 0.15, pz), rng.randf() * TAU, s))
 			trunks.append([Vector3(px, gy, pz), 0.3 * s * (1.6 if model.begins_with("Twisted") else 1.0)])
+	# Деревья, камни и кусты, поставленные вручную в редакторе локаций
+	for p in data.get("props", []):
+		var pos: Vector2 = p.pos
+		var gy := height_at(terrain, pos.x, pos.y)
+		var s: float = p.get("scale", 1.0)
+		var model: String = PROP_MODELS.get(p.type, "")
+		if model == "":
+			continue
+		match String(p.type):
+			"rock":
+				_add(rocks_by_model, model, _xf(Vector3(pos.x, gy - 0.25, pos.y), p.yaw, 0.8 * s))
+			"bush":
+				_add(small_by_model, model, _xf(Vector3(pos.x, gy - 0.05, pos.y), p.yaw, s))
+			_:
+				_add(trees_by_model, model, _xf(Vector3(pos.x, gy - 0.15, pos.y), p.yaw, s))
+				trunks.append([Vector3(pos.x, gy, pos.y), 0.3 * s])
 	for model in trees_by_model:
 		scatter(root, N + model + ".gltf", trees_by_model[model], q.tree_shadows)
 	_canopy_colliders(root, trees_by_model, w, h)
@@ -403,7 +424,7 @@ static func _vegetation(root: Node3D, data: Dictionary, rng: RandomNumberGenerat
 				px = ex - MARGIN + 0.5 + foot.x * 0.3
 				pz = ez - MARGIN + 0.5 + foot.y * 0.3
 				_add(small_by_model, m, _xf(Vector3(px, height_at(terrain, px, pz) - 0.05, pz), rng.randf() * TAU, rng.randf_range(0.75, 1.1)))
-			elif v == OutdoorGenerator.FLOOR and r < 0.07 * float(q.veg) and not _near_entity(data, Vector2i(ex - MARGIN, ez - MARGIN)):
+			elif v == OutdoorGenerator.FLOOR and r < 0.07 * float(q.veg) and not _near_entity(data, Vector2i(ex - MARGIN, ez - MARGIN)) and not data.get("veg_clear", {}).has("%d,%d" % [ex - MARGIN, ez - MARGIN]):
 				var m: String = ground_models[rng.randi() % ground_models.size()]
 				var s := 0.45 if (m.begins_with("Flower") or m.begins_with("Grass_Common_Tall")) else 0.6
 				_add(small_by_model, m, _xf(Vector3(px, height_at(terrain, px, pz), pz), rng.randf() * TAU, s * rng.randf_range(0.8, 1.2)))
@@ -464,6 +485,10 @@ static func _keep_clear_map(data: Dictionary) -> Dictionary:
 			for x in range(int(c.x - rad), int(c.x + rad) + 1):
 				if Vector2(x + 0.5, y + 0.5).distance_to(c) <= rad:
 					keep[Vector2i(x, y)] = true
+	# Кисть редактора «убрать растительность»
+	for k in data.get("veg_clear", {}):
+		var xz: PackedStringArray = String(k).split(",")
+		keep[Vector2i(int(xz[0]), int(xz[1]))] = true
 	return keep
 
 

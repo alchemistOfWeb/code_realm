@@ -238,14 +238,30 @@ func _run() -> void:
 		var qs: Array = QuizGenerator.for_tree(sid)
 		var valid := qs.all(func(q): return q.options.size() >= 2 and q.correct >= 0 and q.correct < q.options.size())
 		check(qs.size() >= 8 and valid, "общий тест %s: %d вопросов, все корректны" % [sid, qs.size()])
-	var kinds := {}
-	for i in 5:
-		for q in QuizGenerator.for_tree("python_developer"):
-			kinds[q.kind] = true
-	check(kinds.has("authored") and kinds.has("fill_gap"), "виды вопросов: %s" % ", ".join(kinds.keys()))
-	var main_node: Dictionary = cp.get_specialization("python_backend").nodes[0]
-	check(QuizGenerator.for_node(main_node).size() >= 3, "тест узла «%s» сгенерирован" % main_node.title)
-	check(QuizGenerator.for_node(cp.get_flat_nodes("ai_developer")[3]).size() >= 2, "тест узла-вопроса AI сгенерирован")
+	# Только авторские вопросы, у каждой темы — не меньше MIN_PER_NODE своих, тесты узлов полные
+	var short: PackedStringArray = []
+	var meta: PackedStringArray = []
+	for sid in cp.get_all_spec_ids():
+		for n in cp.get_flat_nodes(sid):
+			if QuizGenerator.needs_more(n):
+				short.append("%s/%s" % [sid, n.title])
+			if "читать" in n.title.to_lower() or "никит" in n.title.to_lower():
+				meta.append(n.title)
+			var need := QuizGenerator.NODE_TEST_MAIN if n.is_main else QuizGenerator.NODE_TEST_SUB
+			if QuizGenerator.for_node(n).size() < need:
+				short.append("%s/%s: тест %d" % [sid, n.title, QuizGenerator.for_node(n).size()])
+	check(short.is_empty(), "у каждой темы свои авторские вопросы (≥%d), тесты полные %s" % [QuizGenerator.MIN_PER_NODE, ", ".join(short.slice(0, 6))])
+	check(meta.is_empty(), "нет служебных тем вроде «как читать этот файл» %s" % ", ".join(meta))
+	# Ни один вопрос не потерян парсером из-за ошибки формата (два «+», нет «+», лишний «|»)
+	var lost: PackedStringArray = []
+	for sid in cp.get_all_spec_ids():
+		var raw := FileAccess.get_file_as_string(cp.get_spec_meta(sid).content_file)
+		var parsed := 0
+		for n in cp.get_flat_nodes(sid):
+			parsed += QuizGenerator.questions_of(n).size()
+		if raw.count("<!-- quiz:") != parsed:
+			lost.append("%s: %d из %d" % [sid, parsed, raw.count("<!-- quiz:")])
+	check(lost.is_empty(), "все авторские вопросы разобраны без ошибок формата %s" % ", ".join(lost))
 	var missing_icons := CardDatabase.all_cards().filter(func(c): return not ResourceLoader.exists("res://assets/icons/game/%s.svg" % c.get("icon", "")))
 	check(CardDatabase.all_cards().size() >= 38 and missing_icons.is_empty(), "каталог %d карт, иконки на месте" % CardDatabase.all_cards().size())
 	for sid in cp.get_all_spec_ids():
@@ -325,6 +341,22 @@ func _run() -> void:
 	await get_tree().process_frame
 	check(main._stack[-1].cards_grid.get_child_count() > 0, "коллекция карт отображается")
 	main._stack[-1]._show_card_detail(gm.card_collection.keys()[0])
+	# Улучшение карты в окне карты: две копии → «Объединить» → одна копия уровня 2
+	var cs_screen = main._stack[-1]
+	var merge_id: String = gm.card_collection.keys()[0]
+	gm.player_data.level = maxi(gm.player_data.level, 2)
+	gm.card_collection[merge_id] = 2
+	gm.card_levels.erase(merge_id)
+	cs_screen._show_card_detail(merge_id)
+	var merge_btn: Button = null
+	for b in cs_screen.find_children("*", "Button", true, false):
+		if b.text == "Объединить" and b.is_visible_in_tree():
+			merge_btn = b
+	check(merge_btn != null and not merge_btn.disabled, "окно карты: кнопка «Объединить» для двух копий")
+	if merge_btn:
+		merge_btn.pressed.emit()
+	await get_tree().process_frame
+	check(int(gm.card_collection.get(merge_id, 0)) == 1 and gm.card_best_level(merge_id) == 2, "после объединения — одна копия уровня 2")
 	bus.navigate_home.emit()
 	await get_tree().process_frame
 
@@ -372,6 +404,44 @@ func _run() -> void:
 	cs3.start(CardDatabase.all_enemies()[0], [], {"max_hp": 20, "hp": 20, "attributes": {"strength": 2, "agility": 1, "max_mana": 10, "max_stamina": 10}, "weapons": ["hammer"], "armor": 3, "damage_bonus": 1})
 	check(cs3.player.shield == 3 and cs3.weapon_damage("hammer") == 2 + 2 + 1, "броня = щит в начале боя, урон молота 2 + Сила + бонус оружия")
 	check(cs3.player.hand.is_empty() and not cs3.over, "бой с пустой колодой возможен (минимума колоды нет)")
+	# Добор: в начале каждого хода ровно одна карта, даже если рука пуста
+	var cs4 := CombatState.new()
+	var many: Array = []
+	for i in 12:
+		many.append("sql_query")
+	cs4.start(CardDatabase.all_enemies()[0], many, {"max_hp": 20, "hp": 20, "attributes": {"strength": 1, "agility": 1, "max_mana": 10, "max_stamina": 10}, "weapons": ["sword"]})
+	var hand0: int = cs4.player.hand.size()
+	cs4.player.discard.append_array(cs4.player.hand)
+	cs4.player.hand.clear()
+	cs4.end_turn()
+	check(hand0 == XPCalculator.START_HAND + 1 and cs4.player.hand.size() == 1, "добор: стартовая рука %d, после пустой руки на новом ходу — 1 карта (не до 5)" % hand0)
+	# Улучшение карт слиянием: уровни складываются, не выше уровня героя, стоимость прежняя
+	gm.reset_all()
+	gm.player_data.level = 3
+	for i in 3:
+		gm.add_card_to_collection("sql_query")
+	gm.combat_deck = ["sql_query", "sql_query", "sql_query"]
+	var lv := gm.merge_cards("sql_query", 0, 1)
+	check(lv == 2 and gm.card_collection.sql_query == 2 and gm.card_copies("sql_query") == [2, 1] and gm.deck_count("sql_query") == 2, "слияние двух копий: уровень 2, копий 2, колода подрезана")
+	check(gm.merge_block_reason("sql_query", 0, 1) == "" and gm.merge_cards("sql_query", 0, 1) == 3, "2 + 1 = уровень 3 (= уровню героя)")
+	gm.add_card_to_collection("sql_query")
+	check(gm.merge_block_reason("sql_query", 0, 1) != "", "выше уровня героя слить нельзя")
+	var base_card := CardDatabase.get_card("sql_query")
+	var up := CardDatabase.leveled(base_card, 3)
+	var dmg_key: String = "damage" if base_card.effect.has("damage") else (base_card.effect.keys()[0] if not base_card.effect.is_empty() else "")
+	check(up.crystal_cost == base_card.crystal_cost and up.level == 3 and (dmg_key == "" or int(up.effect.get(dmg_key, 0)) >= int(base_card.effect.get(dmg_key, 0))), "улучшенная карта сильнее, стоимость та же: %s" % up.description)
+	var entries: Array = gm.combat_deck_entries()
+	check(not entries.is_empty() and int(entries[0].level) == 3, "в бой идут сильнейшие копии")
+	var st_card := CardDatabase.get_card("safe_room")
+	check(not st_card.is_empty() and st_card.crystal_cost == 1 and st_card.effect.get("stamina", 0) == 3 and st_card.rarity == "common", "карта за 1 восстанавливает 3 выносливости")
+	var free_ok := true
+	for c in CardDatabase.all_cards():
+		if c.effect.has("free_weapon_attack") and (c.rarity in ["common", "uncommon"] or c.crystal_cost < 3):
+			free_ok = false
+	check(free_ok, "бесплатные атаки оружием — только редкие карты от 3 кристаллов")
+	gm.player_data.stash = ["shield_round"]
+	var g0: int = gm.player_data.gold
+	check(gm.sell_item("shield_round", "stash") == 30 and gm.player_data.gold == g0 + 30 and gm.player_data.stash.is_empty(), "продажа со склада базы")
 	var res: Dictionary = gm.apply_combat_result(CardDatabase.all_enemies()[0], true, "expedition", 12)
 	check(res.xp > 0 and res.gold > 0 and gm.player_data.hp == 12, "награды за бой и HP после боя")
 
@@ -555,6 +625,21 @@ func _run() -> void:
 					overlap_bad.append("%s: column step too high" % loc_id)
 				prev_h = float(c.h)
 		vertical_total += sf.vertical.size()
+		# Враги по всей долине: у каждой проходимой клетки (выборка) враг не дальше 26 м
+		var far := 0
+		var probes := 0
+		for py in range(14, sf.h - 14, 9):
+			for px in range(14, w - 14, 9):
+				if sf.grid[py * w + px] != OutdoorGenerator.FLOOR:
+					continue
+				probes += 1
+				var nearest := INF
+				for en in sf.enemies:
+					nearest = minf(nearest, Vector2(px, py).distance_to(Vector2(en.cell)))
+				if nearest > 26.0:
+					far += 1
+		if probes > 0 and float(far) / probes > 0.05:
+			surf_bad.append("%s: %d/%d empty probes, enemies %d" % [loc_id, far, probes, sf.enemies.size()])
 		columns_total += sf.columns.size()
 	check(surf_bad.is_empty(), "единая поверхность 4 локаций: указатели, входы, связность %s" % ", ".join(surf_bad))
 	check(vertical_total >= 15 and columns_total >= 15, "винтовые башни: %d, уступы из столбов: %d" % [vertical_total, columns_total])
@@ -680,6 +765,79 @@ func _run() -> void:
 	Loc.setup("ru")
 	check(Loc.t("Назад") == "Назад" and TranslationServer.translate("Назад") == "Назад", "русский снова без примеси английского")
 	check(CardDatabase.get_card("fstring").description == "Наносит 2 урона.", "описания карт снова на русском")
+
+	print("== Редактор локаций (плагин Godot)")
+	var real_dir := LocationEdits.dir
+	LocationEdits.dir = "user://smoke_location_edits/"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(LocationEdits.path("whisper_grove")))
+	LocationEdits._cache.clear()
+	var er := LocationEditRoot.new()
+	er.location_id = "whisper_grove"
+	add_child(er)
+	er.rebuild()
+	var chest_m: LocationMarker = null
+	var enemy_m: LocationMarker = null
+	for m in er.markers():
+		if m.kind == "chest" and chest_m == null and not m.key.begins_with("add:"):
+			chest_m = m
+		if m.kind == "enemy" and enemy_m == null:
+			enemy_m = m
+	check(chest_m != null and enemy_m != null and er.markers().size() > 60, "сцена локации: маркеры объектов (%d)" % er.markers().size())
+	var chest_key := chest_m.key
+	var enemy_key := enemy_m.key
+	var start_sign := Vector2.ZERO
+	chest_m.position += Vector3(3, 0, 2)
+	var moved_to := Vector2(chest_m.position.x, chest_m.position.z)
+	enemy_m.get_parent().remove_child(enemy_m)
+	enemy_m.free()
+	var new_chest := er.new_marker("chest", moved_to + Vector2(4, 0))
+	er._group("chest").add_child(new_chest)
+	var dup := er.new_marker("chest", moved_to + Vector2(-4, 0))
+	dup.key = chest_key                       # как после Ctrl+D: копия с тем же ключом
+	er._group("chest").add_child(dup)
+	check(er.save_edits() and FileAccess.file_exists(LocationEdits.path("whisper_grove")), "сохранение правок в файл")
+	var ed := LocationEdits.load_edits("whisper_grove")
+	check(ed.pinned and ed.objects[enemy_key].removed and ed.added.size() == 2, "удалённый враг и два новых сундука (новый и копия Ctrl+D) записаны")
+	var sf_ed := OutdoorGenerator.generate_surface("whisper_grove")
+	var chest_cell := Vector2i(-1, -1)
+	var added_chests := 0
+	for c in sf_ed.chests:
+		if OutdoorGenerator.entity_key("chests", c) == chest_key:
+			chest_cell = c.cell
+		if int(c.index) >= 1000:
+			added_chests += 1
+	var enemy_gone: bool = sf_ed.enemies.filter(func(e): return OutdoorGenerator.entity_key("enemies", e) == enemy_key).is_empty()
+	check(chest_cell == Vector2i(moved_to.floor()) and added_chests == 2 and enemy_gone, "игра видит правки: сундук перенесён, добавлено 2, враг удалён")
+	var h0 := er.height_at(60.0, 60.0)
+	er.apply_brush("raise", Vector2(60, 60), 4.0, 2.0, 0.5, 0.0)
+	er.end_stroke()
+	var sf_h := OutdoorGenerator.generate_surface("whisper_grove")
+	var h1 := OutdoorGenerator.height_at(sf_h.terrain, 60.0, 60.0)
+	check(h1 > h0 + 0.5 and absf(h1 - er.height_at(60.0, 60.0)) < 0.05, "кисть «поднять»: рельеф выше на %.2f м и в игре, и в редакторе" % (h1 - h0))
+	er.queue_free()
+	# Новая локация по шаблону и правка района (файлы данных восстанавливаются)
+	var loc_backup := FileAccess.get_file_as_string(LocationDataFile.LOC_PATH)
+	var map_backup := FileAccess.get_file_as_string(LocationDataFile.MAP_PATH)
+	var wip: Array = LocationDataFile.wip_locations()
+	var new_id: String = wip[0].id
+	var err := LocationDataFile.create_from_template(new_id)
+	var new_ok: bool = err == "" and WorldData.is_playable(new_id) and WorldData.location(new_id).order.size() == 5
+	var sf_new: Dictionary = OutdoorGenerator.generate_surface(new_id) if new_ok else {}
+	check(new_ok and sf_new.signposts.size() == 4 and sf_new.caves.size() == 1 and sf_new.chasms.size() == 1,
+		"новая локация «%s» по шаблону: 4 района, пещера, остров %s" % [new_id, err])
+	var first_region: String = WorldData.start_node(new_id) if new_ok else ""
+	check(new_ok and LocationDataFile.update_node(new_id, first_region, {"features": {"chests": 5}}) and int(WorldData.location(new_id).nodes[first_region].features.chests) == 5
+		and not LocationDataFile.update_node(new_id, first_region, {"features": {"chests": 5}}), "свойства района из Инспектора пишутся в locations.json (повтор — без изменений)")
+	for pair in [[LocationDataFile.LOC_PATH, loc_backup], [LocationDataFile.MAP_PATH, map_backup]]:
+		var bf := FileAccess.open(pair[0], FileAccess.WRITE)
+		bf.store_string(pair[1])
+		bf.close()
+	WorldData.reload()
+	OutdoorGenerator.invalidate(new_id)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(LocationEdits.path("whisper_grove")))
+	LocationEdits.dir = real_dir
+	LocationEdits._cache.clear()
+	LocationEdits.invalidate("whisper_grove")
 
 	print("== Звук и настройки")
 	check(AudioServer.get_bus_index("Music") >= 0 and AudioServer.get_bus_index("SFX") >= 0, "шины Music и SFX созданы")

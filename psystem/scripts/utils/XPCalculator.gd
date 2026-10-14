@@ -26,7 +26,7 @@ const OVERLOAD_SPEED := 0.55
 
 # Карточный бой
 const START_HAND := 4
-const HAND_TARGET := 5          # добор до 5 карт в начале хода
+const CARDS_PER_TURN := 1       # в начале каждого хода — ровно одна карта (без добора «до N»)
 const HAND_MAX := 7
 const BOARD_MAX := 5
 const MAX_CRYSTALS := 10

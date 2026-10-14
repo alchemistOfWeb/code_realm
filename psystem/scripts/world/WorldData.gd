@@ -65,6 +65,18 @@ static func _ensure() -> void:
 		_locs[id] = loc
 
 
+## Перечитать data/world_map.json и data/locations.json (после правок в редакторе локаций).
+static func reload() -> void:
+	_map = {}
+	_locs = {}
+
+
+## Локации с графом подлокаций (их можно пройти и редактировать в редакторе локаций).
+static func implemented_locations() -> Array:
+	_ensure()
+	return _locs.keys()
+
+
 # ---------------------------------------------------------------- Глобальная карта
 
 static func map_locations() -> Array:

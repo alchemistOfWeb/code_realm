@@ -27,11 +27,20 @@ const RIM := 9.0
 static var _cache: Dictionary = {}
 
 
+## Сбросить кэш поверхности (после правок в редакторе локаций).
+static func invalidate(loc_id: String) -> void:
+	for k in _cache.keys():
+		if String(k).begins_with(loc_id + "/"):
+			_cache.erase(k)
+
+
 static func generate_surface(loc_id: String) -> Dictionary:
 	var key := loc_id + "/" + Loc.lang()
 	if _cache.has(key):
 		return _cache[key]
 	var loc := WorldData.location(loc_id)
+	# Ручные правки из редактора локаций: положения объектов, удаления, добавления, рельеф
+	var edits := LocationEdits.load_edits(loc_id)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = absi(hash(loc_id)) % 1000003
 	var data := {
@@ -39,7 +48,7 @@ static func generate_surface(loc_id: String) -> Dictionary:
 		"regions": [], "clearings": [], "chests": [], "enemies": [], "bosses": [], "npcs": [], "safes": [],
 		"signposts": [], "caves": [], "platforms": [], "chasms": [], "vertical": [], "rocks": [], "mesas": [],
 		"buildings": [], "roads": [], "stamps": [], "pads": [], "columns": [], "bridges": [], "start": Vector2i.ZERO,
-		"water": false, "exits": [],
+		"water": false, "exits": [], "props": [], "veg_clear": edits.get("clear", {}), "edits": edits,
 	}
 
 	# --- Районы: центры по положению подлокаций на карте локации
@@ -50,6 +59,7 @@ static func generate_surface(loc_id: String) -> Dictionary:
 		if WorldData.is_underground(n):
 			continue
 		var c := Vector2(30.0 + float(n.pos[0]) * (W - 60), 26.0 + float(n.pos[1]) * (H - 52))
+		c = LocationEdits.pos_of(edits, "region:" + id, c)
 		var r := {"id": id, "name": n.get("name", id), "kind": n.get("kind", "meadow"), "center": c, "radius": 22.0,
 			"elev": 0.0 if n.get("start", false) else rng.randf_range(0.5, 5.0), "features": n.get("features", {}),
 			"dirs": []}
@@ -87,6 +97,7 @@ static func generate_surface(loc_id: String) -> Dictionary:
 		var center: Vector2 = _spot(data, r, rng, 21.0, 25.0, 13.5)
 		center.x = clampf(center.x, RIM + 18, W - RIM - 18)
 		center.y = clampf(center.y, RIM + 18, H - RIM - 18)
+		center = LocationEdits.pos_of(edits, "island:" + r.id, center)
 		var dir: Vector2 = (center - r.center).normalized()
 		var water: bool = r.kind == "riverside"
 		data.chasms.append({"center": center, "r_in": 6.5, "r_out": 13.5, "water": water, "region": r.id,
@@ -102,13 +113,13 @@ static func generate_surface(loc_id: String) -> Dictionary:
 			if un.is_empty() or not WorldData.is_underground(un):
 				continue
 			var want: Vector2 = (Vector2(un.pos[0], un.pos[1]) - Vector2(loc.nodes[r.id].pos[0], loc.nodes[r.id].pos[1])).normalized()
-			var mound: Vector2 = _spot(data, r, rng, 23.0, 27.0, 7.5, want)
+			var mound: Vector2 = LocationEdits.pos_of(edits, "cave:" + r.id + ":" + link, _spot(data, r, rng, 23.0, 27.0, 7.5, want))
 			var dir: Vector2 = (mound - r.center).normalized()
 			mound.x = clampf(mound.x, RIM + 10, W - RIM - 10)
 			mound.y = clampf(mound.y, RIM + 10, H - RIM - 10)
 			data.stamps.append({"kind": "mound", "center": mound, "radius": 7.5, "height": 7.5})
 			var mouth: Vector2 = mound - dir * 7.6
-			var cave := {"to": link, "to_name": un.get("name", link), "to_kind": un.get("kind", "cave"), "region": r.id,
+			var cave := {"to": link, "to_name": un.get("name", link), "to_kind": un.get("kind", "cave"), "region": r.id, "mound": mound,
 				"cell": Vector2i(mouth), "dir": dir, "arrive": Vector2i(mouth - dir * 4.0), "kind": _cave_kind(un.get("kind", "cave")),
 				"sealed": false, "riddle_id": ""}
 			if r.features.get("riddle_gate", false) and not sealed_done:
@@ -129,19 +140,22 @@ static func generate_surface(loc_id: String) -> Dictionary:
 		data.clearings.append({"center": hub, "radius": 10.0, "region": r.id, "side": 0, "id": data.clearings.size()})
 		var kind: String = r.kind
 		# Полуразрушенная башня с винтовой лестницей (часть ступеней обвалилась), наверху сундук
-		var tower_c: Vector2 = _spot(data, r, rng, 11.0, 15.0, 5.0)
+		var tower_c: Vector2 = LocationEdits.pos_of(edits, "tower:" + r.id, _spot(data, r, rng, 11.0, 15.0, 5.0))
 		var steps := 16
 		var missing: Array = []
 		for k in range(3, steps - 2):
 			if rng.randf() < 0.22 and not (k - 1) in missing:
 				missing.append(k)
-		data.vertical.append({"type": "spiral", "center": tower_c, "yaw": rng.randf() * TAU, "height": 7.2,
-			"steps": steps, "missing": missing, "region": r.id})
-		data.pads.append({"center": tower_c, "radius": 5.0})
+		var tower_yaw := rng.randf() * TAU
+		if not LocationEdits.is_removed(edits, "tower:" + r.id):
+			data.vertical.append({"type": "spiral", "center": tower_c, "yaw": tower_yaw, "height": 7.2,
+				"steps": steps, "missing": missing, "region": r.id})
+			data.pads.append({"center": tower_c, "radius": 5.0})
 		# Постройки ориентира
-		var bc: Vector2 = _spot(data, r, rng, 9.0, 12.0, 6.0)
+		var bc: Vector2 = LocationEdits.pos_of(edits, "building:" + r.id, _spot(data, r, rng, 9.0, 12.0, 6.0))
 		var b_dir: Vector2 = (bc - hub).normalized()
-		match kind:
+		var b_kind: String = kind if not LocationEdits.is_removed(edits, "building:" + r.id) else ""
+		match b_kind:
 			"meadow", "riverside":
 				data.buildings.append({"type": "hut", "center": bc, "yaw": atan2(-b_dir.x, -b_dir.y), "region": r.id})
 				data.buildings.append({"type": "fence", "center": bc + b_dir * 5.5, "yaw": atan2(-b_dir.x, -b_dir.y), "region": r.id})
@@ -153,9 +167,11 @@ static func generate_surface(loc_id: String) -> Dictionary:
 				data.buildings.append({"type": "ruins", "center": bc, "yaw": rng.randf() * TAU, "region": r.id})
 				data.pads.append({"center": bc, "radius": 5.0})
 		# Уступы из каменных столбов: запрыгивай выше и выше — на вершине сундук
-		var cc: Vector2 = _spot(data, r, rng, 14.0, 19.0, 5.5)
-		data.columns.append(_column_cluster(cc, rng, r.id))
-		data.pads.append({"center": cc, "radius": 5.5})
+		var cc: Vector2 = LocationEdits.pos_of(edits, "columns:" + r.id, _spot(data, r, rng, 14.0, 19.0, 5.5))
+		var cluster := _column_cluster(cc, rng, r.id)
+		if not LocationEdits.is_removed(edits, "columns:" + r.id):
+			data.columns.append(cluster)
+			data.pads.append({"center": cc, "radius": 5.5})
 
 	# --- Рельеф и проходимость
 	_build_terrain(data, rng)
@@ -203,8 +219,131 @@ static func generate_surface(loc_id: String) -> Dictionary:
 			var bc: Vector2 = island[0].center if not island.is_empty() else r.center + _free_direction(r.dirs, rng) * 17.0
 			var cell := _free_cell(data, {"center": bc, "radius": 3.0}, rng, occupied)
 			data.bosses.append({"id": f.boss, "cell": cell, "area": Rect2i(cell - Vector2i(4, 4), Vector2i(8, 8)), "region": r.id})
+	_roaming_enemies(data, rng, occupied, loc)
+	_apply_entity_edits(data, edits, loc)
 	_cache[key] = data
 	return data
+
+
+## Правки сущностей (после всей генерации, чтобы не сбивать случайную раскладку остального):
+## перемещения, удаления и добавленные вручную сундуки, враги, деревья, камни.
+static func _apply_entity_edits(data: Dictionary, edits: Dictionary, loc: Dictionary) -> void:
+	for sg in data.signposts:
+		var nc := _edit_cell(edits, "sign:" + sg.region, sg.cell)
+		var shift: Vector2i = nc - Vector2i(sg.cell)
+		if shift != Vector2i.ZERO:
+			var was_start: bool = data.start == sg.arrive
+			sg.cell = nc
+			sg.arrive = Vector2i(sg.arrive) + shift
+			if was_start:
+				data.start = sg.arrive
+	for list_key in ["chests", "enemies", "npcs", "safes", "bosses"]:
+		var kept: Array = []
+		for e in data[list_key]:
+			var key := entity_key(list_key, e)
+			if LocationEdits.is_removed(edits, key) and list_key != "bosses":
+				continue
+			var nc := _edit_cell(edits, key, e.cell)
+			var new_id: String = edits.get("objects", {}).get(key, {}).get("id", "")
+			if new_id != "" and list_key == "enemies":
+				e.id = new_id
+			if nc != Vector2i(e.cell):
+				if e.has("area"):
+					var a: Rect2i = e.area
+					e.area = Rect2i(nc - a.size / 2, a.size)
+				e.cell = nc
+			kept.append(e)
+		data[list_key] = kept
+	for i in edits.get("added", []).size():
+		var a: Dictionary = edits.added[i]
+		var key: String = a.get("key", "add:%d" % i)
+		if LocationEdits.is_removed(edits, key):
+			continue
+		var p := LocationEdits.pos_of(edits, key, Vector2(float(a.pos[0]), float(a.pos[1])))
+		var cell := Vector2i(clampi(int(floor(p.x)), 1, W - 2), clampi(int(floor(p.y)), 1, H - 2))
+		var rid := region_at(data, p)
+		var idx := 1000 + int(key.get_slice(":", 1))
+		match String(a.type):
+			"chest":
+				data.chests.append({"cell": cell, "region": rid, "index": idx, "key": key})
+			"enemy":
+				var pool: Array = loc.nodes[rid].get("features", {}).get("pool", ["syntax_error"])
+				var eid: String = a.get("enemy", "")
+				if eid == "":
+					eid = pool[0]
+				data.enemies.append({"id": eid, "cell": cell, "area": Rect2i(cell - Vector2i(5, 5), Vector2i(10, 10)),
+					"region": rid, "index": idx, "key": key})
+			_:
+				data.props.append({"type": a.type, "pos": p, "key": key, "yaw": float(a.get("yaw", float(idx) * 2.4)),
+					"scale": float(a.get("scale", 1.0))})
+
+
+static func _edit_cell(edits: Dictionary, key: String, cell: Vector2i) -> Vector2i:
+	var p := LocationEdits.pos_of(edits, key, Vector2(cell) + Vector2(0.5, 0.5))
+	return Vector2i(clampi(int(floor(p.x)), 1, W - 2), clampi(int(floor(p.y)), 1, H - 2))
+
+
+## Ключ сущности в правках редактора.
+static func entity_key(list_key: String, e: Dictionary) -> String:
+	if e.has("key"):
+		return e.key
+	match list_key:
+		"chests":
+			return "chest:%s:%d" % [e.region, int(e.index)]
+		"enemies":
+			return "enemy:%s:%d" % [e.region, int(e.index)]
+		"npcs":
+			return "npc:%s:%s" % [e.region, e.id]
+		"safes":
+			return "safe:%s" % e.region
+		"bosses":
+			return "boss:%s" % e.region
+	return ""
+
+
+## Бродячие враги по всей долине: между районами не должно быть пустых территорий.
+## Сетка с шагом ROAM_STEP, точка — на проходимой клетке не ближе ROAM_GAP к другим врагам и не у старта;
+## враг принадлежит ближайшему району (его пул и счёт побед), изредка — парой.
+const ROAM_STEP := 20.0
+const ROAM_GAP := 13.0
+
+
+static func _roaming_enemies(data: Dictionary, rng: RandomNumberGenerator, occupied: Dictionary, loc: Dictionary) -> void:
+	var by_region := {}
+	for e in data.enemies:
+		by_region[e.region] = maxi(by_region.get(e.region, 0), int(e.index) + 1)
+	var start := Vector2(data.start)
+	var y := RIM + ROAM_STEP * 0.5
+	while y < H - RIM:
+		var x := RIM + ROAM_STEP * 0.5
+		while x < W - RIM:
+			var p := Vector2(x, y) + Vector2(rng.randf_range(-6, 6), rng.randf_range(-6, 6))
+			x += ROAM_STEP
+			if p.distance_to(start) < 16.0:
+				continue
+			var cell := _free_cell(data, {"center": p, "radius": 5.0}, rng, occupied)
+			if data.grid[cell.y * W + cell.x] == BLOCK or data.grid[cell.y * W + cell.x] == CHASM:
+				continue
+			var near := false
+			for e in data.enemies:
+				if Vector2(cell).distance_to(Vector2(e.cell)) < ROAM_GAP:
+					near = true
+					break
+			for sg in data.signposts:
+				if Vector2(cell).distance_to(Vector2(sg.cell)) < 7.0:
+					near = true
+			if near:
+				continue
+			var rid := region_at(data, Vector2(cell))
+			var pool: Array = loc.nodes[rid].get("features", {}).get("pool", ["syntax_error"])
+			var pack := 2 if rng.randf() < 0.3 else 1
+			for k in pack:
+				var c := cell if k == 0 else _free_cell(data, {"center": Vector2(cell), "radius": 2.5}, rng, occupied, 1.5)
+				var idx: int = by_region.get(rid, 0)
+				by_region[rid] = idx + 1
+				data.enemies.append({"id": pool[rng.randi() % pool.size()], "cell": c,
+					"area": Rect2i(c - Vector2i(6, 6), Vector2i(12, 12)), "region": rid, "index": idx, "roaming": true})
+		y += ROAM_STEP
 
 
 ## Скопление каменных столбов: путь из столбов, каждый выше предыдущего на ~0.9 м (прыжок поднимает
@@ -370,6 +509,14 @@ static func _build_terrain(data: Dictionary, rng: RandomNumberGenerator) -> void
 	# Острова: провал/озеро кольцом, остров и берег — на уровне района
 	for ch in data.chasms:
 		_flatten(hv, vw, vh, ch.center, ch.r_out + 3.0, float(ch.level))
+	# Ручные правки рельефа (кисти редактора): сдвиг высоты вершин
+	var tedits: Dictionary = data.edits.get("terrain", {})
+	for k in tedits:
+		var xz: PackedStringArray = String(k).split(",")
+		var vx := int(xz[0]) + MARGIN
+		var vz := int(xz[1]) + MARGIN
+		if vx >= 0 and vz >= 0 and vx < vw and vz < vh:
+			hv[vz * vw + vx] += float(tedits[k])
 	# Проходимость: уклон клетки
 	var grid := PackedByteArray()
 	grid.resize(W * H)

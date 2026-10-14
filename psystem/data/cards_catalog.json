@@ -524,8 +524,8 @@
 			"id": "leading_lines",
 			"name": "Leading Lines",
 			"type": "spell",
-			"rarity": "common",
-			"crystal_cost": 1,
+			"rarity": "rare",
+			"crystal_cost": 3,
 			"description": "Следующая атака оружием в этом ходу не тратит выносливость.",
 			"effect": {
 				"free_weapon_attack": 1
@@ -1378,6 +1378,23 @@
 			"description_en": "Deal 3 damage."
 		},
 		{
+			"id": "keep_alive",
+			"name": "Keep-Alive",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"stamina": 3
+			},
+			"flavor_text": "Соединение не рвётся",
+			"flavor_text_en": "The connection stays open",
+			"from_specialization": "python_backend",
+			"art_color": "#82E0AA",
+			"icon": "heart-plus",
+			"description": "Восстанавливает 3 выносливости.",
+			"description_en": "Restore 3 stamina."
+		},
+		{
 			"id": "health_check",
 			"name": "Health Check",
 			"type": "spell",
@@ -1599,8 +1616,8 @@
 			"id": "jwt_token",
 			"name": "JWT Token",
 			"type": "spell",
-			"rarity": "uncommon",
-			"crystal_cost": 2,
+			"rarity": "rare",
+			"crystal_cost": 5,
 			"effect": {
 				"free_weapon_attack": 2
 			},
@@ -2147,8 +2164,8 @@
 			"id": "line_of_sight",
 			"name": "Line of Sight",
 			"type": "spell",
-			"rarity": "common",
-			"crystal_cost": 1,
+			"rarity": "rare",
+			"crystal_cost": 4,
 			"effect": {
 				"free_weapon_attack": 1,
 				"draw": 1
@@ -2223,8 +2240,8 @@
 			"id": "jump_pad",
 			"name": "Jump Pad",
 			"type": "spell",
-			"rarity": "common",
-			"crystal_cost": 2,
+			"rarity": "rare",
+			"crystal_cost": 5,
 			"effect": {
 				"free_weapon_attack": 2
 			},
@@ -2235,6 +2252,23 @@
 			"icon": "jump-across",
 			"description": "Делает 2 атаки оружием бесплатными.",
 			"description_en": "Make your next 2 weapon attacks free."
+		},
+		{
+			"id": "safe_room",
+			"name": "Safe Room",
+			"type": "spell",
+			"rarity": "common",
+			"crystal_cost": 1,
+			"effect": {
+				"stamina": 3
+			},
+			"flavor_text": "Передышка перед боссом",
+			"flavor_text_en": "A breather before the boss",
+			"from_specialization": "level_designer",
+			"art_color": "#F5CBA7",
+			"icon": "campfire",
+			"description": "Восстанавливает 3 выносливости.",
+			"description_en": "Restore 3 stamina."
 		},
 		{
 			"id": "moving_platform",

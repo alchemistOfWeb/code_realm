@@ -16,6 +16,8 @@ const QUALITY_NAMES := {"low": "Низкое (для слабых ноутбук
 
 
 static func quality() -> Dictionary:
+	if Engine.is_editor_hint():
+		return QUALITY.medium   # редактор Godot (плагин редактора локаций): автозагрузок там нет
 	var key: String = Settings.get_value("graphics")
 	if key == "auto":
 		key = auto_quality()

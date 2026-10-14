@@ -116,7 +116,10 @@ func setup(params: Dictionary) -> void:
 	SaveSystem.save_all()
 	var music: int = WorldData.location(location_id).get("music", 0)
 	Audio.push_music(Audio.MUSIC[clampi(music, 0, Audio.MUSIC.size() - 1)].stream)
-	if WorldData.is_underground(WorldData.node(location_id, start_id)):
+	if params.has("spawn"):
+		# Из редактора локаций: «Играть отсюда»
+		_load_surface(params.spawn)
+	elif WorldData.is_underground(WorldData.node(location_id, start_id)):
 		_load_node(start_id, _entry_for(start_id))
 	else:
 		var sp := _signpost_of(start_id)

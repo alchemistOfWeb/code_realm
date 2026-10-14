@@ -13,6 +13,7 @@ const LOSE_RANGE := 12.0
 const PATROL_SPEED := 1.4
 const CHASE_SPEED := 3.3
 const CONTACT_DIST := 1.1
+const DORMANT_RANGE := 48.0    # дальше — враг «спит»: не двигается, не анимируется, не рисуется
 
 var enemy_data: Dictionary = {}
 var index := 0                 # номер врага на уровне (для сохранения побед)
@@ -34,6 +35,7 @@ var _repath := 0.0
 var _alert_t := 0.0
 var _alert_label: Label3D
 var _y := 0.0
+var _dormant := false
 
 
 func setup(data: Dictionary, pos: Vector3, patrol_area: Rect2i, grid_astar: AStarGrid2D, player_node: Node3D) -> void:
@@ -102,6 +104,16 @@ func _physics_process(delta: float) -> void:
 	if state == State.FROZEN or player == null or not is_instance_valid(player):
 		return
 	var dist := global_position.distance_to(player.global_position)
+	if state == State.PATROL and dist > DORMANT_RANGE:
+		if not _dormant:
+			_dormant = true
+			visible = false
+			_rig.process_mode = Node.PROCESS_MODE_DISABLED
+		return
+	if _dormant:
+		_dormant = false
+		visible = true
+		_rig.process_mode = Node.PROCESS_MODE_INHERIT
 	match state:
 		State.PATROL:
 			if dist < VISION_RANGE * (1.3 if is_boss else 1.0) and _sees_player():

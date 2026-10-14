@@ -6,7 +6,7 @@
 Репозиторий: https://github.com/alchemistOfWeb/code_realm (ветка main).
 
 **В начале каждой сессии:** прочитай `psystem/NOTES_FOR_CLAUDE.md` (правки пользователя из игры).
-**После изменений:** запусти smoke-тест (`tools/SmokeTest.tscn`, сейчас 133 проверки); после правок ThemeFactory —
+**После изменений:** запусти smoke-тест (`tools/SmokeTest.tscn`, сейчас 184 проверки); после правок ThemeFactory —
 перегенерируй тему; после новых строк интерфейса — `python tools/i18n/extract.py` и переведи пустые ключи `locale/en.json`
 (команды в `psystem/README.md`).
 Godot: `C:\Users\user\games\godot\Godot_v4.6.3-stable_win64_console.exe`. Редактор обычно открыт — после правок
@@ -134,6 +134,28 @@ Godot: `C:\Users\user\games\godot\Godot_v4.6.3-stable_win64_console.exe`. Ред
      расстоянию до кольца.
   5. `--climbtest` проходит все маршруты (башни, столбы, мосты) настоящим вводом; визуальные и физические проверки
      запускаются в фоне (окно за пределами экрана: `--position -30000,-30000`), логика — `--headless`.
+- **Итерация 11 — ГОТОВА (контент, карты, редактор локаций):**
+  1. Тесты — только из авторских вопросов (`QuizGenerator`: `questions_of`, `needs_more`, `MIN_PER_NODE` = 3);
+     автогенерация (пропуски, «какое описание подходит», «на какой вопрос это ответ») удалена. ~980 вопросов по
+     тексту уроков во всех 6 деревьях; `tools/QuizReport.tscn` показывает темы, где мало вопросов; smoke проверяет,
+     что ни один вопрос не потерян парсером.
+  2. «AI/LLM Engineer» переписан в полноценный курс (18 разделов: LLM, трансформер, эмбеддинги, RAG, промпты, агенты,
+     fine-tuning, evals, продакшн, безопасность, классический ML, Python, фреймворки, системный дизайн…); узлы-служебки
+     («как читать этот файл», рынок/зарплаты/«вывод для…») убраны, вторая часть Game Designer — «Карьера геймдизайнера».
+  3. Бой: в начале хода — ровно одна карта (`XPCalculator.CARDS_PER_TURN`). Улучшение карт слиянием:
+     `GameManager.card_levels`, `card_copies`, `merge_block_reason`, `merge_cards`, `combat_deck_entries`;
+     `CardDatabase.leveled(card, level)` (`LEVEL_KEYS`, `level_value` = +50% за уровень, описание с новыми числами),
+     уровень ≤ уровня героя, стоимость прежняя; окно карты в коллекции — «Объединить»; бейдж «Ур. N» на карте.
+     Эффект карт `stamina`; бесплатные атаки оружием — rare от 3 кристаллов; новые карты Safe Room, Keep-Alive.
+  4. Продажа: `sell_item(id, source)` (инвентарь/склад), зона «Продать» на вкладке «Снаряжение», лавка продаёт и со склада.
+  5. Бродячие враги по всей долине (`OutdoorGenerator._roaming_enemies`, шаг 20 м); дальние враги «спят»
+     (`SortieEnemy.DORMANT_RANGE`).
+  6. Редактор локаций в Godot: плагин `addons/location_editor` (док «Локации», `LocationEditRoot`, `LocationMarker`,
+     `LocationDataFile`), сцены `editor_locations/<loc>.tscn`; правки — `data/location_edits/<loc>.json`
+     (`scripts/world/LocationEdits.gd`), генератор применяет их (`pos_of`, `is_removed`, `_apply_entity_edits`,
+     `terrain`, `clear`, `props`); кисти рельефа и растительности, создание локации по шаблону, «Играть отсюда»
+     (dev-аргумент `--spawn=x,z`). `WorldStyle.quality()` в редакторе — без автозагрузок.
+  7. Фоновые проверки: `--audio-driver Dummy`, окно за экраном, по одному окну.
 - **Идеи на потом:** реализовать ещё локации (данные уже есть на карте), дома из модулей Medieval Village, 3D-иконки
   предметов (рендер моделей оружия), больше NPC и квестов между вылазками, перевод контента уроков.
 
@@ -179,7 +201,8 @@ settings | test:<spec> | reward:<spec> | lootbox | combat:<enemy> [--auto=N] [--
 - **ItemDatabase** — `data/items.json` (47 предметов): слоты `SLOTS`, категории лавки, `STAT_NAMES`, `STARTER`,
   `get_item/all_items/shop_items/fits/sell_price/icon/tier_color/stat_lines`.
 - **CardDatabase** — каталоги карт/врагов, перечитываются при смене языка (поля `*_en`).
-- Остальные (QuizGenerator, MarkdownBBCode, ThemeFactory, Palette, PythonRunner, ClaudeNotesExporter) — как раньше.
+- **QuizGenerator** — тесты только из авторских вопросов `<!-- quiz: … -->` (`for_node`, `for_tree`, `questions_of`, `needs_more`).
+- Остальные (MarkdownBBCode, ThemeFactory, Palette, PythonRunner, ClaudeNotesExporter) — как раньше.
   QuizGenerator и ContentParser намеренно не локализуются (контент уроков — на русском).
 
 ### Персонажи (`scripts/characters/`)
@@ -195,6 +218,11 @@ settings | test:<spec> | reward:<spec> | lootbox | combat:<enemy> [--auto=N] [--
 - `scripts/dungeon/CharacterRig.gd` — tint/first_mesh для моделей Kenney.
 
 ### Мир (`scripts/world/`)
+- **LocationEdits** — ручные правки поверхности (`data/location_edits/<loc>.json`): объекты, добавления, рельеф,
+  расчистка растительности; `load_edits/save_edits/invalidate/pos_of/is_removed/set_pos/set_removed`.
+- **Плагин `addons/location_editor`** — редактор локаций в Godot: `plugin.gd` (док, кисти во вьюпорте, Ctrl+S,
+  «Играть отсюда», новая локация), `location_edit_root.gd` (сцена: рельеф кусками, маркеры, сохранение правок),
+  `location_marker.gd` (объект + свойства района), `location_data.gd` (запись locations.json / world_map.json).
 - **WorldData** — карта мира и графы локаций (`location`, `node`, `start_node`, `NODE_KINDS`, `BIOMES`), прогресс в
   `GameManager.world.locations[loc].nodes[node]` {visited, exits, chests, kills, total_*, boss}: `node_status`,
   `is_open`, `node_progress` (15% посещение + 20% открытая карта + 25% проходы + 20% сундуки + 20% победы), `location_progress`,
@@ -252,7 +280,8 @@ settings | test:<spec> | reward:<spec> | lootbox | combat:<enemy> [--auto=N] [--
 - `locale/en.json` — ~1030 строк (интерфейс, диалоги, загадки, сейфы, описания старых карт/врагов).
 
 ### Инструменты (`tools/`)
-- `SmokeTest.tscn` (133 проверки, профили/предметы/мир/вылазка/падение/локализация; не трогает реальные профили),
+- `SmokeTest.tscn` (184 проверки, профили/предметы/мир/вылазка/падение/локализация/карты/редактор локаций; не трогает
+  реальные профили и данные), `QuizReport.tscn` (вопросы по деревьям, темы с нехваткой вопросов),
   `ModelViewer.tscn` (`--model=` / `--hero=male --race=elf --weapon=Sword --anim=Idle --shot=`), `QuizReport.tscn`,
   `build_theme.gd`, `content_report.gd`.
 - `gen_world_map.py`, `gen_cards.py`, `i18n/wrap.py` (обёртка русских литералов в Loc.t), `i18n/extract.py`

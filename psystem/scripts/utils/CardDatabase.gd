@@ -37,6 +37,70 @@ static func get_card(card_id: String) -> Dictionary:
 	return _cards_by_id.get(card_id, {})
 
 
+## Числовые эффекты, которые растут с уровнем карты (стоимость не меняется).
+const LEVEL_KEYS := ["damage", "damage_all", "damage_split", "damage_per_creature", "heal", "shield", "buff_attack",
+	"execute_below", "passive_damage", "passive_heal", "passive_shield", "stamina"]
+
+
+## Значение характеристики на уровне level: +50% за каждый уровень сверх первого (минимум +1).
+static func level_value(v: int, level: int) -> int:
+	if level <= 1 or v <= 0:
+		return v
+	return v + maxi(level - 1, ceili((level - 1) * v * 0.5))
+
+
+## Карта на заданном уровне: усиленные эффекты, атака/защита существа, описание с новыми числами.
+static func leveled(card: Dictionary, level: int) -> Dictionary:
+	var c := card.duplicate(true)
+	c["level"] = maxi(level, 1)
+	if level <= 1 or card.is_empty():
+		return c
+	var e: Dictionary = c.get("effect", {})
+	var mapping := {}            # старое число → новое (для текста описания)
+	var fixed := {}              # числа, которые не меняются (добор, ходы и т.п.)
+	for key in e:
+		var v = e[key]
+		if key in LEVEL_KEYS and (v is int or v is float):
+			e[key] = level_value(int(v), level)
+			mapping[int(v)] = e[key]
+		elif key == "damage_random" and v is Array and v.size() == 2:
+			e[key] = [level_value(int(v[0]), level), level_value(int(v[1]), level)]
+			mapping[int(v[0])] = e[key][0]
+			mapping[int(v[1])] = e[key][1]
+		elif v is int or v is float:
+			fixed[int(v)] = true
+	if c.get("type", "") == "creature":
+		c["attack"] = level_value(int(c.get("attack", 0)), level)
+		c["defense"] = level_value(int(c.get("defense", 0)), level)
+	c["description"] = _relevel_text(String(c.get("description", "")), mapping, fixed)
+	return c
+
+
+## Подмена чисел в описании за один проход (2→3 и 3→5 не наслаиваются). Если число неоднозначно
+## (такое же есть у неизменяемого эффекта) — к описанию добавляется строка с изменениями.
+static func _relevel_text(text: String, mapping: Dictionary, fixed: Dictionary) -> String:
+	if mapping.is_empty():
+		return text
+	var ambiguous := false
+	for v in mapping:
+		if fixed.has(v):
+			ambiguous = true
+	if ambiguous:
+		var parts: PackedStringArray = []
+		for v in mapping:
+			parts.append("%d→%d" % [v, mapping[v]])
+		return text + " " + Loc.t("(усилено: %s)") % ", ".join(parts)
+	var re := RegEx.create_from_string("\\d+")
+	var out := ""
+	var last := 0
+	for m in re.search_all(text):
+		out += text.substr(last, m.get_start() - last)
+		var n := int(m.get_string())
+		out += str(mapping[n]) if mapping.has(n) else m.get_string()
+		last = m.get_end()
+	return out + text.substr(last)
+
+
 static func cards_for_spec(spec_id: String) -> Array:
 	return all_cards().filter(func(c): return c.get("from_specialization", "") == spec_id)
 

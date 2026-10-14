@@ -172,6 +172,21 @@ func _build_front() -> void:
 		flavor.add_theme_font_override("font", Palette.italic_font())
 		_front.add_child(flavor)
 
+	# Уровень (улучшение слиянием копий)
+	var level := int(card.get("level", 1))
+	if level > 1:
+		var lv := Panel.new()
+		lv.position = Vector2(140, 48)
+		lv.size = Vector2(44, 22)
+		lv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		lv.add_theme_stylebox_override("panel", Palette.box(Color("#3A2A05", 0.92), Color("#FFD24A"), 1, 8))
+		_front.add_child(lv)
+		var lvl := _label(Loc.t("Ур. %d") % level, lv.position, lv.size, 12, Color("#FFE08A"), Palette.FONT_UI_BOLD)
+		lvl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lvl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lvl.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		_front.add_child(lvl)
+
 	# Количество
 	if count > 1:
 		var badge := Panel.new()

@@ -7,10 +7,7 @@ extends Control
 signal completed(passed: bool)
 
 const LETTERS := ["A", "B", "C", "D", "E", "F"]
-const KIND_NAMES := {
-	"authored": "Вопрос", "fill_gap": "Заполни пропуск", "answer_hint": "Вопрос собеседования",
-	"parent": "Структура темы", "member": "Структура темы", "true_false": "Верно или нет",
-}
+const KIND_NAMES := {"authored": "Вопрос"}
 
 @onready var subtitle: Label = %Subtitle
 @onready var title_label: Label = %Title

@@ -56,7 +56,7 @@ func setup(params: Dictionary) -> void:
 	if context == "training":
 		stats.hp = stats.max_hp
 	stats.hp = maxi(1, stats.hp)
-	var deck: Array = params.get("deck", GameManager.combat_deck)
+	var deck: Array = params.get("deck", GameManager.combat_deck_entries())
 	state = CombatState.new()
 	state.start(enemy_data, deck, stats)
 	_build()

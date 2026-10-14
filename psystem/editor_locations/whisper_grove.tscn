@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/location_editor/location_edit_root.gd" id="1"]
+
+[node name="Location_whisper_grove" type="Node3D"]
+script = ExtResource("1")
+location_id = "whisper_grove"

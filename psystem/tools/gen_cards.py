@@ -62,6 +62,8 @@ def describe(card):
         n = e["shield"]; act_ru.append(f"даёт +{n} щита"); act_en.append(f"gain {n} shield")
     if "heal" in e:
         n = e["heal"]; act_ru.append(f"восстанавливает {n} HP"); act_en.append(f"restore {n} HP")
+    if "stamina" in e:
+        n = e["stamina"]; act_ru.append(f"восстанавливает {n} выносливости"); act_en.append(f"restore {n} stamina")
     if "buff_attack" in e:
         n = e["buff_attack"]; act_ru.append(f"даёт твоему существу +{n} к атаке на этот ход"); act_en.append(f"give a friendly creature +{n} attack this turn")
     if "set_all_attack" in e:
@@ -188,6 +190,7 @@ SPECS = {
     "python_backend": ("#2ECC71", [
         ("get_request", "GET Request", "spell", "common", 1, {"damage": 2}, 0, 0, "arrow-cluster", "#28B463", "200 OK — урон доставлен", "200 OK: damage delivered"),
         ("post_request", "POST Request", "spell", "common", 2, {"damage": 3}, 0, 0, "envelope", "#239B56", "201 Created", "201 Created"),
+        ("keep_alive", "Keep-Alive", "spell", "common", 1, {"stamina": 3}, 0, 0, "heart-plus", "#82E0AA", "Соединение не рвётся", "The connection stays open"),
         ("health_check", "Health Check", "spell", "common", 1, {"heal": 3}, 0, 0, "heart-beats", "#58D68D", "/healthz → 200", "/healthz → 200"),
         ("cron_job", "Cron Job", "artifact", "common", 2, {"passive_damage": 1}, 0, 0, "alarm-clock", "#1D8348", "*/1 * * * * ударить()", "*/1 * * * * strike()"),
         ("db_index", "Database Index", "spell", "common", 2, {"draw": 1, "shield": 2}, 0, 0, "bookmark", "#2ECC71", "Seq Scan побеждён", "Seq Scan defeated"),
@@ -200,7 +203,7 @@ SPECS = {
         ("orm_model", "ORM", "creature", "uncommon", 3, {"taunt": True, "draw": 1}, 2, 4, "linked-rings", "#16A085", "SELECT * FROM heroes", "SELECT * FROM heroes"),
         ("cdn_edge", "CDN", "spell", "uncommon", 3, {"damage_split": 5}, 0, 0, "world", "#48C9B0", "Ближе к каждому врагу", "Closer to every enemy"),
         ("celery_task", "Celery Task", "creature", "uncommon", 2, {"summon_copies": {"count": 1, "attack": 1, "defense": 1}}, 1, 1, "carrot", "#58D68D", ".delay() и забыть", ".delay() and forget"),
-        ("jwt_token", "JWT Token", "spell", "uncommon", 2, {"free_weapon_attack": 2}, 0, 0, "key", "#17A589", "Пропуск подписан", "The pass is signed"),
+        ("jwt_token", "JWT Token", "spell", "rare", 5, {"free_weapon_attack": 2}, 0, 0, "key", "#17A589", "Пропуск подписан", "The pass is signed"),
         ("db_shard", "Database Shard", "creature", "rare", 4, {"summon_copies": {"count": 2, "attack": 1, "defense": 2}}, 3, 3, "broken-shield", "#117A65", "Часть целого, но целое", "Part of a whole, yet whole"),
         ("idempotency_key", "Idempotency Key", "spell", "rare", 4, {"shield": 8}, 0, 0, "key-lock", "#0E6655", "Повтор не навредит", "A retry won't hurt"),
         ("graphql", "GraphQL", "spell", "rare", 4, {"draw": 2, "next_free": True}, 0, 0, "molecule", "#E91E63", "Ровно то, что запросил", "Exactly what you asked for"),
@@ -234,11 +237,12 @@ SPECS = {
         ("cover_point", "Cover Point", "creature", "common", 2, {"taunt": True}, 1, 4, "brick-wall", "#B7950B", "Пригнись и перезаряжайся", "Duck and reload"),
         ("gated_door", "Gated Door", "spell", "common", 2, {"limit_enemy_attacks": 1}, 0, 0, "locked-door", "#9A7D0A", "Сначала найди ключ", "Find the key first"),
         ("health_pack", "Health Pack", "spell", "common", 1, {"heal": 4}, 0, 0, "medical-pack", "#F4D03F", "Всегда за углом перед боссом", "Always around the corner before a boss"),
-        ("line_of_sight", "Line of Sight", "spell", "common", 1, {"free_weapon_attack": 1, "draw": 1}, 0, 0, "eye-target", "#F1C40F", "Вижу цель", "Target in sight"),
+        ("line_of_sight", "Line of Sight", "spell", "rare", 4, {"free_weapon_attack": 1, "draw": 1}, 0, 0, "eye-target", "#F1C40F", "Вижу цель", "Target in sight"),
         ("spawn_point", "Spawn Point", "creature", "common", 2, {"summon_copies": {"count": 1, "attack": 1, "defense": 1}}, 1, 1, "portal", "#D4AC0D", "Появляются отсюда", "They spawn here"),
         ("signpost", "Signpost", "spell", "common", 1, {"next_spell_discount": 2}, 0, 0, "wooden-sign", "#B7950B", "→ К боссу", "→ To the boss"),
         ("ladder", "Ladder", "spell", "common", 2, {"shield": 3, "draw": 1}, 0, 0, "ladder", "#9A7D0A", "Наверху безопаснее", "Safer up high"),
-        ("jump_pad", "Jump Pad", "spell", "common", 2, {"free_weapon_attack": 2}, 0, 0, "jump-across", "#F7DC6F", "Боинг!", "Boing!"),
+        ("jump_pad", "Jump Pad", "spell", "rare", 5, {"free_weapon_attack": 2}, 0, 0, "jump-across", "#F7DC6F", "Боинг!", "Boing!"),
+        ("safe_room", "Safe Room", "spell", "common", 1, {"stamina": 3}, 0, 0, "campfire", "#F5CBA7", "Передышка перед боссом", "A breather before the boss"),
         ("moving_platform", "Moving Platform", "creature", "uncommon", 3, {"divine_shield": True}, 2, 3, "floating-platforms", "#D4AC0D", "Прыгай по таймингу", "Jump on the beat"),
         ("kill_zone", "Kill Zone", "spell", "uncommon", 3, {"damage_all": 2}, 0, 0, "target-arrows", "#B9770E", "Все дороги ведут сюда", "Every path leads here"),
         ("vista", "Vista", "artifact", "uncommon", 3, {"reveal_enemy_hand": True, "passive_draw": 1, "every": 3}, 0, 0, "mountain-cave", "#F4D03F", "Вид на всю карту", "A view of the whole map"),

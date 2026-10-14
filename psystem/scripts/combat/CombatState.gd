@@ -74,10 +74,13 @@ func start(enemy_info: Dictionary, deck_ids: Array, player_stats: Dictionary) ->
 	damage_bonus = int(player_stats.get("damage_bonus", 0))
 	dodge_bonus = int(player_stats.get("dodge_bonus", 0))
 	player.shield = int(player_stats.get("armor", 0))
-	for id in deck_ids:
+	# Элемент колоды — id карты или {id, level} (улучшенная слиянием копия)
+	for entry in deck_ids:
+		var id: String = entry.id if entry is Dictionary else String(entry)
+		var level: int = int(entry.get("level", 1)) if entry is Dictionary else 1
 		var c := CardDatabase.get_card(id)
 		if not c.is_empty():
-			player.deck.append(c.duplicate(true))
+			player.deck.append(CardDatabase.leveled(c, level))
 	player.deck.shuffle()
 
 	enemy.is_player = false
@@ -347,9 +350,7 @@ func _start_turn(side: Fighter) -> void:
 			_damage_hero(other, e.passive_damage, false)
 	if side.is_player:
 		side.stamina = mini(side.stamina + XPCalculator.STAMINA_REGEN, side.max_stamina)
-		var need: int = XPCalculator.HAND_TARGET - side.hand.size()
-		if need > 0:
-			_draw(side, need)
+		_draw(side, XPCalculator.CARDS_PER_TURN)
 		_push("turn", {"side": "player", "turn": turn})
 		_log(Loc.t("— Твой ход %d —") % turn)
 	else:
@@ -582,6 +583,10 @@ func _apply_effect(side: Fighter, other: Fighter, card: Dictionary, target: Dict
 		_push("shield", {"target": _hero_ref(side), "amount": e.shield})
 	if e.has("heal"):
 		_heal(side, e.heal)
+	if e.has("stamina"):
+		var before := side.stamina
+		side.stamina = mini(side.stamina + int(e.stamina), side.max_stamina)
+		_log(Loc.t("Выносливость +%d") % (side.stamina - before))
 	if e.has("self_damage"):
 		_damage_hero(side, e.self_damage, true)
 	if e.has("buff_attack"):
@@ -679,7 +684,7 @@ func _summon(side: Fighter, card: Dictionary, as_token: bool = false) -> Diction
 		# Эффекты существ «при розыгрыше»
 		var on_play := {}
 		for key in ["isolate_enemy", "heal", "max_crystal_bonus", "draw", "shield", "damage_all", "damage_split",
-				"stun_enemy", "free_weapon_attack", "self_damage", "next_spell_discount"]:
+				"stun_enemy", "free_weapon_attack", "self_damage", "next_spell_discount", "stamina"]:
 			if e.has(key):
 				on_play[key] = e[key]
 		if not on_play.is_empty():

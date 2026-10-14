@@ -608,8 +608,13 @@ func _apply_dev_args(args: Dictionary) -> void:
 			"sortie":
 				GameManager.grant_starter_pack()
 				var bits: PackedStringArray = (parts[1] if parts.size() > 1 else "whisper_grove:edge").split(":")
-				EventBus.go("sortie", {"free": true, "location_id": bits[0], "node_id": bits[1] if bits.size() > 1 else "",
-					"seed": bits[2].to_int() if bits.size() > 2 else 7})
+				var sp := {"free": true, "location_id": bits[0], "node_id": bits[1] if bits.size() > 1 else "",
+					"seed": bits[2].to_int() if bits.size() > 2 else 7}
+				if args.has("spawn"):
+					# Из редактора локаций Godot: «Играть отсюда» (--spawn=x,z — клетка поверхности)
+					var xz: PackedStringArray = String(args.spawn).split(",")
+					sp["spawn"] = Vector2i(xz[0].to_int(), xz[1].to_int())
+				EventBus.go("sortie", sp)
 				if args.has("peaceful"):
 					await get_tree().create_timer(0.5).timeout
 					for e in _stack[-1]._enemies:

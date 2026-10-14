@@ -213,6 +213,7 @@ func save_all() -> void:
 	_save_json(CARDS_FILE, {
 		"save_version": SAVE_VERSION,
 		"collection": GameManager.card_collection,
+		"levels": GameManager.card_levels,
 		"deck": GameManager.combat_deck,
 	})
 	if profile_id != "":
@@ -241,6 +242,7 @@ func load_all() -> void:
 
 	var cards: Dictionary = _load_json(CARDS_FILE)
 	GameManager.card_collection = cards.get("collection", {})
+	GameManager.card_levels = cards.get("levels", {})
 	GameManager.combat_deck = cards.get("deck", [])
 
 	var world: Dictionary = _load_json(WORLD_FILE)

@@ -162,11 +162,15 @@ func _show_category(cat: String) -> void:
 		c.queue_free()
 	var items: Array = []
 	if _selling:
-		for id in GameManager.player_data.inventory:
-			items.append(ItemDatabase.get_item(id))
+		# Продаются вещи из инвентаря и со склада базы (надетые — сначала снять или перетащить в зону «Продать»)
+		for source in ["inventory", "stash"]:
+			for id in GameManager.player_data.get(source, []):
+				var sit := ItemDatabase.get_item(id).duplicate()
+				sit["_source"] = source
+				items.append(sit)
 		if items.is_empty():
 			var empty := Label.new()
-			empty.text = Loc.t("В инвентаре нечего продать. Надетые вещи сначала сними во вкладке «Снаряжение».")
+			empty.text = Loc.t("В инвентаре и на складе нечего продать. Надетое можно продать во вкладке «Снаряжение»: перетащи вещь в зону «Продать».")
 			empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			empty.custom_minimum_size.x = 360
 			empty.theme_type_variation = &"DimLabel"
@@ -218,7 +222,7 @@ func _select(it: Dictionary) -> void:
 		sell.text = Loc.t("Продать за %d") % ItemDatabase.sell_price(it)
 		sell.theme_type_variation = &"AccentButton"
 		sell.pressed.connect(func():
-			var gold := GameManager.sell_item(it.id)
+			var gold := GameManager.sell_item(it.id, it.get("_source", "inventory"))
 			if gold > 0:
 				Audio.play("coins")
 				EventBus.notify(Loc.t("Продано: %s (+%d золота)") % [it.name, gold], "success")
