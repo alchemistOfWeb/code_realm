@@ -118,8 +118,8 @@ static func xp_to_next(level: int) -> int:
 	return 10 + 5 * level * (level + 1)
 
 
-## Расход выносливости атакой оружием: базовый для вида оружия (меч, в т. ч. ржавый, — 8; остальное
-## оружие — относительно него) + у тяжёлых (от 6 кг) +2.
+## Расход выносливости атакой оружием: stamina_cost предмета (тяжёлое двуручное — до 15), иначе базовый
+## для вида оружия (меч, в т. ч. ржавый, — 8; остальное — относительно него) + у тяжёлых (от 6 кг) +2.
 static func weapon_item_cost(item: Dictionary) -> int:
 	var w: Dictionary = WEAPONS.get(item.get("weapon_type", ""), WEAPONS.fists)
 	return int(item.get("stamina_cost", int(w.cost) + (2 if float(item.get("weight", 1.0)) >= 6.0 else 0)))

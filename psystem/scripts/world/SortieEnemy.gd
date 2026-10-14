@@ -22,6 +22,10 @@ var area: Rect2i
 var astar: AStarGrid2D
 var player: Node3D
 var is_boss := false
+## Район поверхности / подлокация, к которой относится враг (победы сохраняются по ней).
+var region := ""
+## Высота земли (x, z) → y: на поверхности враг идёт по рельефу.
+var ground_height: Callable
 
 var _rig: MonsterRig
 var _target: Vector3
@@ -221,7 +225,10 @@ func _move_toward(point: Vector3, speed: float) -> void:
 	if astar.is_in_boundsv(cell) and astar.is_point_solid(cell):
 		_rig.play("idle")
 		return
-	global_position = Vector3(next.x, _y, next.z)
+	var gy := _y
+	if ground_height.is_valid():
+		gy = ground_height.call(next.x, next.z)
+	global_position = Vector3(next.x, gy, next.z)
 	_face(global_position + dir)
 	_rig.play("move")
 

@@ -83,6 +83,11 @@ static func sell_price(item: Dictionary) -> int:
 	return maxi(1, int(item.get("price", 0) * SELL_RATIO)) if item.get("price", 0) > 0 else 1
 
 
+## Двуручное оружие (луки, клеймор, двойной топор, боевой молот, копьё, коса) занимает обе руки.
+static func is_two_handed(item: Dictionary) -> bool:
+	return item.get("two_handed", false)
+
+
 ## Может ли предмет занять слот (кинжал можно взять во вторую руку).
 static func fits(item: Dictionary, slot: String) -> bool:
 	if item.get("slot") == slot:
@@ -131,4 +136,6 @@ static func stat_lines(item: Dictionary) -> PackedStringArray:
 		if not w.is_empty():
 			lines.insert(0, Loc.t("Атака: %s") % Loc.t(w.name))
 			lines.insert(1, Loc.t("Расход выносливости: %d") % XPCalculator.weapon_item_cost(item))
+			if is_two_handed(item):
+				lines.insert(2, Loc.t("Двуручное: занимает обе руки"))
 	return lines

@@ -154,14 +154,47 @@ static func node_state(loc_id: String, node_id: String) -> Dictionary:
 	return nodes[node_id]
 
 
-## Открыт ли проход в подлокацию (можно начать вылазку прямо с неё).
+## Открыта ли подлокация для вылазки с карты: район поверхности — найден его указатель (или стартовый);
+## пещера — найден вход в неё (из района или соседней пещеры) или она уже посещена.
 static func is_open(loc_id: String, node_id: String) -> bool:
-	if node_id == start_node(loc_id):
+	var n := node(loc_id, node_id)
+	if not is_underground(n):
+		return node_id == start_node(loc_id) or is_sign_found(loc_id, node_id)
+	if node_state(loc_id, node_id).visited:
 		return true
-	for other in node(loc_id, node_id).get("links", []):
+	for other in n.get("links", []):
 		if node_id in node_state(loc_id, other).get("exits", []):
 			return true
 	return false
+
+
+# ---------------------------------------------------------------- Указатели (быстрое перемещение)
+
+static func mark_sign(loc_id: String, region: String) -> bool:
+	var ls := loc_state(loc_id)
+	if not ls.has("signs"):
+		ls["signs"] = []
+	if region in ls.signs:
+		return false
+	ls.signs.append(region)
+	GameManager.world_changed.emit()
+	return true
+
+
+static func is_sign_found(loc_id: String, region: String) -> bool:
+	return region in loc_state(loc_id).get("signs", [])
+
+
+## Найдено указателей / всего (по одному на наземный район).
+static func signs_found(loc_id: String) -> Vector2i:
+	var total := 0
+	var found := 0
+	for id in location(loc_id).get("order", []):
+		if not is_underground(node(loc_id, id)):
+			total += 1
+			if is_sign_found(loc_id, id):
+				found += 1
+	return Vector2i(found, total)
 
 
 static func node_status(loc_id: String, node_id: String) -> String:
@@ -181,11 +214,15 @@ static func node_progress(loc_id: String, node_id: String) -> float:
 	var st := node_state(loc_id, node_id)
 	if not st.visited:
 		return 0.0
-	var links: Array = node(loc_id, node_id).get("links", [])
-	var exits: float = float(st.exits.size()) / maxf(links.size(), 1)
+	var n := node(loc_id, node_id)
+	var under := is_underground(n)
+	# У района поверхности «проходы» — найденные входы в пещеры; у пещеры — все её выходы
+	var links: Array = n.get("links", []).filter(func(l): return under or is_underground(node(loc_id, l)))
+	var found := links.filter(func(l): return l in st.exits).size()
+	var exits: float = float(found) / links.size() if not links.is_empty() else 1.0
 	var chests: float = float(st.chests.size()) / st.total_chests if st.total_chests > 0 else 1.0
 	var kills: float = float(st.kills.size()) / st.total_enemies if st.total_enemies > 0 else 1.0
-	var seen: float = clampf(float(st.get("explored_pct", 0.0)) / 0.9, 0.0, 1.0)   # 90% проходимых клеток — «всё»
+	var seen: float = clampf(float(st.get("explored_pct", 0.0)) / 0.9, 0.0, 1.0) if under else (1.0 if is_sign_found(loc_id, node_id) else 0.0)
 	return clampf(0.15 + seen * 0.2 + exits * 0.25 + chests * 0.2 + kills * 0.2, 0.0, 1.0)
 
 

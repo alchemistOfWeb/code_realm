@@ -438,7 +438,11 @@ func _run() -> void:
 	check(gm.combat_stats().armor == 2, "броня щита идёт в бой")
 	check(gm.buy_item("bow_hunter") and gm.equip("bow_hunter"), "лук куплен и надет вместо меча")
 	check(gm.combat_weapons() == ["bow"] and "sword_rusty" in gm.player_data.inventory, "атака в бою — лук, меч вернулся в инвентарь")
-	check(gm.buy_item("dagger_simple") and gm.equip("dagger_simple", "offhand") and gm.combat_weapons() == ["bow", "dagger"], "кинжал во второй руке даёт вторую атаку")
+	check(gm.equipped("offhand") == "" and "shield_round" in gm.player_data.inventory, "двуручный лук снимает щит со второй руки")
+	check(gm.buy_item("dagger_simple") and gm.equip("dagger_simple", "offhand") and gm.combat_weapons() == ["dagger"] and "bow_hunter" in gm.player_data.inventory, "кинжал во вторую руку снимает двуручный лук")
+	check(gm.equip("sword_rusty") and gm.combat_weapons() == ["sword", "dagger"], "меч + кинжал — две атаки")
+	check(gm.equip("bow_hunter") and gm.equipped("offhand") == "" and gm.combat_weapons() == ["bow"], "лук снова в руках, кинжал в инвентаре")
+	check(XPCalculator.weapon_item_cost(ItemDatabase.get_item("claymore")) > 10 and ItemDatabase.get_item("claymore").stats.keys() == ["damage"], "у оружия только урон; клеймор дороже 10 выносливости")
 	var gold_before: int = gm.player_data.gold
 	check(gm.sell_item("shield_round") == 30 and gm.player_data.gold == gold_before + 30, "продажа за половину цены")
 	gm.player_data.gold = 0
@@ -477,59 +481,73 @@ func _run() -> void:
 			if not id in wg.nodes[link].links:
 				graph_ok = false
 	check(graph_ok and WorldData.start_node("whisper_grove") == "edge", "граф Шепчущей рощи двусторонний, старт — Опушка")
-	check(WorldData.node_status("whisper_grove", "edge") == "open" and WorldData.node_status("whisper_grove", "brook") == "hidden", "в начале открыта только стартовая подлокация")
+	check(WorldData.node_status("whisper_grove", "edge") == "open" and WorldData.node_status("whisper_grove", "brook") == "hidden", "в начале открыт только стартовый район")
 	WorldData.visit_node("whisper_grove", "edge", 2, 3)
 	check(WorldData.node_status("whisper_grove", "brook") == "known", "после посещения соседи видны, но закрыты")
-	WorldData.mark_exit("whisper_grove", "edge", "brook")
-	check(WorldData.is_open("whisper_grove", "brook") and WorldData.node_status("whisper_grove", "brook") == "open", "найденный проход открывает подлокацию")
+	check(WorldData.mark_sign("whisper_grove", "brook") and WorldData.is_open("whisper_grove", "brook") and WorldData.signs_found("whisper_grove") == Vector2i(1, 6), "найденный указатель открывает быстрое перемещение (1 из 6)")
+	WorldData.mark_exit("whisper_grove", "firefly_path", "mushroom_cave")
+	check(WorldData.is_open("whisper_grove", "mushroom_cave"), "найденный вход открывает пещеру")
 	check(WorldData.location_progress("whisper_grove") > 0.0, "процент исследования растёт (%d%%)" % roundi(WorldData.location_progress("whisper_grove") * 100))
 
-	var gen_bad := 0
+	# Единая поверхность каждой локации: районы, указатели, входы в пещеры, связность
+	var surf_bad: PackedStringArray = []
 	var vertical_total := 0
+	var rocks_total := 0
 	for loc_id in ["whisper_grove", "ferrograd_ruins", "maple_dale", "valley_of_mills"]:
 		var loc := WorldData.location(loc_id)
-		for id in loc.order:
-			var nd: Dictionary = loc.nodes[id]
-			if WorldData.is_underground(nd):
-				continue
-			var nbs: Array = []
-			for l in nd.links:
-				nbs.append({"id": l, "name": loc.nodes[l].name, "kind": loc.nodes[l].kind, "pos": loc.nodes[l].pos})
-			for sd in 3:
-				var od := OutdoorGenerator.generate(nd, nbs, 500 + sd, "", {})
-				if od.exits.size() != nbs.size() or od.chests.size() != int(nd.features.get("chests", 2)):
-					gen_bad += 1
-				if nd.features.get("platforms", false) and od.platforms.is_empty():
-					gen_bad += 1
-				if od.grid[od.start.y * od.w + od.start.x] == OutdoorGenerator.BLOCK:
-					gen_bad += 1
-				vertical_total += od.vertical.size()
-	check(gen_bad == 0, "генератор поверхности: выходы, сундуки, платформы и старт корректны (4 локации)")
-	check(vertical_total > 20, "башни и вышки с сундуками на полянах: %d" % vertical_total)
-	var exits_bad := 0
-	for loc_id in ["whisper_grove", "ferrograd_ruins", "maple_dale", "valley_of_mills"]:
-		var loc := WorldData.location(loc_id)
-		for id in loc.order:
-			var nd: Dictionary = loc.nodes[id]
-			if WorldData.is_underground(nd):
-				continue
-			var nbs: Array = []
-			for l in nd.links:
-				nbs.append({"id": l, "name": loc.nodes[l].name, "kind": loc.nodes[l].kind, "pos": loc.nodes[l].pos})
-			var a := OutdoorGenerator.generate(nd, nbs, 77, "", {})
-			for l in nd.links:
-				var b := OutdoorGenerator.generate(nd, nbs, 77, l, {})
-				if b.grid != a.grid or str(b.exits) != str(a.exits):
-					exits_bad += 1
-				var e: Dictionary = b.exits.filter(func(x): return x.to == l)[0]
-				if b.start != e.arrive:
-					exits_bad += 1
-			for e in a.exits:
-				var c: Vector2i = e.cell
-				var on_edge: bool = c.x == 1 or c.y == 1 or c.x == a.w - 2 or c.y == a.h - 2
-				if not on_edge or a.grid[c.y * a.w + c.x] != OutdoorGenerator.PATH or a.grid[e.arrive.y * a.w + e.arrive.x] != OutdoorGenerator.PATH:
-					exits_bad += 1
-	check(exits_bad == 0, "выходы — тропы к краю карты; раскладка не зависит от входа, появление у указателя")
+		var sf := OutdoorGenerator.generate_surface(loc_id)
+		var outdoor: Array = loc.order.filter(func(id): return not WorldData.is_underground(loc.nodes[id]))
+		var cave_links := 0
+		var chest_total := 0
+		for id in outdoor:
+			chest_total += int(loc.nodes[id].features.get("chests", 2))
+			for l in loc.nodes[id].links:
+				if WorldData.is_underground(loc.nodes[l]):
+					cave_links += 1
+		if sf.signposts.size() != outdoor.size() or sf.caves.size() != cave_links or sf.chests.size() != chest_total:
+			surf_bad.append("%s: counts" % loc_id)
+		# Связность: каждая связная часть поверхности с указателем достижима — от старта или из пещеры
+		var w: int = sf.w
+		var comp := {}
+		var cid := 0
+		for y in sf.h:
+			for x in w:
+				var c0 := Vector2i(x, y)
+				if sf.grid[y * w + x] == OutdoorGenerator.BLOCK or comp.has(c0):
+					continue
+				cid += 1
+				comp[c0] = cid
+				var queue: Array = [c0]
+				while not queue.is_empty():
+					var c: Vector2i = queue.pop_back()
+					for o in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+						var n: Vector2i = c + o
+						if n.x < 0 or n.y < 0 or n.x >= w or n.y >= sf.h or comp.has(n):
+							continue
+						if sf.grid[n.y * w + n.x] != OutdoorGenerator.BLOCK:
+							comp[n] = cid
+							queue.append(n)
+		var entry_comps := {comp.get(sf.start, -1): true}
+		for cv in sf.caves:
+			entry_comps[comp.get(cv.cell, -1)] = true
+		for sp in sf.signposts:
+			if not entry_comps.has(comp.get(sp.cell, -2)):
+				surf_bad.append("%s: sign %s unreachable" % [loc_id, sp.region])
+		for ch in sf.chasms:
+			if sf.platforms.filter(func(pl): return (ch.rect as Rect2i).grow(1).has_point(Vector2i(int(pl.a.x), int(pl.a.z)))).is_empty():
+				surf_bad.append("%s: chasm without platforms" % loc_id)
+		vertical_total += sf.vertical.size()
+		rocks_total += sf.rocks.size() + sf.mesas.size()
+	check(surf_bad.is_empty(), "единая поверхность 4 локаций: указатели, входы, связность %s" % ", ".join(surf_bad))
+	check(vertical_total >= 8 and rocks_total >= 20, "башни/вышки: %d, плато и глыбы: %d" % [vertical_total, rocks_total])
+	var hill_ok := true
+	var sw0 := OutdoorGenerator.generate_surface("whisper_grove")
+	var e0 := OutdoorGenerator.height_at(sw0.terrain, sw0.start.x + 0.5, sw0.start.y + 0.5)
+	for k in range(1, 4):
+		# Склоны вокруг проходимой зоны: каждый шаг от края выше прыжка (1.17 м) — не забраться
+		if float(OutdoorGenerator.HILL[k]) - float(OutdoorGenerator.HILL[k - 1]) < 1.2:
+			hill_ok = false
+	check(hill_ok and e0 > -1.0, "крутые склоны вместо невидимых стен")
 
 	print("== Вылазка")
 	gm.grant_starter_pack()
@@ -540,7 +558,7 @@ func _run() -> void:
 	var sw = main._stack[-1]
 	check(main.current_screen_key() == "sortie" and sw._world != null and sw._enemies.size() > 0 and not main.get_node("HUD").visible, "вылазка: подземелье построено, врагов %d, HUD скрыт" % sw._enemies.size())
 	check(gm.player_data.energy == 50 - XPCalculator.SORTIE_ENERGY_COST, "вылазка стоит %d энергии" % XPCalculator.SORTIE_ENERGY_COST)
-	check(sw.data.exits.size() == 2 and WorldData.node_state("ferrograd_ruins", "rusty_galleries").visited, "у подлокации 2 перехода, посещение записано")
+	check(sw.data.exits.size() == 2 and WorldData.node_state("ferrograd_ruins", "rusty_galleries").visited, "у подземелья 2 перехода, посещение записано")
 	bus.go("dialogue", {"npc_id": sw.data.npcs[0].id, "overlay": true})
 	await get_tree().process_frame
 	check(main.current_screen_key() == "dialogue" and sw._covered, "диалог открыт поверх мира, мир на паузе")
@@ -584,21 +602,32 @@ func _run() -> void:
 	check(main.current_screen_key() == "location" and main._stack[-1]._in_sortie and not main.get_node("HUD").visible, "M — карта всей локации поверх вылазки")
 	bus.back()
 	await get_tree().process_frame
-	# Переход в соседнюю подлокацию: подойти к проходу и шагнуть в него
-	var from_id: String = sw.node_id
-	sw._update_minimap()
-	sw.run.seed_override = -1   # память исследованного не пишется для dev-seed
-	sw._store_explored()
-	var explored_before: String = WorldData.node_state("ferrograd_ruins", from_id).get("explored", "")
-	var ex: Dictionary = sw._exits[0]
+	# Выход из подземелья на поверхность: к его входу в склоне района
+	var cave_id: String = sw.node_id
+	var ex: Dictionary = sw._exits.filter(func(x): return not WorldData.is_underground(WorldData.node("ferrograd_ruins", x.exit.to)))[0]
 	var to_id: String = ex.exit.to
 	sw._player.global_position = ex.trigger + Vector3(0, 0.1, 0)
 	ex.armed = true
 	sw._check_exits()
-	check(WorldData.is_open("ferrograd_ruins", to_id), "подход к переходу открывает «%s» на карте" % to_id)
+	await get_tree().create_timer(1.6).timeout
+	check(sw._surface and sw.node_id == to_id, "выход из подземелья — на единую поверхность локации, район «%s»" % to_id)
+	var back_cave: Array = sw._exits.filter(func(x): return x.exit.to == cave_id)
+	check(not back_cave.is_empty() and sw._player.global_position.distance_to(back_cave[0].trigger) < 7.0, "появление у входа в эту пещеру")
+	# Указатель района
+	var sg: Dictionary = sw._signs.filter(func(x): return x.sign.region == to_id)[0]
+	sw._player.global_position = sg.pos + Vector3(1, 0.3, 0)
+	sw._check_signs()
+	check(WorldData.is_sign_found("ferrograd_ruins", to_id), "подошёл к указателю — найден, быстрое перемещение")
+	# Быстрое перемещение к стартовому указателю
+	WorldData.mark_sign("ferrograd_ruins", "outskirts")
+	sw._fast_travel("outskirts")
 	await get_tree().create_timer(1.0).timeout
-	check(sw.node_id == to_id and WorldData.node_state("ferrograd_ruins", to_id).visited, "шаг в проход — переход в соседнюю подлокацию без новой траты энергии")
-	check(explored_before != "" and from_id in WorldData.node_state("ferrograd_ruins", to_id).exits, "исследованное запомнено, обратный проход известен без уведомления")
+	check(sw._surface and sw.node_id == "outskirts", "быстрое перемещение по поверхности к указателю")
+	sw.run.seed_override = -1
+	sw._update_minimap()
+	sw._store_explored()
+	check(WorldData.loc_state("ferrograd_ruins").get("surface", {}).get("explored", "") != "", "исследованная часть поверхности запоминается")
+	check(sw._compass != null and sw._compass.is_inside_tree(), "полоска компаса вместо мини-карты")
 	# Пауза (P) и меню (Esc)
 	sw._toggle_pause()
 	check(sw._paused and sw._world.process_mode == Node.PROCESS_MODE_DISABLED and sw._menu == null, "P — пауза без меню")
@@ -610,9 +639,11 @@ func _run() -> void:
 	sw._toggle_menu()
 	check(sw._menu != null, "Esc — меню вылазки")
 	sw._toggle_menu()
-	# Падение — гибель, потеря всей энергии
+	# Падение в пропасть — гибель, потеря всей энергии
 	gm.player_data.energy = 30
-	sw._player.global_position = Vector3(5, -30, 5)
+	var chasm: Dictionary = sw.data.chasms[0]
+	var cr: Rect2i = chasm.rect
+	sw._player.global_position = Vector3(cr.get_center().x, float(chasm.level) - 8.0, cr.get_center().y)
 	await get_tree().create_timer(1.3).timeout
 	check(sw._ended and gm.player_data.energy == 0, "падение в пропасть: гибель, энергия потеряна")
 	sw._return_to_camp()

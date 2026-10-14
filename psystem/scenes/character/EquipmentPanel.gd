@@ -256,6 +256,14 @@ func _fill(grid: GridContainer, kind: String, empty_text: String) -> void:
 func _slot_tile(slot: String) -> ItemTile:
 	var id := GameManager.equipped(slot)
 	var it := ItemDatabase.get_item(id)
+	var weapon := ItemDatabase.get_item(GameManager.equipped("weapon"))
+	if slot == "offhand" and id == "" and ItemDatabase.is_two_handed(weapon):
+		# Вторая рука занята двуручным оружием: показываем его бледной тенью
+		var ghost := ItemTile.make_row(weapon, "weapon", Vector2(176, 62))
+		ghost.modulate = Color(1, 1, 1, 0.45)
+		ghost.tooltip_text = Loc.t("Вторая рука занята двуручным оружием")
+		ghost.set_drag_forwarding(_drag_item.bind(weapon.id, "slot", "weapon"), _can_drop_slot.bind(slot), _drop_slot.bind(slot))
+		return ghost
 	var tile := ItemTile.make_row(it, slot, Vector2(176, 62))
 	tile.set_drag_forwarding(_drag_item.bind(id, "slot", slot), _can_drop_slot.bind(slot), _drop_slot.bind(slot))
 	return tile

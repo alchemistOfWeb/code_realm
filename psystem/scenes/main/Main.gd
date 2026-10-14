@@ -212,11 +212,60 @@ func _update_chrome() -> void:
 	screen_root.offset_top = 0.0 if full else HUD_HEIGHT
 
 
+## Dev: склоны — герой бежит и прыгает в крутой склон у края поляны; подняться выше прыжка нельзя.
+func _slide_test(sw) -> void:
+	await get_tree().create_timer(1.0).timeout
+	for e in sw._enemies:
+		if is_instance_valid(e):
+			e.freeze()
+	var d: Dictionary = sw.data
+	var eg: PackedByteArray = d.ext.grid
+	var ew: int = d.ext.ew
+	var tests := 0
+	var climbed := 0
+	for y in range(2, d.h - 2, 7):
+		for x in range(2, d.w - 2, 7):
+			if tests >= 8 or d.grid[y * d.w + x] == OutdoorGenerator.BLOCK:
+				continue
+			# Соседняя непроходимая клетка — склон
+			var dir := Vector2i.ZERO
+			for o in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if eg[(y + o.y + OutdoorGenerator.MARGIN) * ew + x + o.x + OutdoorGenerator.MARGIN] == OutdoorGenerator.BLOCK:
+					dir = o
+			if dir == Vector2i.ZERO:
+				continue
+			tests += 1
+			var start: Vector3 = sw._cell_pos(Vector2i(x, y)) - Vector3(dir.x, 0, dir.y) * 1.5 + Vector3(0, 0.3, 0)
+			sw._player.global_position = start
+			sw._player.velocity = Vector3.ZERO
+			await get_tree().create_timer(0.3).timeout
+			var base: float = sw._player.global_position.y
+			sw._player.face_yaw(atan2(dir.x, dir.y))
+			var top := base
+			Input.action_press("move_forward")
+			for k in 6:
+				Input.action_press("jump")
+				await get_tree().create_timer(0.1).timeout
+				Input.action_release("jump")
+				await get_tree().create_timer(0.45).timeout
+				top = maxf(top, sw._player.global_position.y)
+			Input.action_release("move_forward")
+			await get_tree().create_timer(0.8).timeout
+			var rest: float = sw._player.global_position.y - base
+			climbed += int(rest > 1.3)
+			print("SLIDE at %s: peak +%.2f, after +%.2f" % [Vector2i(x, y), top - base, rest])
+	print("SLIDE climbed %d of %d" % [climbed, tests])
+	get_tree().quit()
+
+
 ## Dev: проверка паркура — герой прыгает со ступени на ступень постройки настоящим вводом (вперёд + прыжок).
 func _climb_test(sw) -> void:
 	await get_tree().create_timer(1.0).timeout
+	for e in sw._enemies:
+		if is_instance_valid(e):
+			e.freeze()
 	for v in sw.data.get("vertical", []):
-		var root_pos := Vector3(v.center.x, 0, v.center.y)
+		var root_pos := Vector3(v.center.x, sw.ground_y(v.center.x, v.center.y) - 0.05, v.center.y)
 		var steps: Array = []
 		var n := int(round(float(v.height) / 0.8)) - 1
 		for k in n:
@@ -545,6 +594,11 @@ func _apply_dev_args(args: Dictionary) -> void:
 				var bits: PackedStringArray = (parts[1] if parts.size() > 1 else "whisper_grove:edge").split(":")
 				EventBus.go("sortie", {"free": true, "location_id": bits[0], "node_id": bits[1] if bits.size() > 1 else "",
 					"seed": bits[2].to_int() if bits.size() > 2 else 7})
+				if args.has("peaceful"):
+					await get_tree().create_timer(0.5).timeout
+					for e in _stack[-1]._enemies:
+						if is_instance_valid(e):
+							e.freeze()
 				if args.has("look"):
 					# Dev: поставить героя у переправы (platforms) или у выхода (exit) для скриншота
 					await get_tree().create_timer(0.8).timeout
@@ -552,12 +606,16 @@ func _apply_dev_args(args: Dictionary) -> void:
 					var target := Vector3.ZERO
 					if args.look == "platforms" and not sw.data.platforms.is_empty():
 						target = sw.data.platforms[0].a
-						sw._player.global_position = target + Vector3(-4.5, 0.3, 0)
-					elif args.look == "exit" and not sw.data.exits.is_empty():
-						var e: Dictionary = sw.data.exits[int(args.get("exit", "0")) % sw.data.exits.size()]
+						sw._player.global_position = sw._cell_pos(Vector2i(int(target.x - 4.5), int(target.z))) + Vector3(0, 0.3, 0)
+					elif args.look == "exit" and not (sw.data.get("caves", []) + sw.data.exits).is_empty():
+						var all_exits: Array = sw.data.get("caves", []) + sw.data.exits
+						var e: Dictionary = all_exits[int(args.get("exit", "0")) % all_exits.size()]
 						target = Vector3(e.cell.x + 0.5, 0, e.cell.y + 0.5)
 						var a: Vector2i = e.get("arrive", e.cell)
-						sw._player.global_position = Vector3(a.x + 0.5, 0.3, a.y + 0.5) - (target - Vector3(a.x + 0.5, 0, a.y + 0.5)).normalized() * 3.0
+						var back_dir := (target - Vector3(a.x + 0.5, 0, a.y + 0.5)).normalized()
+						var stand := a if sw._surface else a - Vector2i(roundi(back_dir.x * 3.0), roundi(back_dir.z * 3.0))
+						sw._player.global_position = sw._cell_pos(stand) + Vector3(0, 0.3, 0)
+						target.y = sw._player.global_position.y
 					elif args.look == "vertical" and not sw.data.get("vertical", []).is_empty():
 						var v: Dictionary = sw.data.vertical[0]
 						target = Vector3(v.center.x, 0, v.center.y)
@@ -567,13 +625,15 @@ func _apply_dev_args(args: Dictionary) -> void:
 							var p := target + Vector3(sin(ang), 0, cos(ang)) * 6.0
 							var c := Vector2i(int(p.x), int(p.z))
 							if c.x > 0 and c.y > 0 and c.x < sw.data.w and c.y < sw.data.h and sw.data.grid[c.y * sw.data.w + c.x] in [1, 2]:
-								sw._player.global_position = p + Vector3(0, 0.3, 0)
+								sw._player.global_position = sw._cell_pos(c) + Vector3(0, 0.3, 0)
 								break
 					var d: Vector3 = target - sw._player.global_position
 					sw._player.face_yaw(atan2(d.x, d.z))
 					if args.has("pitch"):
 						sw._player._cam_pitch = deg_to_rad(args.pitch.to_float())
 						sw._player._apply_camera()
+				if args.has("slidetest"):
+					await _slide_test(_stack[-1])
 				if args.has("climbtest"):
 					await _climb_test(_stack[-1])
 				if args.has("open"):

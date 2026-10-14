@@ -1,14 +1,15 @@
 extends Control
-## Вылазка в подлокацию: 3D-уровень (поверхность или подземелье), герой от третьего лица, враги,
-## жители, сундуки, сейфы, двери-загадки, переходы в соседние подлокации, платформы над пропастью.
+## Вылазка в локацию: единая поверхность (все наземные подлокации — районы одной карты с рельефом)
+## и отдельные уровни пещер/гробниц/подземелий. Герой от третьего лица, враги, жители, сундуки, сейфы,
+## двери-загадки, башни и плато, платформы над пропастью.
 ##
-## Поток: карта локации → вылазка (−10 энергии) → подлокация; найденные переходы открывают соседние
-## точки на карте. Поражение в бою — возврат в лагерь (без потери золота). Падение в пропасть —
-## гибель: вся энергия теряется, герой возвращается на базу.
+## Поток: карта локации → вылазка (−10 энергии) у найденного указателя района. Указатели — точки
+## быстрого перемещения (сколько найдено из скольких — на карте). Вход в пещеру — шагни в проём в склоне.
+## Поражение в бою — возврат в лагерь (без потери золота). Падение в пропасть — гибель: вся энергия
+## теряется, герой возвращается на базу. Вместо мини-карты — полоска компаса.
 ## Управление: WASD, Shift — бег (выносливость), Space — прыжок, E — действие, I — инвентарь,
-## M — карта локации (с переходом к карте мира и быстрым перемещением), P — пауза, Esc — меню.
-## Переходы в соседние подлокации — тропы за край карты и входы в пещеры: уйди по ним (без кнопки).
-## Исследованная часть карты подлокации и найденные проходы запоминаются. Камера: ПКМ — вращение, колесо — приближение, Q/R — поворот.
+## M — карта локации (рельеф, указатели, быстрое перемещение, карта мира), P — пауза, Esc — меню.
+## Камера: ПКМ — вращение, колесо — приближение, Q/R — поворот.
 
 const NPC_LOOKS := {
 	"greta": {"look": {"gender": "female", "race": "dwarf", "skin": 1, "hair": "Hair_Buns", "hair_color": 5, "outfit_variant": 1},
@@ -42,7 +43,11 @@ var _viewport: SubViewport
 var _world: Node3D
 var _player: SortiePlayer
 var _interactables: Array = []      # {kind, node, pos, prompt, ...}
-var _exits: Array = []              # {exit, trigger, armed, root, barrier, dir}
+var _exits: Array = []              # {exit, trigger, armed, root, barrier, dir, sealed}
+var _signs: Array = []              # {sign, pos}
+var _surface := false
+var _region_t := 0.0
+var _compass: Control
 var _explored_save_t := 0.0
 var _gates: Array = []
 var _gears: Array = []
@@ -61,6 +66,7 @@ var _combat_enemy: Node = null
 var _combat_open_gate := false
 var _ended := false
 var _transitioning := false
+var _falling := false
 
 # UI
 var _title: Label
@@ -71,7 +77,6 @@ var _loot_label: Label
 var _quests: RichTextLabel
 var _prompt: PanelContainer
 var _prompt_label: Label
-var _minimap: TextureRect
 var _pause_label: Control
 var _menu: Control
 var _fade: ColorRect
@@ -110,7 +115,11 @@ func setup(params: Dictionary) -> void:
 	SaveSystem.save_all()
 	var music: int = WorldData.location(location_id).get("music", 0)
 	Audio.push_music(Audio.MUSIC[clampi(music, 0, Audio.MUSIC.size() - 1)].stream)
-	_load_node(start_id, _entry_for(start_id))
+	if WorldData.is_underground(WorldData.node(location_id, start_id)):
+		_load_node(start_id, _entry_for(start_id))
+	else:
+		var sp := _signpost_of(start_id)
+		_load_surface(sp.get("arrive", OutdoorGenerator.generate_surface(location_id).start))
 
 
 func _exit_tree() -> void:
@@ -118,14 +127,19 @@ func _exit_tree() -> void:
 		Audio.pop_music()
 
 
-## Откуда «входим» при старте с карты: через найденный проход из соседней подлокации.
+## Откуда «входим» в пещеру при старте с карты: из района поверхности, где найден вход.
 func _entry_for(id: String) -> String:
-	if id == WorldData.start_node(location_id):
-		return ""
 	for other in WorldData.node(location_id, id).get("links", []):
 		if id in WorldData.node_state(location_id, other).exits:
 			return other
 	return ""
+
+
+func _signpost_of(region: String) -> Dictionary:
+	for sp in OutdoorGenerator.generate_surface(location_id).signposts:
+		if sp.region == region:
+			return sp
+	return {}
 
 
 # ---------------------------------------------------------------- UI
@@ -204,14 +218,8 @@ func _build_ui() -> void:
 	_quests.add_theme_font_size_override("normal_font_size", 13)
 	ib.add_child(_quests)
 
-	_minimap = TextureRect.new()
-	_minimap.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_minimap.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
-	_minimap.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_minimap.modulate = Color(1, 1, 1, 0.92)
-	add_child(_minimap)
-	_layout_minimap()
+	_compass = preload("res://scenes/world/CompassBar.gd").new()
+	add_child(_compass)
 
 	var help := Label.new()
 	help.text = Loc.t("WASD — ходьба · Shift — бег · %s — прыжок · E — действие · %s — инвентарь · %s — карта · %s — пауза · Esc — меню · ПКМ — камера") % [Settings.action_key_name("jump"), Settings.action_key_name("inventory"), Settings.action_key_name("map"), Settings.action_key_name("pause")]
@@ -264,14 +272,6 @@ func _build_ui() -> void:
 	add_child(_fade)
 
 
-func _layout_minimap() -> void:
-	_minimap.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_minimap.offset_left = -250
-	_minimap.offset_top = 12
-	_minimap.offset_right = -12
-	_minimap.offset_bottom = 200
-
-
 func _update_hud() -> void:
 	if _hp_bar == null or run.is_empty() or node.is_empty():
 		return
@@ -285,95 +285,172 @@ func _update_hud() -> void:
 	var lines: PackedStringArray = []
 	for q in GameManager.active_quests():
 		lines.append("[color=#C792EA]◆ %s[/color]\n[color=#8C8CB0]%s[/color]" % [Loc.t(q.title), Loc.t(q.desc)])
-	var st := WorldData.node_state(location_id, node_id)
-	var unfound: PackedStringArray = []
-	for e in data.get("exits", []):
-		if not e.to in st.exits:
-			unfound.append(e.to_name)
-	if not unfound.is_empty():
-		lines.append("[color=#F5C542]◆ %s[/color]\n[color=#8C8CB0]%s[/color]" % [Loc.t("Найди проходы"), ", ".join(unfound)])
+	var signs := WorldData.signs_found(location_id)
+	lines.append("[color=#F5C542]◆ %s[/color]" % (Loc.t("Указатели: %d из %d") % [signs.x, signs.y]))
 	if _gates_closed():
 		lines.append("[color=#F5C542]◆ %s[/color]" % Loc.t("Путь дальше перекрыт решёткой"))
 	if GameManager.is_overloaded():
 		lines.append("[color=#FF6B6B]◆ %s[/color]\n[color=#8C8CB0]%s[/color]" % [Loc.t("Перегруз: %s / %s кг") % [
 			ItemDatabase.format_weight(GameManager.carried_weight()), ItemDatabase.format_weight(GameManager.carry_capacity())],
 			Loc.t("Шаг медленный, бег недоступен. Открой инвентарь (%s) и выброси лишнее.") % Settings.action_key_name("inventory")])
-	if _boss_alive():
+	if _enemies.any(func(e): return is_instance_valid(e) and e.index < 0 and e.region == node_id):
 		lines.append("[color=#FF6B6B]◆ %s[/color]" % Loc.t("Победи стража этого места"))
 	_quests.text = "\n".join(lines)
 
 
-# ---------------------------------------------------------------- Загрузка подлокации
+# ---------------------------------------------------------------- Загрузка: поверхность и пещеры
 
-func _load_node(id: String, entry_from: String) -> void:
+func _clear_world() -> void:
 	_fade.modulate.a = 1.0
-	node_id = id
-	node = WorldData.node(location_id, id)
 	if _world:
 		_world.queue_free()
 		_world = null
 	_interactables.clear()
 	_exits.clear()
+	_signs.clear()
 	_gates.clear()
 	_gears.clear()
 	_enemies.clear()
+
+
+## Поверхность локации (все наземные подлокации — районы одной карты). spawn — клетка появления.
+func _load_surface(spawn: Vector2i, face_from: Vector2 = Vector2.INF) -> void:
+	_clear_world()
+	_surface = true
+	data = OutdoorGenerator.generate_surface(location_id)
+	node_id = OutdoorGenerator.region_at(data, Vector2(spawn) + Vector2(0.5, 0.5))
+	node = WorldData.node(location_id, node_id)
+	_world = Node3D.new()
+	_viewport.add_child(_world)
+	var built := LevelBuilder.build(_world, data, WorldData.location(location_id).get("sky", "day"))
+	astar = built.astar
+	_build_entities(spawn, -1000.0)
+	if face_from != Vector2.INF:
+		var d := _player.position - Vector3(face_from.x, _player.position.y, face_from.y)
+		_player.face_yaw.call_deferred(atan2(d.x, d.z))
+	_init_minimap()
+	_enter_region(node_id, false)
+	_finish_load(node.get("name", ""))
+
+
+## Пещера / гробница / подземелье — отдельный уровень. entry — откуда пришли (район поверхности или пещера).
+func _load_node(id: String, entry_from: String) -> void:
+	_clear_world()
+	_surface = false
+	node_id = id
+	node = WorldData.node(location_id, id)
 	var neighbors: Array = []
 	for link in node.get("links", []):
 		var n := WorldData.node(location_id, link)
 		neighbors.append({"id": link, "name": n.get("name", link), "kind": n.get("kind", ""), "pos": n.get("pos", [0.5, 0.5])})
 	var seed_value: int = WorldData.node_seed(location_id, id) if int(run.seed_override) < 0 else int(run.seed_override)
-	var f: Dictionary = node.get("features", {})
-	if WorldData.is_underground(node):
-		var opts := f.duplicate()
-		opts.neighbors = neighbors
-		opts.entry = entry_from
-		if not opts.has("npcs"):
-			opts.npcs = []
-		opts.boss = f.get("boss", "")
-		data = DungeonGenerator.generate(int(node.get("floor", 1)), seed_value, run.used, opts)
-		data.kind = node.kind
-	else:
-		data = OutdoorGenerator.generate(node, neighbors, seed_value, entry_from, run.used)
+	var opts: Dictionary = node.get("features", {}).duplicate()
+	opts.neighbors = neighbors
+	opts.entry = entry_from
+	if not opts.has("npcs"):
+		opts.npcs = []
+	opts.boss = opts.get("boss", "")
+	data = DungeonGenerator.generate(int(node.get("floor", 1)), seed_value, run.used, opts)
+	data.kind = node.kind
 	if data.get("riddle_id", "") != "":
 		run.used.riddles.append(data.riddle_id)
 	if not data.get("safe", {}).is_empty():
 		run.used.safes.append(data.safe.id)
 	_world = Node3D.new()
 	_viewport.add_child(_world)
-	var sky: String = WorldData.location(location_id).get("sky", "day")
-	var built := LevelBuilder.build(_world, data, sky)
+	var built := LevelBuilder.build(_world, data, "cave")
 	astar = built.astar
-	_build_entities(float(built.fall_y))
+	_build_entities(data.start, float(built.fall_y))
 	if node.kind == "dungeon":
 		_dungeon_decor()
 	if entry_from != "":
-		# Пришли по проходу — он уже известен (без повторного уведомления)
 		WorldData.mark_exit(location_id, id, entry_from)
-		# Пришли в подземелье «с той стороны» — через главный выход за решёткой: она открыта изнутри
+		# Пришли «с той стороны» — через главный выход за решёткой: она открыта изнутри
 		for e in data.exits:
-			if e.to == entry_from and data.get("underground", false) and e.cell == data.get("exit", Vector2i(-99, -99)):
+			if e.to == entry_from and e.cell == data.get("exit", Vector2i(-99, -99)):
 				_open_gates(true)
 	_init_minimap()
-	var total_enemies: int = data.enemies.size() + (0 if data.boss.is_empty() else 1)
-	WorldData.visit_node(location_id, id, data.chests.size() + data.get("vertical", []).size(), total_enemies)
+	var ents := _entities()
+	WorldData.visit_node(location_id, id, ents.chests.size(), ents.enemies.size() + ents.bosses.size())
 	if not id in run.nodes:
 		run.nodes.append(id)
+	_finish_load(node.get("name", ""))
+
+
+func _finish_load(title: String) -> void:
 	_update_hud()
 	var tw := create_tween()
 	tw.tween_property(_fade, "modulate:a", 0.0, 0.7)
-	EventBus.notify(node.get("name", ""), "info")
+	EventBus.notify(title, "info")
 	_transitioning = false
 
 
+## Вход в район поверхности (по положению героя): посещение, итоги района для процента исследования.
+func _enter_region(rid: String, announce: bool) -> void:
+	node_id = rid
+	node = WorldData.node(location_id, rid)
+	var ents := _entities()
+	var chests: int = ents.chests.filter(func(c): return c.region == rid).size()
+	var enemies: int = ents.enemies.filter(func(e): return e.region == rid).size() + ents.bosses.filter(func(b): return b.region == rid).size()
+	var first: bool = not WorldData.node_state(location_id, rid).visited
+	WorldData.visit_node(location_id, rid, chests, enemies)
+	if not rid in run.nodes:
+		run.nodes.append(rid)
+	if announce and first:
+		EventBus.notify(node.get("name", ""), "info")
+	_update_hud()
+
+
+## Сущности уровня в одном формате для поверхности и подземелий (у каждой — район/подлокация и номер).
+func _entities() -> Dictionary:
+	if _surface:
+		return {"chests": data.chests, "enemies": data.enemies, "bosses": data.bosses, "safes": data.safes,
+			"npcs": data.npcs, "exits": data.caves}
+	var chests: Array = []
+	for i in data.chests.size():
+		chests.append({"cell": data.chests[i], "region": node_id, "index": i})
+	var enemies: Array = []
+	for i in data.enemies.size():
+		var e: Dictionary = data.enemies[i].duplicate()
+		e.region = node_id
+		e.index = i
+		if e.has("room"):
+			e.area = data.rooms[e.room].rect
+		enemies.append(e)
+	var bosses: Array = []
+	if not data.boss.is_empty():
+		var b: Dictionary = data.boss.duplicate()
+		b.region = node_id
+		if data.has("exit_room"):
+			b.area = data.rooms[data.exit_room].rect
+		bosses.append(b)
+	var safes: Array = []
+	if not data.safe.is_empty():
+		var s: Dictionary = data.safe.duplicate()
+		s.region = node_id
+		safes.append(s)
+	var npcs: Array = []
+	for n in data.npcs:
+		var c: Dictionary = n.duplicate()
+		c.region = node_id
+		npcs.append(c)
+	return {"chests": chests, "enemies": enemies, "bosses": bosses, "safes": safes, "npcs": npcs, "exits": data.exits}
+
+
+## Высота земли в точке уровня (поверхность — рельеф, подземелья — ровный пол).
+func ground_y(x: float, z: float) -> float:
+	return OutdoorGenerator.height_at(data.terrain, x, z) if _surface else 0.0
+
+
 func _cell_pos(cell: Vector2i) -> Vector3:
-	return Vector3(cell.x + 0.5, 0, cell.y + 0.5)
+	return Vector3(cell.x + 0.5, ground_y(cell.x + 0.5, cell.y + 0.5), cell.y + 0.5)
 
 
-func _build_entities(fall_y: float) -> void:
-	var st := WorldData.node_state(location_id, node_id)
+func _build_entities(spawn: Vector2i, fall_y: float) -> void:
+	var ents := _entities()
 	# Игрок
 	_player = SortiePlayer.new()
-	_player.position = _cell_pos(data.start) + Vector3(0, 0.2, 0)
+	_player.position = _cell_pos(spawn) + Vector3(0, 0.3, 0)
 	_player.fell.connect(_on_fell)
 	_world.add_child(_player)
 	_player.fall_y = fall_y
@@ -381,10 +458,12 @@ func _build_entities(fall_y: float) -> void:
 	if not WorldStyle.quality().shadows:
 		_player_blob = WorldStyle.blob_shadow(0.6)
 		_world.add_child(_player_blob)
-	if data.get("underground", false):
+	if not _surface:
 		_player.set_lantern(1.8)
-	# Смотреть в сторону центра карты
 	var center := Vector3(data.w * 0.5, 0, data.h * 0.5)
+	if _surface:
+		var r: Dictionary = _region(OutdoorGenerator.region_at(data, Vector2(spawn)))
+		center = Vector3(r.center.x, 0, r.center.y) if not r.is_empty() else center
 	var d := center - _player.position
 	_player.face_yaw.call_deferred(atan2(d.x, d.z))
 
@@ -412,29 +491,31 @@ func _build_entities(fall_y: float) -> void:
 		astar.set_point_solid(cell, true)
 		_gates.append({"node": g, "body": body, "cell": cell})
 		if data.gate_mode == "riddle":
-			_interactables.append({"kind": "gate", "node": g, "pos": g.position, "prompt": Loc.t("E — изучить механизм двери")})
+			_interactables.append({"kind": "gate", "node": g, "pos": g.position, "riddle_id": data.riddle_id, "prompt": Loc.t("E — изучить механизм двери")})
 
-	# Переходы в соседние подлокации
-	for e in data.exits:
+	# Переходы: на поверхности — входы в пещеры, в подземелье — лестницы
+	for e in ents.exits:
 		_make_exit(e)
+	# Указатели районов (точки быстрого перемещения)
+	for sp in data.get("signposts", []):
+		_make_signpost(sp)
 
 	# Жители
-	for n in data.npcs:
+	for n in ents.npcs:
 		_spawn_npc(n.id, n.cell)
 	if data.get("gate_mode", "") == "warden":
 		_spawn_npc("warden", data.warden_cell)
 
-	# Сейф
-	if not data.safe.is_empty():
-		var safe := _make_safe(data.safe.cell)
-		_interactables.append({"kind": "safe", "node": safe, "pos": safe.position, "data": data.safe, "prompt": Loc.t("E — осмотреть сейф")})
+	# Сейфы
+	for s in ents.safes:
+		var safe := _make_safe(s.cell)
+		_interactables.append({"kind": "safe", "node": safe, "pos": safe.position, "data": s, "prompt": Loc.t("E — осмотреть сейф")})
 
 	# Сундуки (открытые раньше не появляются снова)
-	for i in data.chests.size():
-		if i in st.chests:
+	for c in ents.chests:
+		if int(c.index) in WorldData.node_state(location_id, c.region).chests:
 			continue
-		var c: Vector2i = data.chests[i]
-		var chest := LevelBuilder.place(_world, LevelBuilder.P + "Chest_Wood.gltf", _cell_pos(c), randf() * TAU, 0.9)
+		var chest := LevelBuilder.place(_world, LevelBuilder.P + "Chest_Wood.gltf", _cell_pos(c.cell), randf() * TAU, 0.9)
 		var body := StaticBody3D.new()
 		var cs := CollisionShape3D.new()
 		var box := BoxShape3D.new()
@@ -449,7 +530,7 @@ func _build_entities(fall_y: float) -> void:
 		glow.omni_range = 2.2
 		glow.position.y = 0.8
 		chest.add_child(glow)
-		_interactables.append({"kind": "chest", "node": chest, "pos": chest.position, "index": i, "prompt": Loc.t("E — открыть сундук")})
+		_interactables.append({"kind": "chest", "node": chest, "pos": chest.position, "index": c.index, "region": c.region, "prompt": Loc.t("E — открыть сундук")})
 
 	_build_vertical()
 
@@ -457,26 +538,27 @@ func _build_entities(fall_y: float) -> void:
 	for pl in data.get("platforms", []):
 		var visual := _platform_visual(pl.size)
 		var p := MovingPlatform.create(pl.a, pl.b, pl.size, null, pl.period, pl.phase, visual)
-		if data.get("water", false):
-			p.bob = 0.08
-		else:
-			p.bob = 0.03
+		p.bob = 0.08 if data.get("water", false) else 0.03
 		_world.add_child(p)
 
-	# Враги (побеждённые раньше не возвращаются)
-	for i in data.enemies.size():
-		if i in st.kills:
+	# Враги и стражи (побеждённые раньше не возвращаются)
+	for e in ents.enemies:
+		if int(e.index) in WorldData.node_state(location_id, e.region).kills:
 			continue
-		var e: Dictionary = data.enemies[i]
 		var area: Rect2i = e.get("area", Rect2i(e.cell - Vector2i(3, 3), Vector2i(6, 6)))
-		if data.get("underground", false) and e.has("room"):
-			area = data.rooms[e.room].rect
-		_spawn_enemy(e.id, e.cell, area, i)
-	if not data.boss.is_empty() and not st.get("boss", false):
-		var area: Rect2i = data.boss.get("area", Rect2i(data.boss.cell - Vector2i(3, 3), Vector2i(6, 6)))
-		if data.get("underground", false) and data.has("exit_room"):
-			area = data.rooms[data.exit_room].rect
-		_spawn_enemy(data.boss.id, data.boss.cell, area, -1)
+		_spawn_enemy(e.id, e.cell, area, int(e.index), e.region)
+	for b in ents.bosses:
+		if WorldData.node_state(location_id, b.region).get("boss", false):
+			continue
+		var area: Rect2i = b.get("area", Rect2i(b.cell - Vector2i(3, 3), Vector2i(6, 6)))
+		_spawn_enemy(b.id, b.cell, area, -1, b.region)
+
+
+func _region(rid: String) -> Dictionary:
+	for r in data.get("regions", []):
+		if r.id == rid:
+			return r
+	return {}
 
 
 ## Вертикальные постройки (OutdoorGenerator → data.vertical): на них надо запрыгнуть, наверху — сундук
@@ -485,12 +567,13 @@ const STEP_RISE := 0.8          # прыжок героя поднимает ~1.
 
 
 func _build_vertical() -> void:
-	var st := WorldData.node_state(location_id, node_id)
 	for i in data.get("vertical", []).size():
 		var v: Dictionary = data.vertical[i]
 		var c: Vector2 = v.center
+		var region: String = v.get("region", node_id)
+		var st := WorldData.node_state(location_id, region)
 		var root := Node3D.new()
-		root.position = Vector3(c.x, 0, c.y)
+		root.position = Vector3(c.x, ground_y(c.x, c.y) - 0.05, c.y)
 		root.rotation.y = v.yaw
 		_world.add_child(root)
 		var body := StaticBody3D.new()
@@ -517,7 +600,7 @@ func _build_vertical() -> void:
 		glow.position.y = 0.9
 		chest.add_child(glow)
 		var gpos := chest.global_position
-		_interactables.append({"kind": "chest", "node": chest, "pos": gpos, "index": index, "high": true, "prompt": Loc.t("E — открыть сундук")})
+		_interactables.append({"kind": "chest", "node": chest, "pos": gpos, "index": index, "region": region, "high": true, "prompt": Loc.t("E — открыть сундук")})
 
 
 func _stone_mat() -> StandardMaterial3D:
@@ -660,7 +743,8 @@ func _make_exit(e: Dictionary) -> void:
 	var trigger := _cell_pos(e.cell)
 	var root := Node3D.new()
 	_world.add_child(root)
-	var ex := {"exit": e, "trigger": trigger, "armed": true, "root": root, "barrier": null, "dir": Vector3.ZERO}
+	var sealed: bool = e.get("sealed", false) and not GameManager.has_flag(_unseal_flag(e))
+	var ex := {"exit": e, "trigger": trigger, "armed": true, "root": root, "barrier": null, "dir": Vector3.ZERO, "sealed": sealed}
 	var label_pos := Vector3.ZERO
 	if under:
 		root.position = trigger
@@ -674,22 +758,14 @@ func _make_exit(e: Dictionary) -> void:
 		root.add_child(lamp)
 		label_pos = Vector3(0, 2.2, 0)
 	else:
-		var out := Vector3(e.dir.x, 0, e.dir.y)
+		var out := Vector3(e.dir.x, 0, e.dir.y).normalized()
 		ex.dir = out
-		var perp := Vector3(-out.z, 0, out.x)
-		match e.kind:
-			"path":
-				# Указатель у начала тропы: столб и доска со стрелкой в сторону выхода
-				root.position = _cell_pos(e.arrive) + perp * 1.9
-				_signpost(root, atan2(out.x, out.z))
-				label_pos = Vector3(0, 2.15, 0)
-			_:
-				# Вход в склоне холма у края карты
-				root.position = trigger + out * 0.45
-				root.rotation.y = atan2(-out.x, -out.z)   # лицом к поляне
-				_cave_mouth(root, e.kind)
-				label_pos = Vector3(0, 2.9, 0)
-		if e.get("sealed", false):
+		# Вход в склоне холма: тёмный проём в скалах (пещера) или каменная арка (склеп, подземелье)
+		root.position = trigger + out * 0.45
+		root.rotation.y = atan2(-out.x, -out.z)   # лицом к тропе
+		_cave_mouth(root, e.kind)
+		label_pos = Vector3(0, 2.9, 0)
+		if sealed:
 			# Проход замурован: стена с запертой дверью поперёк тропы — открывается загадкой
 			var gate_pos := _cell_pos(e.cell) - out * 2.0
 			var g := Node3D.new()
@@ -715,14 +791,29 @@ func _make_exit(e: Dictionary) -> void:
 				if part[1]:
 					g.set_meta("door_body", body)
 			ex.barrier = g
-			_interactables.append({"kind": "sealed", "node": g, "pos": gate_pos - out * 0.6, "prompt": Loc.t("E — проход запечатан загадкой")})
-	var l := _label3d(root, ("🔒 " if e.get("sealed", false) else "→ ") + String(e.to_name), Color("#FFE8B0"), label_pos.y, 40)
+			_interactables.append({"kind": "sealed", "node": g, "pos": gate_pos - out * 0.6, "riddle_id": e.get("riddle_id", ""), "prompt": Loc.t("E — проход запечатан загадкой")})
+	var l := _label3d(root, ("🔒 " if sealed else "→ ") + String(e.to_name), Color("#FFE8B0"), label_pos.y, 40)
 	l.position = label_pos
 	l.visibility_range_end = 16.0
 	# Появились рядом с проходом — он сработает только после того, как герой отойдёт
 	if _player and Vector2(_player.position.x - trigger.x, _player.position.z - trigger.z).length() < 3.5:
 		ex.armed = false
 	_exits.append(ex)
+
+
+func _unseal_flag(e: Dictionary) -> String:
+	return "%s:unsealed:%s" % [location_id, e.to]
+
+
+## Указатель района — точка быстрого перемещения: найден, когда герой подошёл (SIGN_DIST).
+func _make_signpost(sp: Dictionary) -> void:
+	var root := Node3D.new()
+	root.position = _cell_pos(sp.cell)
+	_world.add_child(root)
+	_signpost(root, randf() * TAU)
+	var l := _label3d(root, String(sp.name), Color("#FFE8B0"), 2.15, 40)
+	l.visibility_range_end = 18.0
+	_signs.append({"sign": sp, "pos": root.position})
 
 
 func _signpost(root: Node3D, yaw: float) -> void:
@@ -822,7 +913,7 @@ func _spawn_npc(npc_id: String, cell: Vector2i) -> void:
 		astar.set_point_solid(cell, true)
 
 
-func _spawn_enemy(enemy_id: String, cell: Vector2i, area: Rect2i, index: int) -> void:
+func _spawn_enemy(enemy_id: String, cell: Vector2i, area: Rect2i, index: int, region: String = "") -> void:
 	var info: Dictionary = {}
 	for e in CardDatabase.all_enemies():
 		if e.id == enemy_id:
@@ -831,6 +922,8 @@ func _spawn_enemy(enemy_id: String, cell: Vector2i, area: Rect2i, index: int) ->
 		return
 	var enemy := SortieEnemy.new()
 	enemy.index = index
+	enemy.region = region if region != "" else node_id
+	enemy.ground_height = ground_y
 	enemy.setup(info, _cell_pos(cell), area, astar, _player)
 	enemy.contact.connect(_on_enemy_contact)
 	_world.add_child(enemy)
@@ -988,6 +1081,17 @@ func _process(delta: float) -> void:
 		return
 	_update_focus()
 	_check_exits()
+	if _surface:
+		_check_signs()
+		_check_chasm_fall()
+		_region_t -= delta
+		if _region_t <= 0.0:
+			_region_t = 0.5
+			var rid := OutdoorGenerator.region_at(data, Vector2(_player.global_position.x, _player.global_position.z))
+			if rid != node_id:
+				_enter_region(rid, true)
+	if _compass:
+		_compass.update_view(_player.cam_yaw + PI, _player.global_position, _compass_markers())
 	_explored_save_t -= delta
 	if _explored_save_t <= 0.0:
 		_explored_save_t = 3.0
@@ -1022,20 +1126,16 @@ func _check_exits() -> void:
 	var p := _player.global_position
 	for ex in _exits:
 		var e: Dictionary = ex.exit
-		var sealed: bool = e.get("sealed", false)
+		var sealed: bool = ex.sealed
 		var trig: Vector3 = ex.trigger
 		var flat := Vector2(p.x - trig.x, p.z - trig.z)
-		if not sealed:
-			var near_sign := flat.length() < SIGN_DIST
-			if e.has("arrive"):
-				near_sign = near_sign or Vector2(p.x, p.z).distance_to(Vector2(e.arrive) + Vector2(0.5, 0.5)) < SIGN_DIST
-			if near_sign:
-				_discover(e)
+		if not sealed and flat.length() < SIGN_DIST:
+			_discover(e)
 		if not ex.armed:
 			if flat.length() > 3.5:
 				ex.armed = true
 			continue
-		if sealed:
+		if sealed or absf(p.y - trig.y) > 2.0:
 			continue
 		var crossed := false
 		var dir: Vector3 = ex.dir
@@ -1051,13 +1151,67 @@ func _check_exits() -> void:
 			return
 
 
+## Найден вход в пещеру / проход подземелья: открыт на карте локации навсегда.
 func _discover(e: Dictionary) -> void:
 	var was_open := WorldData.is_open(location_id, e.to)
-	if WorldData.mark_exit(location_id, node_id, e.to):
+	if WorldData.mark_exit(location_id, e.get("region", node_id), e.to):
 		_update_hud()
 		if not was_open:
 			Audio.play_jingle("discovery")
 			EventBus.notify(Loc.t("Найден проход: %s. Теперь туда можно отправиться прямо с карты локации.") % e.to_name, "success")
+
+
+## Указатели районов: подошёл — указатель найден (быстрое перемещение с карты).
+func _check_signs() -> void:
+	var p := Vector2(_player.global_position.x, _player.global_position.z)
+	for s in _signs:
+		if p.distance_to(Vector2(s.pos.x, s.pos.z)) < SIGN_DIST and WorldData.mark_sign(location_id, s.sign.region):
+			var n := WorldData.signs_found(location_id)
+			Audio.play_jingle("discovery")
+			EventBus.notify(Loc.t("Найден указатель «%s» (%d из %d) — сюда можно быстро переместиться с карты.") % [s.sign.name, n.x, n.y], "success")
+			_update_hud()
+
+
+## Падение в пропасть или реку на поверхности: ниже уровня берега внутри её контура.
+func _check_chasm_fall() -> void:
+	if _falling:
+		return
+	var p := _player.global_position
+	for ch in data.chasms:
+		var rect: Rect2i = ch.rect
+		if p.x >= rect.position.x - 0.3 and p.x <= rect.end.x + 0.3 and p.z >= rect.position.y - 0.3 and p.z <= rect.end.y + 0.3:
+			if p.y < float(ch.level) - (0.9 if ch.water else 4.5):
+				_falling = true
+				_player.fell.emit()
+				_player.input_enabled = false
+			return
+	# Страховка: оказался под рельефом (не в пропасти) — вернуть на поверхность
+	var gy := ground_y(p.x, p.z)
+	if p.y < gy - 2.5:
+		_player.global_position = Vector3(p.x, gy + 0.5, p.z)
+		_player.velocity = Vector3.ZERO
+
+
+## Метки на полосе компаса: указатели, входы в пещеры, ближайшие враги.
+func _compass_markers() -> Array:
+	var list: Array = []
+	var me := _player.global_position
+	# Неизвестные места («?») — только поблизости, найденные указатели и входы — всегда
+	for s in _signs:
+		var found: bool = WorldData.is_sign_found(location_id, s.sign.region)
+		if found or me.distance_to(s.pos) < 45.0:
+			list.append({"pos": s.pos, "kind": "sign" if found else "unknown", "label": s.sign.name if found else "?"})
+	for ex in _exits:
+		if _surface:
+			var known: bool = ex.exit.to in WorldData.node_state(location_id, ex.exit.region).exits
+			if known or me.distance_to(ex.trigger) < 45.0:
+				list.append({"pos": ex.trigger, "kind": "cave" if known else "unknown", "label": ex.exit.to_name if known else "?"})
+		else:
+			list.append({"pos": ex.trigger, "kind": "cave", "label": ex.exit.to_name})
+	for e in _enemies:
+		if is_instance_valid(e) and e.global_position.distance_to(_player.global_position) < 22.0:
+			list.append({"pos": e.global_position, "kind": "enemy", "label": ""})
+	return list
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -1097,47 +1251,86 @@ func _interact(it: Dictionary) -> void:
 				marker.text = "…"
 			EventBus.go("dialogue", {"npc_id": it.id, "overlay": true})
 		"gate":
-			EventBus.go("riddle", {"riddle_id": data.riddle_id, "overlay": true})
+			EventBus.go("riddle", {"riddle_id": it.riddle_id, "overlay": true})
 		"safe":
 			EventBus.go("safe", {"safe_id": it.data.id, "overlay": true})
 		"chest":
 			_player.act("PickUp_Table")
 			_open_chest(it)
 		"sealed":
-			EventBus.go("riddle", {"riddle_id": data.riddle_id, "overlay": true})
+			EventBus.go("riddle", {"riddle_id": it.riddle_id, "overlay": true})
 
 
 func _use_exit(ex: Dictionary) -> void:
 	var e: Dictionary = ex.exit
-	if e.get("sealed", false):
+	if ex.sealed:
 		return
 	if _gates_closed() and e.cell in _gated_cells():
 		EventBus.notify(Loc.t("Путь перекрыт решёткой"), "warning")
 		return
-	if _boss_alive() and data.underground and e.cell == data.get("exit", Vector2i(-99, -99)):
+	if _boss_alive() and not _surface and e.cell == data.get("exit", Vector2i(-99, -99)):
 		EventBus.notify(Loc.t("Страж этого места не даст пройти — победи его"), "warning")
 		return
 	_discover(e)
-	_go_to_node(e.to, node_id)
-
-
-## Быстрое перемещение с карты локации (M) в открытую подлокацию: появление у её указателя.
-func _fast_travel(id: String) -> void:
-	if id == node_id or _transitioning or not WorldData.is_open(location_id, id):
+	if _surface:
+		_go_to_node(e.to, e.region)
 		return
-	_go_to_node(id, _entry_for(id))
+	var target := WorldData.node(location_id, e.to)
+	if WorldData.is_underground(target):
+		_go_to_node(e.to, node_id)
+	else:
+		# Выход из пещеры на поверхность — у её входа в склоне
+		var surf := OutdoorGenerator.generate_surface(location_id)
+		for c in surf.caves:
+			if c.to == node_id and c.region == e.to:
+				_go_to_surface(c.arrive, Vector2(c.cell))
+				return
+		_go_to_surface(_signpost_of(e.to).get("arrive", surf.start), Vector2.INF)
+
+
+## Быстрое перемещение с карты локации (M) к найденному указателю района (или в посещённую пещеру).
+func _fast_travel(id: String) -> void:
+	if _transitioning or not WorldData.is_open(location_id, id):
+		return
+	if WorldData.is_underground(WorldData.node(location_id, id)):
+		if id != node_id or _surface:
+			_go_to_node(id, _entry_for(id))
+		return
+	var sp := _signpost_of(id)
+	if not sp.is_empty():
+		_go_to_surface(sp.arrive, Vector2.INF)
 
 
 func _go_to_node(id: String, entry: String) -> void:
+	_begin_transition()
+	var tw := create_tween()
+	tw.tween_property(_fade, "modulate:a", 1.0, 0.5)
+	tw.tween_callback(_load_node.bind(id, entry))
+
+
+func _go_to_surface(spawn: Vector2i, face_from: Vector2) -> void:
+	_begin_transition()
+	var tw := create_tween()
+	tw.tween_property(_fade, "modulate:a", 1.0, 0.5)
+	if _surface:
+		# Уже на поверхности: переносим героя, не перестраивая мир
+		tw.tween_callback(func():
+			_player.global_position = _cell_pos(spawn) + Vector3(0, 0.3, 0)
+			_player.velocity = Vector3.ZERO
+			_enter_region(OutdoorGenerator.region_at(data, Vector2(spawn)), true)
+			_player.input_enabled = true
+			_finish_load(node.get("name", "")))
+	else:
+		tw.tween_callback(_load_surface.bind(spawn, face_from))
+
+
+func _begin_transition() -> void:
 	_store_explored()
 	_transitioning = true
 	_prompt.visible = false
 	_player.input_enabled = false
 	Audio.play("whoosh")
 	SaveSystem.save_all()
-	var tw := create_tween()
-	tw.tween_property(_fade, "modulate:a", 1.0, 0.5)
-	tw.tween_callback(_load_node.bind(id, entry))
 
 
 func _gated_cells() -> Array:
@@ -1190,12 +1383,13 @@ func _start_combat(enemy, enemy_id: String) -> void:
 	Audio.play("hit_heavy")
 	if _player:
 		_player.act("Sword_Attack")
-	EventBus.go("combat", {"enemy_id": enemy_id, "context": "expedition", "power": _enemy_power()})
+	var region: String = enemy.region if enemy != null and is_instance_valid(enemy) else node_id
+	EventBus.go("combat", {"enemy_id": enemy_id, "context": "expedition", "power": _enemy_power(region)})
 
 
-## Сила врагов этой подлокации (глубже в локации — сильнее).
-func _enemy_power() -> float:
-	return XPCalculator.enemy_power(WorldData.node_depth(location_id, node_id), int(WorldData.location_info(location_id).get("level", 1)))
+## Сила врагов района / подлокации (глубже в локации — сильнее).
+func _enemy_power(region: String) -> float:
+	return XPCalculator.enemy_power(WorldData.node_depth(location_id, region), int(WorldData.location_info(location_id).get("level", 1)))
 
 
 func _on_combat_finished(result: Dictionary) -> void:
@@ -1209,11 +1403,12 @@ func _after_combat(result: Dictionary) -> void:
 		run.gold += int(result.get("gold", 0))
 		if is_instance_valid(_combat_enemy):
 			var idx: int = _combat_enemy.index
+			var region: String = _combat_enemy.region
 			if idx >= 0:
-				WorldData.mark_kill(location_id, node_id, idx)
+				WorldData.mark_kill(location_id, region, idx)
 			else:
-				WorldData.node_state(location_id, node_id).boss = true
-				var st := WorldData.node_state(location_id, node_id)
+				WorldData.node_state(location_id, region).boss = true
+				var st := WorldData.node_state(location_id, region)
 				if not -1 in st.kills:
 					st.kills.append(-1)
 				EventBus.notify(Loc.t("Страж повержен! Путь свободен."), "success")
@@ -1279,7 +1474,10 @@ func _world_action(a: Dictionary) -> void:
 
 
 func _on_riddle_finished(riddle_id: String, solved: bool) -> void:
-	if not solved or riddle_id != data.get("riddle_id", ""):
+	if not solved:
+		return
+	var for_cave := _exits.any(func(ex): return ex.sealed and ex.exit.get("riddle_id", "") == riddle_id)
+	if riddle_id != data.get("riddle_id", "") and not for_cave:
 		return
 	run.riddles += 1
 	_pending_actions.append({"world": "open_gate"})
@@ -1287,8 +1485,9 @@ func _on_riddle_finished(riddle_id: String, solved: bool) -> void:
 		_pending_actions.append({"world": "_leave", "npc": "warden"})
 	# Запечатанный загадкой проход открывается
 	for ex in _exits:
-		if ex.exit.get("sealed", false):
-			ex.exit.sealed = false
+		if ex.sealed and ex.exit.get("riddle_id", data.get("riddle_id", "")) == riddle_id:
+			ex.sealed = false
+			GameManager.set_flag(_unseal_flag(ex.exit))
 			if is_instance_valid(ex.barrier):
 				var g: Node3D = ex.barrier
 				var door_body: Node = g.get_meta("door_body")
@@ -1305,18 +1504,18 @@ func _on_riddle_finished(riddle_id: String, solved: bool) -> void:
 
 
 func _on_safe_finished(safe_id: String, opened: bool) -> void:
-	if not opened or data.get("safe", {}).get("id", "") != safe_id:
+	if not opened or not _interactables.any(func(it): return it.kind == "safe" and it.data.id == safe_id):
 		return
 	run.safes += 1
 	GameManager.add_stat("safes")
 	GameManager.gain_xp(15)
 	for it in _interactables.duplicate():
-		if it.kind == "safe":
+		if it.kind == "safe" and it.data.id == safe_id:
 			_interactables.erase(it)
 			var dial = it.node.get_meta("dial")
 			if is_instance_valid(dial):
 				dial.create_tween().tween_property(dial, "rotation:y", TAU * 2, 1.0)
-	var has_greta: bool = data.npcs.any(func(n): return n.id == "greta")
+	var has_greta: bool = _entities().npcs.any(func(n): return n.id == "greta")
 	if has_greta and GameManager.item_count("valve") == 0 and not GameManager.has_flag("valve_returned"):
 		GameManager.add_item("valve")
 		EventBus.notify(Loc.t("В сейфе — латунный клапан Греты!"), "success")
@@ -1393,7 +1592,7 @@ func _roll_item(chance: float, extra_levels: int = 3, prefer_high: bool = false)
 
 func _open_chest(it: Dictionary) -> void:
 	_interactables.erase(it)
-	WorldData.mark_chest(location_id, node_id, it.index)
+	WorldData.mark_chest(location_id, it.get("region", node_id), it.index)
 	var lid: Node3D = it.node
 	var tw := lid.create_tween()
 	tw.tween_property(lid, "scale", Vector3(1.0, 1.15, 1.0) * lid.scale.x, 0.12)
@@ -1452,7 +1651,6 @@ func _init_minimap() -> void:
 	_map_image = Image.create(data.w, data.h, false, Image.FORMAT_RGBA8)
 	_terrain_image = Image.create(data.w, data.h, false, Image.FORMAT_RGBA8)
 	_map_tex = ImageTexture.create_from_image(_map_image)
-	_minimap.texture = _map_tex
 	_restore_explored()
 	_update_minimap()
 
@@ -1461,7 +1659,7 @@ func _init_minimap() -> void:
 func _store_explored() -> void:
 	if _explored.is_empty() or node_id == "" or int(run.get("seed_override", -1)) >= 0:
 		return
-	var st := WorldData.node_state(location_id, node_id)
+	var st := _explored_state()
 	st["explored"] = Marshalls.raw_to_base64(_explored.compress(FileAccess.COMPRESSION_DEFLATE))
 	st["explored_size"] = _explored.size()
 	var walk := 0
@@ -1474,8 +1672,18 @@ func _store_explored() -> void:
 	st["explored_pct"] = float(seen) / maxf(walk, 1)
 
 
+## Где хранится маска исследованного: у поверхности — в состоянии локации, у пещеры — в её состоянии.
+func _explored_state() -> Dictionary:
+	if _surface:
+		var ls := WorldData.loc_state(location_id)
+		if not ls.has("surface"):
+			ls["surface"] = {}
+		return ls.surface
+	return WorldData.node_state(location_id, node_id)
+
+
 func _restore_explored() -> void:
-	var st := WorldData.node_state(location_id, node_id)
+	var st := _explored_state()
 	if int(st.get("explored_size", 0)) != _explored.size() or int(run.get("seed_override", -1)) >= 0:
 		return
 	var raw := Marshalls.base64_to_raw(String(st.get("explored", ""))).decompress(_explored.size(), FileAccess.COMPRESSION_DEFLATE)
@@ -1512,6 +1720,8 @@ func _update_minimap() -> void:
 				_dot(c, Color("#7FDBFF"), true)
 	for ex in _exits:
 		_dot(Vector2i(int(ex.trigger.x), int(ex.trigger.z)), Color("#7FDBFF"), true)
+	for sg in _signs:
+		_dot(Vector2i(int(sg.pos.x), int(sg.pos.z)), Palette.GOLD, true)
 	for e in _enemies:
 		if is_instance_valid(e):
 			_dot(Vector2i(int(e.global_position.x), int(e.global_position.z)), Palette.HP)
@@ -1564,7 +1774,9 @@ func _open_location_map() -> void:
 	_store_explored()
 	Audio.play("open")
 	EventBus.go("location", {"location_id": location_id, "in_sortie": true, "current": node_id,
-		"minimap": _map_tex, "on_travel": _fast_travel})
+		"minimap": _map_tex if not _surface else null, "on_travel": _fast_travel,
+		"player": Vector2(_player.global_position.x, _player.global_position.z) if _surface else Vector2.INF,
+		"player_yaw": _player.cam_yaw + PI})
 
 
 ## P — просто пауза: мир замирает, по центру белая надпись «ПАУЗА».

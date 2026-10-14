@@ -631,6 +631,13 @@ func equip(item_id: String, slot: String = "", source: String = "inventory") -> 
 	if old != "":
 		list.append(old)
 	player_data.equipment[slot] = item_id
+	# Двуручное оружие освобождает вторую руку; щит/кинжал во вторую руку снимает двуручное
+	if slot == "weapon" and ItemDatabase.is_two_handed(item) and equipped("offhand") != "":
+		list.append(equipped("offhand"))
+		player_data.equipment.erase("offhand")
+	elif slot == "offhand" and ItemDatabase.is_two_handed(ItemDatabase.get_item(equipped("weapon"))):
+		list.append(equipped("weapon"))
+		player_data.equipment.erase("weapon")
 	_after_equipment_change()
 	return true
 
