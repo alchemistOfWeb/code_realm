@@ -31,6 +31,7 @@ const FOG_RADIUS := 9
 const SIGN_DIST := 6.0
 ## Индексы сундуков на постройках (в node_state.chests рядом с обычными).
 const HIGH_CHEST_BASE := 100
+const COLUMN_CHEST_BASE := 200
 
 var location_id := ""
 var node_id := ""
@@ -533,13 +534,9 @@ func _build_entities(spawn: Vector2i, fall_y: float) -> void:
 		_interactables.append({"kind": "chest", "node": chest, "pos": chest.position, "index": c.index, "region": c.region, "prompt": Loc.t("E — открыть сундук")})
 
 	_build_vertical()
-
-	# Платформы над пропастью / рекой
-	for pl in data.get("platforms", []):
-		var visual := _platform_visual(pl.size)
-		var p := MovingPlatform.create(pl.a, pl.b, pl.size, null, pl.period, pl.phase, visual)
-		p.bob = 0.08 if data.get("water", false) else 0.03
-		_world.add_child(p)
+	if _surface:
+		_build_columns()
+		_build_bridges()
 
 	# Враги и стражи (побеждённые раньше не возвращаются)
 	for e in ents.enemies:
@@ -563,7 +560,6 @@ func _region(rid: String) -> Dictionary:
 
 ## Вертикальные постройки (OutdoorGenerator → data.vertical): на них надо запрыгнуть, наверху — сундук
 ## с ценной добычей. Визуал и коллизия совпадают (простые формы), так что «невидимых» препятствий нет.
-const STEP_RISE := 0.8          # прыжок героя поднимает ~1.17 м — ступень с запасом
 
 
 func _build_vertical() -> void:
@@ -579,11 +575,7 @@ func _build_vertical() -> void:
 		var body := StaticBody3D.new()
 		body.collision_layer = 1
 		root.add_child(body)
-		var top := 0.0
-		if v.type == "tower":
-			top = _build_tower(root, body, float(v.height))
-		else:
-			top = _build_stumps(root, body, float(v.height))
+		var top := _build_spiral_tower(root, body, v)
 		# Клетки под постройкой — препятствие для врагов
 		for y in range(int(c.y) - 2, int(c.y) + 3):
 			for x in range(int(c.x) - 2, int(c.x) + 3):
@@ -592,7 +584,7 @@ func _build_vertical() -> void:
 		var index: int = HIGH_CHEST_BASE + i
 		if index in st.chests:
 			continue
-		var chest := LevelBuilder.place(root, LevelBuilder.P + "Chest_Wood.gltf", Vector3(0, top, 0), PI, 0.9)
+		var chest := LevelBuilder.place(root, LevelBuilder.P + "Chest_Wood.gltf", Vector3(0, top, 0), 0.0, 0.9)
 		var glow := OmniLight3D.new()
 		glow.light_color = Color("#FFD27A")
 		glow.light_energy = 1.2
@@ -656,88 +648,196 @@ func _solid_cylinder(root: Node3D, body: StaticBody3D, radius: float, height: fl
 	body.add_child(cs)
 
 
-## Каменная башня: ступени-уступы спиралью вокруг стен, наверху площадка с зубцами. Возвращает высоту верха.
-func _build_tower(root: Node3D, body: StaticBody3D, height: float) -> float:
+## Полуразрушенная башня с винтовой лестницей: ствол-цилиндр, ступени-плиты по спирали (пологие — по ним
+## идёшь пешком), часть ступеней обвалилась — провал надо перепрыгнуть. Наверху площадка с зубцами.
+## Возвращает высоту площадки.
+const SPIRAL_R := 1.5          # радиус ствола
+const SPIRAL_W := 1.6          # ширина ступени
+
+
+func _build_spiral_tower(root: Node3D, body: StaticBody3D, v: Dictionary) -> float:
+	var height: float = v.height
+	var steps: int = v.steps
 	var stone := _stone_mat()
-	# Круглый ствол: прыжок между уступами (хорда на радиусе 1.75) не задевает стену.
-	# Верх площадки — на высоте height, ровно на ступень выше последнего уступа; без нависания над уступами
-	_solid_cylinder(root, body, 1.1, height, Vector3(0, height * 0.5, 0), stone, 1.0)
-	var steps := int(round(height / STEP_RISE)) - 1
-	# Зубцы по краю площадки — кроме стороны последнего уступа (там герой запрыгивает наверх)
-	var last_a := PI / 3.0 * (steps - 1)
-	for k in 6:
-		var a := PI / 3.0 * k + PI / 6.0
-		if absf(angle_difference(a, last_a)) < PI / 2.5:
-			continue
-		_solid_box(root, body, Vector3(0.3, 0.5, 0.3), Vector3(cos(a) * 0.88, height + 0.25, sin(a) * 0.88), stone)
+	_solid_cylinder(root, body, SPIRAL_R, height + 1.2, Vector3(0, (height - 1.2) * 0.5, 0), stone, 1.05)
+	# Ступени-плиты: каждая — наклонный отрезок спирали
 	for k in steps:
-		var a := PI / 3.0 * k
-		var y := STEP_RISE * (k + 1)
-		_solid_box(root, body, Vector3(1.0, 0.3, 1.0), Vector3(cos(a) * 1.75, y - 0.15, sin(a) * 1.75), stone)
-	# Знамя на шпиле — видно издалека
-	var pole := MeshInstance3D.new()
-	var pm := CylinderMesh.new()
-	pm.top_radius = 0.04
-	pm.bottom_radius = 0.05
-	pm.height = 2.0
-	pole.mesh = pm
-	pole.material_override = _wood_mat()
-	pole.position = Vector3(0.61, height + 1.55, 0.61)
-	root.add_child(pole)
-	var flag := MeshInstance3D.new()
-	var fm := BoxMesh.new()
-	fm.size = Vector3(0.9, 0.5, 0.03)
-	flag.mesh = fm
-	var flm := StandardMaterial3D.new()
-	flm.albedo_color = Color("#C0392B")
-	flag.material_override = flm
-	flag.position = Vector3(1.09, height + 2.25, 0.61)
-	root.add_child(flag)
+		if k in v.missing:
+			# Обломок у стены — видно, что ступень была
+			var stub := MeshInstance3D.new()
+			var sb := BoxMesh.new()
+			sb.size = Vector3(0.35, 0.25, 0.9)
+			stub.mesh = sb
+			stub.material_override = stone
+			var am := _spiral_angle(k + 0.5, steps)
+			stub.position = Vector3(cos(am) * (SPIRAL_R + 0.18), _spiral_y(k + 0.5, steps, height) - 0.2, sin(am) * (SPIRAL_R + 0.18))
+			stub.rotation.y = -am
+			root.add_child(stub)
+			continue
+		_spiral_slab(root, body, k, steps, height, stone)
+	# Площадка наверху и разрушенные зубцы
+	_solid_cylinder(root, body, SPIRAL_R + 0.25, 0.3, Vector3(0, height - 0.15, 0), stone, 1.0)
+	var last_a := _spiral_angle(steps, steps)
+	for k in 7:
+		var a := TAU * k / 7.0
+		if absf(angle_difference(a, last_a)) < 0.9 or k == 3:
+			continue   # проход со стороны лестницы и обрушенный зубец
+		var hs := randf_range(0.35, 0.7)
+		_solid_box(root, body, Vector3(0.4, hs, 0.4), Vector3(cos(a) * (SPIRAL_R + 0.05), height + hs * 0.5, sin(a) * (SPIRAL_R + 0.05)), stone)
+	# Обломки у подножия
+	for k in 4:
+		var a := randf() * TAU
+		LevelBuilder.place(root, LevelBuilder.V + "Prop_Brick%d.gltf" % (1 + k % 2), Vector3(cos(a) * 3.6, 0.0, sin(a) * 3.6), randf() * TAU)
 	return height
 
 
-## Пни-ступени к лесной вышке: дощатый настил на столбах. Возвращает высоту настила.
-func _build_stumps(root: Node3D, body: StaticBody3D, height: float) -> float:
-	var wood := _wood_mat()
-	var plank := StandardMaterial3D.new()
-	plank.albedo_texture = load(LevelBuilder.V + "T_WoodTrim_BaseColor.png")
-	plank.uv1_triplanar = true
-	plank.uv1_scale = Vector3(0.6, 0.6, 0.6)
-	_solid_box(root, body, Vector3(3.0, 0.25, 3.0), Vector3(0, height - 0.125, 0), plank)
-	for corner in [Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1), Vector2(-1, -1)]:
-		_solid_cylinder(root, body, 0.13, height, Vector3(corner.x * 1.3, height * 0.5, corner.y * 1.3), wood)
-	# Перила с трёх сторон (со стороны пней — проход)
-	for side in [Vector2(0, -1), Vector2(-1, 0), Vector2(1, 0)]:
-		var size := Vector3(3.0 if side.x == 0 else 0.12, 0.5, 0.12 if side.x == 0 else 3.0)
-		_solid_box(root, body, size, Vector3(side.x * 1.44, height + 0.25, side.y * 1.44), plank)
-	var n := int(round(height / STEP_RISE)) - 1
-	for k in n:
-		var h := STEP_RISE * (k + 1) - 0.1
-		var p := Vector3(0.55 * (k % 2 * 2 - 1), h * 0.5, 2.4 + 1.25 * (n - 1 - k))
-		_solid_cylinder(root, body, 0.55, h, p, wood)
-	return height
+func _spiral_angle(k: float, steps: int) -> float:
+	return k * deg_to_rad(32.0)
 
 
-func _platform_visual(size: Vector3) -> Node3D:
-	var root := Node3D.new()
-	var path := LevelBuilder.V + ("Floor_UnevenBrick.gltf" if node.kind == "ruins" else "Floor_WoodDark.gltf")
-	var top := LevelBuilder.place(root, path, Vector3(0, -0.02, 0), 0.0, size.x / 2.0)
-	top.scale.y = 1.0
-	var under := MeshInstance3D.new()
+func _spiral_y(k: float, steps: int, height: float) -> float:
+	return height * k / steps
+
+
+func _spiral_slab(root: Node3D, body: StaticBody3D, k: int, steps: int, height: float, mat: Material) -> void:
+	var r := SPIRAL_R + SPIRAL_W * 0.5 - 0.05
+	var a0 := _spiral_angle(k, steps)
+	var a1 := _spiral_angle(k + 1, steps)
+	var p0 := Vector3(cos(a0) * r, _spiral_y(k, steps, height), sin(a0) * r)
+	var p1 := Vector3(cos(a1) * r, _spiral_y(k + 1, steps, height), sin(a1) * r)
+	var mid := (p0 + p1) * 0.5
+	var along := p1 - p0
+	var length := along.length() + 0.12
+	var basis := Basis.looking_at(along.normalized(), Vector3.UP)
+	var slab := MeshInstance3D.new()
 	var bm := BoxMesh.new()
-	bm.size = Vector3(size.x * 0.96, size.y, size.z * 0.96)
-	under.mesh = bm
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color("#6B4A2E") if node.kind != "ruins" else Color("#7D776E")
-	under.material_override = m
-	under.position.y = -size.y * 0.5 - 0.03
-	root.add_child(under)
-	return root
+	bm.size = Vector3(SPIRAL_W, 0.3, length)
+	slab.mesh = bm
+	slab.material_override = mat
+	slab.transform = Transform3D(basis, mid - basis.y * 0.15)
+	root.add_child(slab)
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = bm.size
+	cs.shape = shape
+	cs.transform = slab.transform
+	body.add_child(cs)
 
 
-## Переход в соседнюю подлокацию. На поверхности — тропа, уходящая за край карты (или вход в пещеру /
-## склеп в склоне холма): уйди по ней — и окажешься в соседней подлокации. Указатель у начала тропы —
-## только ориентир и точка появления (сюда же ведёт быстрое перемещение). В подземельях — лестницы.
+## Точки маршрута по башне (для автотеста): центры ступеней по порядку и площадка наверху.
+func spiral_route(v: Dictionary) -> Array:
+	var pts: Array = []
+	var r := SPIRAL_R + SPIRAL_W * 0.5
+	for k in v.steps:
+		if k in v.missing:
+			continue
+		var a := _spiral_angle(k + 0.5, v.steps)
+		pts.append(Vector3(cos(a) * r, _spiral_y(k + 0.5, v.steps, v.height), sin(a) * r))
+	pts.append(Vector3(0, v.height, 0))
+	return pts
+
+
+## Уступы из каменных столбов (шестигранные, как базальтовые колонны) с сундуком на вершине.
+func _build_columns() -> void:
+	var terrain: Dictionary = data.terrain
+	var stone := StandardMaterial3D.new()
+	stone.albedo_texture = load(LevelBuilder.V + "T_RockTrim_BaseColor.png")
+	stone.uv1_triplanar = true
+	stone.uv1_scale = Vector3(0.45, 0.45, 0.45)
+	stone.albedo_color = Color(0.78, 0.76, 0.74)
+	for i in data.get("columns", []).size():
+		var cl: Dictionary = data.columns[i]
+		var base_y := OutdoorGenerator.height_at(terrain, cl.center.x, cl.center.y)
+		var body := StaticBody3D.new()
+		body.collision_layer = 1 | 4
+		_world.add_child(body)
+		for c in cl.columns:
+			var p: Vector2 = c.pos
+			var gy := minf(OutdoorGenerator.height_at(terrain, p.x, p.y), base_y)
+			var top: float = base_y + float(c.h)
+			var hgt: float = top - gy + 1.0           # уходит в землю на метр
+			var mi := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.radial_segments = 6
+			cm.rings = 1
+			cm.top_radius = c.r
+			cm.bottom_radius = c.r * 1.06
+			cm.height = hgt
+			mi.mesh = cm
+			mi.material_override = stone
+			mi.position = Vector3(p.x, top - hgt * 0.5, p.y)
+			mi.rotation.y = randf() * TAU
+			_world.add_child(mi)
+			var cs := CollisionShape3D.new()
+			var shape := CylinderShape3D.new()
+			shape.radius = c.r
+			shape.height = hgt
+			cs.shape = shape
+			cs.position = mi.position
+			body.add_child(cs)
+			for y in range(int(p.y - c.r), int(p.y + c.r) + 1):
+				for x in range(int(p.x - c.r), int(p.x + c.r) + 1):
+					if astar.region.has_point(Vector2i(x, y)):
+						astar.set_point_solid(Vector2i(x, y), true)
+		var index: int = COLUMN_CHEST_BASE + i
+		if index in WorldData.node_state(location_id, cl.region).chests:
+			continue
+		var s: Vector2 = cl.summit
+		var chest := LevelBuilder.place(_world, LevelBuilder.P + "Chest_Wood.gltf", Vector3(s.x, base_y + float(cl.top), s.y), randf() * TAU, 0.85)
+		var glow := OmniLight3D.new()
+		glow.light_color = Color("#FFD27A")
+		glow.light_energy = 1.2
+		glow.omni_range = 3.0
+		glow.position.y = 0.9
+		chest.add_child(glow)
+		_interactables.append({"kind": "chest", "node": chest, "pos": chest.position, "index": index, "region": cl.region, "high": true, "prompt": Loc.t("E — открыть сундук")})
+
+
+## Разрушенный каменный мост к острову: пролёты на опорах, между ними провалы.
+func _build_bridges() -> void:
+	var stone := _stone_mat()
+	var body := StaticBody3D.new()
+	body.collision_layer = 1 | 4
+	_world.add_child(body)
+	for b in data.get("bridges", []):
+		var size: Vector3 = b.size
+		var top: Vector3 = b.pos
+		var node := Node3D.new()
+		node.position = top
+		node.rotation = Vector3(b.tilt, b.yaw, 0)
+		_world.add_child(node)
+		var deck := MeshInstance3D.new()
+		var dm := BoxMesh.new()
+		dm.size = size
+		deck.mesh = dm
+		deck.material_override = stone
+		deck.position.y = -size.y * 0.5
+		node.add_child(deck)
+		var cs := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = size
+		cs.shape = shape
+		cs.transform = node.transform * Transform3D(Basis(), Vector3(0, -size.y * 0.5, 0))
+		body.add_child(cs)
+		# Остатки парапета и опора, уходящая в провал
+		for side in [-1.0, 1.0]:
+			if randf() < 0.6:
+				var rail := MeshInstance3D.new()
+				var rm := BoxMesh.new()
+				rm.size = Vector3(0.25, randf_range(0.25, 0.5), size.z * randf_range(0.4, 0.9))
+				rail.mesh = rm
+				rail.material_override = stone
+				rail.position = Vector3(side * (size.x * 0.5 - 0.12), rm.size.y * 0.5, 0)
+				node.add_child(rail)
+		var pillar := MeshInstance3D.new()
+		var pm := BoxMesh.new()
+		pm.size = Vector3(size.x * 0.7, 14.0, minf(size.z, 1.2))
+		pillar.mesh = pm
+		pillar.material_override = stone
+		pillar.position.y = -size.y - 7.0
+		node.add_child(pillar)
+
+
 func _make_exit(e: Dictionary) -> void:
 	var under: bool = data.get("underground", false)
 	var trigger := _cell_pos(e.cell)
@@ -1142,7 +1242,7 @@ func _check_exits() -> void:
 		if dir != Vector3.ZERO:
 			var along := flat.dot(Vector2(dir.x, dir.z))
 			var lateral := absf(flat.cross(Vector2(dir.x, dir.z)))
-			crossed = along > -0.6 and lateral < 2.6
+			crossed = along > -0.6 and along < 2.5 and lateral < 2.6
 		else:
 			crossed = flat.length() < 0.9
 		if crossed:
@@ -1178,8 +1278,9 @@ func _check_chasm_fall() -> void:
 		return
 	var p := _player.global_position
 	for ch in data.chasms:
-		var rect: Rect2i = ch.rect
-		if p.x >= rect.position.x - 0.3 and p.x <= rect.end.x + 0.3 and p.z >= rect.position.y - 0.3 and p.z <= rect.end.y + 0.3:
+		# Кольцо провала (края сглажены по окружности — проверяем по расстоянию, а не по клетке)
+		var dc := Vector2(p.x, p.z).distance_to(ch.center)
+		if dc > float(ch.r_in) - 0.8 and dc < float(ch.r_out) + 0.8:
 			if p.y < float(ch.level) - (0.9 if ch.water else 4.5):
 				_falling = true
 				_player.fell.emit()

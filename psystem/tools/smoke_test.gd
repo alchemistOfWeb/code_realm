@@ -492,7 +492,8 @@ func _run() -> void:
 	# Единая поверхность каждой локации: районы, указатели, входы в пещеры, связность
 	var surf_bad: PackedStringArray = []
 	var vertical_total := 0
-	var rocks_total := 0
+	var columns_total := 0
+	var overlap_bad: PackedStringArray = []
 	for loc_id in ["whisper_grove", "ferrograd_ruins", "maple_dale", "valley_of_mills"]:
 		var loc := WorldData.location(loc_id)
 		var sf := OutdoorGenerator.generate_surface(loc_id)
@@ -534,20 +535,39 @@ func _run() -> void:
 			if not entry_comps.has(comp.get(sp.cell, -2)):
 				surf_bad.append("%s: sign %s unreachable" % [loc_id, sp.region])
 		for ch in sf.chasms:
-			if sf.platforms.filter(func(pl): return (ch.rect as Rect2i).grow(1).has_point(Vector2i(int(pl.a.x), int(pl.a.z)))).is_empty():
-				surf_bad.append("%s: chasm without platforms" % loc_id)
+			if sf.bridges.filter(func(b): return b.chasm == sf.chasms.find(ch)).size() < 2:
+				surf_bad.append("%s: chasm without bridge" % loc_id)
+			# Ни башни, ни столбы, ни входы в пещеры не стоят на краю провала
+			for v in sf.vertical:
+				if (v.center as Vector2).distance_to(ch.center) < float(ch.r_out) + 4.0:
+					overlap_bad.append("%s: tower %s" % [loc_id, v.region])
+			for cl in sf.columns:
+				if (cl.center as Vector2).distance_to(ch.center) < float(ch.r_out) + 5.0:
+					overlap_bad.append("%s: columns %s" % [loc_id, cl.region])
+			for st in sf.stamps:
+				if (st.center as Vector2).distance_to(ch.center) < float(ch.r_out) + float(st.radius):
+					overlap_bad.append("%s: cave mound" % loc_id)
+		# Сундуки на вершинах башен и столбов: маршрут из уступов, каждый выше на высоту прыжка или меньше
+		for cl in sf.columns:
+			var prev_h := 0.0
+			for c in cl.path:
+				if float(c.h) - prev_h > 1.0:
+					overlap_bad.append("%s: column step too high" % loc_id)
+				prev_h = float(c.h)
 		vertical_total += sf.vertical.size()
-		rocks_total += sf.rocks.size() + sf.mesas.size()
+		columns_total += sf.columns.size()
 	check(surf_bad.is_empty(), "единая поверхность 4 локаций: указатели, входы, связность %s" % ", ".join(surf_bad))
-	check(vertical_total >= 8 and rocks_total >= 20, "башни/вышки: %d, плато и глыбы: %d" % [vertical_total, rocks_total])
+	check(vertical_total >= 15 and columns_total >= 15, "винтовые башни: %d, уступы из столбов: %d" % [vertical_total, columns_total])
+	check(overlap_bad.is_empty(), "башни, столбы и холмы пещер не на краю провалов, уступы по силам %s" % ", ".join(overlap_bad))
 	var hill_ok := true
 	var sw0 := OutdoorGenerator.generate_surface("whisper_grove")
 	var e0 := OutdoorGenerator.height_at(sw0.terrain, sw0.start.x + 0.5, sw0.start.y + 0.5)
-	for k in range(1, 4):
-		# Склоны вокруг проходимой зоны: каждый шаг от края выше прыжка (1.17 м) — не забраться
-		if float(OutdoorGenerator.HILL[k]) - float(OutdoorGenerator.HILL[k - 1]) < 1.2:
-			hill_ok = false
-	check(hill_ok and e0 > -1.0, "крутые склоны вместо невидимых стен")
+	# Края карты — горы, а не невидимые стены: по периметру клетки непроходимы, рельеф выше старта на прыжки
+	for x in range(0, sw0.w, 7):
+		for y in [0, sw0.h - 1]:
+			if sw0.grid[y * sw0.w + x] != OutdoorGenerator.BLOCK or OutdoorGenerator.height_at(sw0.terrain, x + 0.5, y + 0.5) < e0 + 3.0:
+				hill_ok = false
+	check(hill_ok and e0 > -1.0, "по краям карты — горы вместо невидимых стен")
 
 	print("== Вылазка")
 	gm.grant_starter_pack()
@@ -642,8 +662,8 @@ func _run() -> void:
 	# Падение в пропасть — гибель, потеря всей энергии
 	gm.player_data.energy = 30
 	var chasm: Dictionary = sw.data.chasms[0]
-	var cr: Rect2i = chasm.rect
-	sw._player.global_position = Vector3(cr.get_center().x, float(chasm.level) - 8.0, cr.get_center().y)
+	var ring: Vector2 = chasm.center + (chasm.dir as Vector2).orthogonal() * (float(chasm.r_in) + float(chasm.r_out)) * 0.5
+	sw._player.global_position = Vector3(ring.x, float(chasm.level) - 8.0, ring.y)
 	await get_tree().create_timer(1.3).timeout
 	check(sw._ended and gm.player_data.energy == 0, "падение в пропасть: гибель, энергия потеряна")
 	sw._return_to_camp()

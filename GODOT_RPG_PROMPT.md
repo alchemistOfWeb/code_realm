@@ -119,11 +119,26 @@ Godot: `C:\Users\user\games\godot\Godot_v4.6.3-stable_win64_console.exe`. Ред
      тропы, вода, пропасти, туман неисследованного, высота под курсором, легенда, указатели и входы, стрелка героя).
   6. Вместо мини-карты — полоска компаса (`scenes/world/CompassBar.gd`): стороны света, указатели, входы, «?» поблизости,
      враги рядом, название и расстояние метки по курсу.
+- **Итерация 10 — ГОТОВА (поверхность в духе Gothic, паркур):**
+  1. Поверхность — долина в кольце гор (`RIM`): районы на своих высотах (смешение по расстоянию), дороги — плавные
+     кривые с выровненным полотном, площадки (`pads`) под постройки, холмы пещер (`stamps`) с проёмом у подножия.
+     Проходимость — по уклону клетки (`STEEP`). Объекты района ставит `_spot`: не пересекают провалы, холмы, площадки,
+     дороги и центры других районов (`_spot_free`).
+  2. Постройки: хижина с забором (луг, берег), лагерь с костром (лес), разрушенный храм (руины) — на ровных площадках;
+     деревья только на земле (не на тропах, площадках, у камней и столбов), стволы и камни с коллизией.
+  3. Паркур вместо летающих платформ: полуразрушенная башня с винтовой лестницей (`vertical` type `spiral`,
+     часть ступеней обвалилась — перепрыгнуть; `SortieWorld._build_spiral_tower`, `spiral_route`), уступы из
+     шестигранных каменных столбов с сундуком на вершине (`columns`, `_column_cluster`, `_build_columns`),
+     разрушенный каменный мост к острову в провале/озере (`bridges`, пролёты с провалами 1–1.5 м, `_build_bridges`).
+  4. Края провалов сглажены по окружности кольца (`terrain.snap`, `OutdoorGenerator.corner_pos`), падение — по
+     расстоянию до кольца.
+  5. `--climbtest` проходит все маршруты (башни, столбы, мосты) настоящим вводом; визуальные и физические проверки
+     запускаются в фоне (окно за пределами экрана: `--position -30000,-30000`), логика — `--headless`.
 - **Идеи на потом:** реализовать ещё локации (данные уже есть на карте), дома из модулей Medieval Village, 3D-иконки
   предметов (рендер моделей оружия), больше NPC и квестов между вылазками, перевод контента уроков.
 
 Dev-аргументы Main (после `--`): `--screen=menu | creator | credits | shop | map | location:<loc> |
-sortie:<loc>:<node>[:seed] [--look=platforms|exit [--exit=N]|vertical [--pitch=-25]] [--open=inventory|map] [--climbtest] [--walk=N] | world | mini:<spec> | lesson:<id> | character[:tab] |
+sortie:<loc>:<node>[:seed] [--look=exit [--exit=N]|vertical|columns|bridge [--idx=N] [--near=M] [--pitch=-25] [--camdist=12] [--yaw=0]] [--peaceful] [--slidetest] [--open=inventory|map] [--climbtest] [--walk=N] | world | mini:<spec> | lesson:<id> | character[:tab] |
 settings | test:<spec> | reward:<spec> | lootbox | combat:<enemy> [--auto=N] [--hover=N] | dialogue:<npc> | riddle:<id> | safe:<id>`,
 `--demo` (временный герой с прогрессом, user://demo_saves/), `--autodeck`, `--lang=en` (язык без сохранения),
 `--shot=<png> [--shot-delay=s]` (скриншот без баннера уровня; без --demo — user://dev_saves/), `--levelup`, `--toast=`,
@@ -185,7 +200,8 @@ settings | test:<spec> | reward:<spec> | lootbox | combat:<enemy> [--auto=N] [--
   `is_open`, `node_progress` (15% посещение + 20% открытая карта + 25% проходы + 20% сундуки + 20% победы), `location_progress`,
   `visit_node/mark_exit/mark_chest/mark_kill`, `node_seed` (раскладка подлокации постоянна).
 - **OutdoorGenerator** — `generate_surface(loc_id)`: единая поверхность локации (районы, указатели, входы в пещеры, рельеф
-  `terrain`/`ext`/`edist`, `height_at`, `region_at`). Ниже — описание прежнего генератора подлокации (заменён):
+  `terrain`/`ext`/`edist`, `height_at`, `region_at`, `corner_pos`; `vertical`, `columns`, `bridges`, `buildings`, `pads`,
+  `stamps`, `chasms` — кольцо вокруг острова). Ниже — описание прежнего генератора подлокации (заменён):
   сетка 1 м (0 непроходимо, 1 поляна, 2 тропа, 3 пропасть/река), поляны + тропы
   (MST), выходы к соседям — тропы к краю карты в сторону соседа по `pos` на карте локации (`_border_point`,
   exit {cell — клетка на краю, dir — наружу, arrive — указатель/точка появления}), при `features.platforms` — пропасть/
@@ -204,7 +220,6 @@ settings | test:<spec> | reward:<spec> | lootbox | combat:<enemy> [--auto=N] [--
 - **SortiePlayer** — герой: камера от третьего лица (SpringArm3D, ПКМ/колесо/Q/R), WASD от камеры, бег с выносливостью,
   прыжок с койот-таймом и буфером, анимации UAL, `fall_y` → сигнал `fell`, `refresh_gear()` (вид, бег, перегруз).
 - **SortieEnemy** — враг: patrol → alert → chase по AStarGrid2D (только проходимые клетки), контакт → бой.
-- **MovingPlatform** (AnimatableBody3D) — пинг-понг между точками с плавным разгоном, покачивание.
 - **WorldStyle** — `QUALITY` (пресеты графики), `quality()`, `auto_quality()`, `blob_shadow()`; палитры земли по биому, небо/свет (`day`, `sunset`, `gloom`, `cave`), вода, костёр и частицы огня.
 - **CampScene** — 3D-фон главного меню и создания героя (поляна у костра, герой).
 

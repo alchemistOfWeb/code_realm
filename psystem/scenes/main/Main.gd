@@ -258,51 +258,67 @@ func _slide_test(sw) -> void:
 	get_tree().quit()
 
 
-## Dev: проверка паркура — герой прыгает со ступени на ступень постройки настоящим вводом (вперёд + прыжок).
+## Dev: паркур — герой прыгает по маршруту (ступени винтовой башни, каменные столбы, пролёты моста)
+## настоящим вводом «вперёд + прыжок» и должен приземлиться на следующую точку.
 func _climb_test(sw) -> void:
 	await get_tree().create_timer(1.0).timeout
 	for e in sw._enemies:
 		if is_instance_valid(e):
 			e.freeze()
+	var routes: Array = []
 	for v in sw.data.get("vertical", []):
-		var root_pos := Vector3(v.center.x, sw.ground_y(v.center.x, v.center.y) - 0.05, v.center.y)
-		var steps: Array = []
-		var n := int(round(float(v.height) / 0.8)) - 1
-		for k in n:
-			if v.type == "tower":
-				var a := PI / 3.0 * k
-				steps.append(Vector3(cos(a) * 1.75, 0.8 * (k + 1), sin(a) * 1.75))
-			else:
-				var h := 0.8 * (k + 1) - 0.1
-				steps.append(Vector3(0.55 * (k % 2 * 2 - 1), h, 2.4 + 1.25 * (n - 1 - k)))
-		steps.append(Vector3(0, float(v.height), 0))
-		var ok := 0
-		for k in steps.size() - 1:
-			var from: Vector3 = root_pos + steps[k].rotated(Vector3.UP, v.yaw)
-			var to: Vector3 = root_pos + steps[k + 1].rotated(Vector3.UP, v.yaw)
-			sw._player.global_position = from + Vector3(0, 0.05, 0)
+		var base := Vector3(v.center.x, sw.ground_y(v.center.x, v.center.y) - 0.05, v.center.y)
+		routes.append(["tower " + v.region, sw.spiral_route(v).map(func(p): return [base + p.rotated(Vector3.UP, v.yaw), 0.0])])
+	for cl in sw.data.get("columns", []):
+		var by := OutdoorGenerator.height_at(sw.data.terrain, cl.center.x, cl.center.y)
+		var pts: Array = cl.path.map(func(c): return [Vector3(c.pos.x, by + c.h, c.pos.y), c.r - 0.35])
+		pts.append([Vector3(cl.summit.x, by + cl.top, cl.summit.y), 0.6])
+		routes.append(["columns " + cl.region, pts])
+	for ci in sw.data.get("chasms", []).size():
+		var bridge: Array = sw.data.bridges.filter(func(b): return b.chasm == ci).map(func(b): return [b.pos, b.size.z * 0.5 - 0.35])
+		if bridge.size() > 1:
+			routes.append(["bridge " + sw.data.chasms[ci].region, bridge])
+	var ok_routes := 0
+	for route in routes:
+		var pts: Array = route[1]
+		var hops := 0
+		for k in pts.size() - 1:
+			for ex in sw._exits:
+				ex.armed = false
+			var to: Vector3 = pts[k + 1][0]
+			var from: Vector3 = pts[k][0]
+			# Разбег с края текущего уступа/пролёта в сторону следующего
+			var fd := Vector3(to.x - from.x, 0, to.z - from.z)
+			from += fd.normalized() * minf(float(pts[k][1]), maxf(fd.length() - 1.4, 0.0))
+			sw._player.global_position = from + Vector3(0, 0.15, 0)
 			sw._player.velocity = Vector3.ZERO
-			await get_tree().create_timer(0.3).timeout
+			await get_tree().create_timer(0.25).timeout
 			var d: Vector3 = to - sw._player.global_position
 			sw._player.face_yaw(atan2(d.x, d.z))
-			Input.action_press("jump")
 			Input.action_press("move_forward")
-			await get_tree().create_timer(0.12).timeout
-			Input.action_release("jump")
+			if to.y - from.y > 0.2 or Vector2(d.x, d.z).length() > 1.6:
+				Input.action_press("jump")
 			var t := 0.0
-			while t < 0.9:
+			while t < 1.0:
 				await get_tree().physics_frame
 				t += get_physics_process_delta_time()
+				if t > 0.1:
+					Input.action_release("jump")
 				var rest: Vector3 = to - sw._player.global_position
-				if Vector2(rest.x, rest.z).length() < 0.25:
+				if Vector2(rest.x, rest.z).length() < 0.35:
 					Input.action_release("move_forward")
 			Input.action_release("move_forward")
-			await get_tree().create_timer(0.4).timeout
+			Input.action_release("jump")
+			await get_tree().create_timer(0.35).timeout
 			var p: Vector3 = sw._player.global_position
-			var landed: bool = absf(p.y - to.y) < 0.35 and Vector2(p.x - to.x, p.z - to.z).length() < 1.3
-			print("CLIMB %s step %d → %d: %s (y %.2f / %.2f) covered=%s" % [v.type, k, k + 1, "ok" if landed else "FAIL", p.y, to.y, sw._covered])
-			ok += int(landed)
-		print("CLIMB %s: %d/%d" % [v.type, ok, steps.size() - 1])
+			var landed: bool = absf(p.y - to.y) < 0.45 and Vector2(p.x - to.x, p.z - to.z).length() < 1.2
+			if landed:
+				hops += 1
+			else:
+				print("  CLIMB %s: hop %d→%d failed (y %.2f / %.2f, %.2f m short)" % [route[0], k, k + 1, p.y, to.y, Vector2(p.x - to.x, p.z - to.z).length()])
+		print("CLIMB %s: %d/%d" % [route[0], hops, pts.size() - 1])
+		ok_routes += int(hops == pts.size() - 1)
+	print("CLIMB routes total: %d/%d" % [ok_routes, routes.size()])
 	get_tree().quit()
 
 
@@ -616,24 +632,39 @@ func _apply_dev_args(args: Dictionary) -> void:
 						var stand := a if sw._surface else a - Vector2i(roundi(back_dir.x * 3.0), roundi(back_dir.z * 3.0))
 						sw._player.global_position = sw._cell_pos(stand) + Vector3(0, 0.3, 0)
 						target.y = sw._player.global_position.y
-					elif args.look == "vertical" and not sw.data.get("vertical", []).is_empty():
-						var v: Dictionary = sw.data.vertical[0]
+					elif args.look in ["vertical", "columns", "bridge"]:
+						var v: Dictionary = {"center": Vector2(sw.data.w * 0.5, sw.data.h * 0.5)}
+						var idx := int(args.get("idx", "0"))
+						if args.look == "vertical" and not sw.data.vertical.is_empty():
+							v = sw.data.vertical[idx % sw.data.vertical.size()]
+						elif args.look == "columns" and not sw.data.get("columns", []).is_empty():
+							v = sw.data.columns[idx % sw.data.columns.size()]
+						elif args.look == "bridge" and not sw.data.get("chasms", []).is_empty():
+							v = {"center": sw.data.chasms[idx % sw.data.chasms.size()].center}
 						target = Vector3(v.center.x, 0, v.center.y)
 						# Встать на проходимую клетку в ~6 м от постройки (перебор направлений)
 						for k in 16:
 							var ang := TAU * k / 16.0
-							var p := target + Vector3(sin(ang), 0, cos(ang)) * 6.0
+							var p := target + Vector3(sin(ang), 0, cos(ang)) * float(args.get("near", "6"))
 							var c := Vector2i(int(p.x), int(p.z))
 							if c.x > 0 and c.y > 0 and c.x < sw.data.w and c.y < sw.data.h and sw.data.grid[c.y * sw.data.w + c.x] in [1, 2]:
 								sw._player.global_position = sw._cell_pos(c) + Vector3(0, 0.3, 0)
 								break
 					var d: Vector3 = target - sw._player.global_position
 					sw._player.face_yaw(atan2(d.x, d.z))
-					if args.has("pitch"):
-						sw._player._cam_pitch = deg_to_rad(args.pitch.to_float())
-						sw._player._apply_camera()
+
 				if args.has("slidetest"):
 					await _slide_test(_stack[-1])
+				if args.has("pitch") or args.has("camdist") or args.has("yaw"):
+					await get_tree().create_timer(0.9).timeout
+					var pl = _stack[-1]._player
+					if args.has("pitch"):
+						pl._cam_pitch = deg_to_rad(args.pitch.to_float())
+					if args.has("camdist"):
+						pl._cam_dist = args.camdist.to_float()
+					if args.has("yaw"):
+						pl.cam_yaw = deg_to_rad(args.yaw.to_float())
+					pl._apply_camera()
 				if args.has("climbtest"):
 					await _climb_test(_stack[-1])
 				if args.has("open"):

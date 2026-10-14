@@ -1,26 +1,28 @@
 class_name OutdoorGenerator
 extends RefCounted
-## Единая поверхность локации: все наземные подлокации — районы одной большой карты, связанные тропами
-## по графу локации (пещеры, гробницы и подземелья остаются отдельными уровнями — вход в склоне холма).
-## Только данные — 3D строит LevelBuilder, а карта локации рисует по ним топографию.
+## Единая поверхность локации в духе Gothic: открытая долина с плавными холмами, окружённая горами.
+## Наземные подлокации — районы этой долины: у каждого своя высота, ориентир (хутор, лагерь охотников,
+## руины), полуразрушенная башня с винтовой лестницей (провалы — перепрыгнуть) и сундуком наверху,
+## уступы из каменных столбов (паркур к сундуку на вершине), указатель — точка быстрого перемещения.
+## Районы соединены дорогами. Пещеры, гробницы и подземелья — отдельные уровни: вход — проём в скальном
+## холме. Район с features.platforms — остров посреди озера или провала, туда ведёт разрушенный каменный
+## мост (пролёты с провалами — прыгать). Только данные — 3D строит LevelBuilder, карта локации рисует по ним топографию.
 ##
-## Сетка 1 клетка = 1 м: 0 — непроходимо (склоны оврага), 1 — поляна, 2 — тропа, 3 — пропасть или река.
-## Рельеф: у каждого района своя высота (база плавно перетекает между районами), на полянах — уступы-плато
-## с пандусом и каменные глыбы, вокруг — крутые склоны (на них не забраться — герой соскальзывает).
-## Район с features.platforms рассечён пропастью/рекой, переправа — прыжками по движущимся платформам.
-## У каждого района — указатель (точка быстрого перемещения), их число показывается на карте.
+## Сетка 1 клетка = 1 м: 0 — непроходимо (слишком крутой склон: горы по краю, скальные холмы),
+## 1 — земля, 2 — дорога, 3 — провал или вода. Проходимость определяется уклоном рельефа.
 
 const BLOCK := 0
 const FLOOR := 1
 const PATH := 2
 const CHASM := 3
 
-const W := 184
-const H := 108
+const W := 232
+const H := 140
 const MARGIN := 34
-const REGION_R := 15.0
-## Высота крутых склонов по расстоянию (в клетках) от проходимой зоны: каждый шаг круче 50° — не взобраться.
-const HILL := [0.0, 2.1, 3.9, 5.6, 7.0, 8.2, 9.2]
+## Перепад высот в углах клетки, выше которого она непроходима (~42°).
+const STEEP := 0.9
+## Ширина гор по краю долины.
+const RIM := 9.0
 
 static var _cache: Dictionary = {}
 
@@ -32,16 +34,12 @@ static func generate_surface(loc_id: String) -> Dictionary:
 	var loc := WorldData.location(loc_id)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = absi(hash(loc_id)) % 1000003
-	var grid := PackedByteArray()
-	grid.resize(W * H)
-	grid.fill(BLOCK)
-	var occupied := {}
-	var lift := {}          # клетка → подъём плато над базой
 	var data := {
-		"w": W, "h": H, "grid": grid, "kind": loc.get("biome", "forest"), "underground": false, "surface": true,
-		"location_id": loc_id, "regions": [], "clearings": [], "chests": [], "enemies": [], "bosses": [], "npcs": [],
-		"safes": [], "signposts": [], "caves": [], "platforms": [], "chasms": [], "vertical": [], "rocks": [],
-		"mesas": [], "start": Vector2i.ZERO, "water": false, "exits": [],
+		"w": W, "h": H, "kind": loc.get("biome", "forest"), "underground": false, "surface": true, "location_id": loc_id,
+		"regions": [], "clearings": [], "chests": [], "enemies": [], "bosses": [], "npcs": [], "safes": [],
+		"signposts": [], "caves": [], "platforms": [], "chasms": [], "vertical": [], "rocks": [], "mesas": [],
+		"buildings": [], "roads": [], "stamps": [], "pads": [], "columns": [], "bridges": [], "start": Vector2i.ZERO,
+		"water": false, "exits": [],
 	}
 
 	# --- Районы: центры по положению подлокаций на карте локации
@@ -51,86 +49,15 @@ static func generate_surface(loc_id: String) -> Dictionary:
 		var n: Dictionary = loc.nodes[id]
 		if WorldData.is_underground(n):
 			continue
-		var c := Vector2(16.0 + float(n.pos[0]) * (W - 32), 15.0 + float(n.pos[1]) * (H - 30))
-		var r := {"id": id, "name": n.get("name", id), "kind": n.get("kind", "meadow"), "center": c,
-			"radius": REGION_R, "clearings": [], "elev": 0.0 if n.get("start", false) else rng.randf_range(0.5, 4.5),
-			"features": n.get("features", {}), "chasm": -1}
+		var c := Vector2(30.0 + float(n.pos[0]) * (W - 60), 26.0 + float(n.pos[1]) * (H - 52))
+		var r := {"id": id, "name": n.get("name", id), "kind": n.get("kind", "meadow"), "center": c, "radius": 22.0,
+			"elev": 0.0 if n.get("start", false) else rng.randf_range(0.5, 5.0), "features": n.get("features", {}),
+			"dirs": []}
 		regions.append(r)
 		by_id[id] = r
+	data.regions = regions
 
-	# --- Пропасть/река в районах с платформами: вертикальная полоса через центр района
-	for r in regions:
-		if not r.features.get("platforms", false):
-			continue
-		var cw := 9 if r.kind == "riverside" else 7
-		var rect := Rect2i(int(r.center.x) - cw / 2, int(r.center.y - REGION_R - 5), cw, int(REGION_R * 2 + 10))
-		rect = rect.intersection(Rect2i(1, 1, W - 2, H - 2))
-		r.chasm = data.chasms.size()
-		data.chasms.append({"rect": rect, "water": r.kind == "riverside", "region": r.id, "level": r.elev, "cross_y": 0})
-		if r.kind == "riverside":
-			data.water = true
-
-	# --- Поляны района (по обе стороны пропасти, если она есть)
-	for r in regions:
-		var want := 5
-		var chasm_rect := Rect2i()
-		if r.chasm >= 0:
-			chasm_rect = data.chasms[r.chasm].rect
-		for attempt in 800:
-			if r.clearings.size() >= want:
-				break
-			var cr := rng.randf_range(3.6, 5.6)
-			var a := rng.randf() * TAU
-			var dist := 0.0 if r.clearings.is_empty() else rng.randf() * (REGION_R - cr * 0.5)
-			var c: Vector2 = r.center + Vector2(cos(a), sin(a)) * dist
-			if c.x - cr < 3 or c.y - cr < 3 or c.x + cr > W - 4 or c.y + cr > H - 4:
-				continue
-			if chasm_rect.size.x > 0 and c.x + cr + 2 > chasm_rect.position.x and c.x - cr - 2 < chasm_rect.end.x:
-				continue
-			var ok := true
-			for o in data.clearings:
-				if c.distance_to(o.center) < cr + o.radius + 2.2:
-					ok = false
-					break
-			if ok:
-				var cl := {"center": c, "radius": cr, "region": r.id,
-					"side": 0 if chasm_rect.size.x == 0 or c.x < chasm_rect.position.x else 1, "id": data.clearings.size()}
-				r.clearings.append(cl)
-				data.clearings.append(cl)
-		if chasm_rect.size.x > 0:
-			for side in [0, 1]:
-				if r.clearings.filter(func(c): return c.side == side).is_empty():
-					var x: float = chasm_rect.position.x - 6.5 if side == 0 else chasm_rect.end.x + 6.5
-					var cl := {"center": Vector2(x, r.center.y), "radius": 4.0, "region": r.id, "side": side, "id": data.clearings.size()}
-					r.clearings.append(cl)
-					data.clearings.append(cl)
-		if r.clearings.is_empty():
-			var cl := {"center": r.center, "radius": 5.0, "region": r.id, "side": 0, "id": data.clearings.size()}
-			r.clearings.append(cl)
-			data.clearings.append(cl)
-
-	# --- Тропы внутри района (остовное дерево по сторонам пропасти)
-	for r in regions:
-		for side in [0, 1]:
-			var group: Array = r.clearings.filter(func(c): return c.side == side)
-			if group.size() < 2:
-				continue
-			var in_tree := [group[0]]
-			while in_tree.size() < group.size():
-				var best := [INF, null, null]
-				for a in in_tree:
-					for b in group:
-						if b in in_tree:
-							continue
-						var d: float = a.center.distance_to(b.center)
-						if d < best[0]:
-							best = [d, a, b]
-				_carve_path(grid, W, H, best[1].center, best[2].center, rng)
-				in_tree.append(best[2])
-	for c in data.clearings:
-		_carve_circle(grid, W, H, c.center, c.radius, rng)
-
-	# --- Тропы между районами по связям графа локации
+	# --- Дороги между связанными районами (плавные кривые)
 	var done := {}
 	for r in regions:
 		for link in loc.nodes[r.id].get("links", []):
@@ -141,290 +68,469 @@ static func generate_surface(loc_id: String) -> Dictionary:
 				continue
 			done[pair] = true
 			var o: Dictionary = by_id[link]
-			var a := _nearest(r.clearings, o.center)
-			var b := _nearest(o.clearings, r.center)
-			_carve_path(grid, W, H, a.center, b.center, rng)
+			var a: Vector2 = r.center
+			var b: Vector2 = o.center
+			var mid := (a + b) * 0.5 + (b - a).orthogonal().normalized() * a.distance_to(b) * rng.randf_range(-0.18, 0.18)
+			var pts := PackedVector2Array()
+			var steps := int(a.distance_to(b) / 2.0) + 2
+			for i in steps + 1:
+				var t := float(i) / steps
+				pts.append(a.lerp(mid, t).lerp(mid.lerp(b, t), t))
+			data.roads.append(pts)
+			r.dirs.append((b - a).normalized())
+			o.dirs.append((a - b).normalized())
 
-	# --- Переправы через пропасти: подходы и цепочка платформ
-	for ch in data.chasms:
-		var rect: Rect2i = ch.rect
-		var r: Dictionary = by_id[ch.region]
-		var cross_y: int = clampi(int(r.center.y) + rng.randi_range(-4, 4), rect.position.y + 3, rect.end.y - 4)
-		ch.cross_y = cross_y
-		var left := _nearest(r.clearings.filter(func(c): return c.side == 0), Vector2(rect.position.x, cross_y))
-		var right := _nearest(r.clearings.filter(func(c): return c.side == 1), Vector2(rect.end.x, cross_y))
-		_carve_path(grid, W, H, left.center, Vector2(rect.position.x - 2, cross_y), rng)
-		_carve_path(grid, W, H, right.center, Vector2(rect.end.x + 1, cross_y), rng)
-		for y in range(cross_y - 2, cross_y + 3):
-			for x in range(rect.position.x - 4, rect.position.x):
-				_put(grid, W, H, x, y, PATH)
-			for x in range(rect.end.x, rect.end.x + 4):
-				_put(grid, W, H, x, y, PATH)
-		for y in range(rect.position.y, rect.end.y):
-			for x in range(rect.position.x, rect.end.x):
-				grid[y * W + x] = CHASM
-		var span := float(rect.size.x) + 1.0
-		var n := int(ceil(span / 2.6))
-		var step := span / (n + 1)
-		for i in n:
-			var x := rect.position.x - 0.5 + step * (i + 1)
-			var moving := i % 2 == 0 or n <= 2
-			var swing := rng.randf_range(1.6, 2.6) * (1 if rng.randf() < 0.5 else -1)
-			var lv: float = ch.level
-			data.platforms.append({"a": Vector3(x, lv, cross_y + 0.5 - (swing if moving else 0.0)),
-				"b": Vector3(x, lv, cross_y + 0.5 + (swing if moving else 0.0)),
-				"period": rng.randf_range(3.6, 5.0), "phase": rng.randf(), "size": Vector3(1.9, 0.4, 1.9)})
+	# --- Острова (features.platforms): озеро (берег реки) или провал вокруг, в стороне от дорог
+	for r in regions:
+		if not r.features.get("platforms", false):
+			continue
+		var center: Vector2 = _spot(data, r, rng, 21.0, 25.0, 13.5)
+		center.x = clampf(center.x, RIM + 18, W - RIM - 18)
+		center.y = clampf(center.y, RIM + 18, H - RIM - 18)
+		var dir: Vector2 = (center - r.center).normalized()
+		var water: bool = r.kind == "riverside"
+		data.chasms.append({"center": center, "r_in": 6.5, "r_out": 13.5, "water": water, "region": r.id,
+			"level": r.elev, "rect": Rect2i(int(center.x - 14), int(center.y - 14), 29, 29), "dir": dir})
+		if water:
+			data.water = true
 
-	# --- Входы в пещеры: короткая тропа от поляны к склону, вход — в склоне
+	# --- Входы в пещеры: скальный холм в стороне от дорог, проём у подножия лицом к району
 	for r in regions:
 		var sealed_done := false
 		for link in loc.nodes[r.id].get("links", []):
 			var un: Dictionary = loc.nodes.get(link, {})
 			if un.is_empty() or not WorldData.is_underground(un):
 				continue
-			var d: Vector2 = (Vector2(un.pos[0], un.pos[1]) - Vector2(loc.nodes[r.id].pos[0], loc.nodes[r.id].pos[1])).normalized()
-			if d.length() < 0.01:
-				d = Vector2.RIGHT
-			var target: Vector2 = r.center + d * (REGION_R + 5.0)
-			var side := 0
-			if r.chasm >= 0:
-				side = 0 if target.x < data.chasms[r.chasm].rect.position.x else 1
-			var from := _nearest(r.clearings.filter(func(c): return c.side == side), target)
-			var tip := Vector2i(clampi(int(target.x), 3, W - 4), clampi(int(target.y), 3, H - 4))
-			_carve_path(grid, W, H, from.center, Vector2(tip) + Vector2(0.5, 0.5), rng)
-			var out := Vector2i(roundi(d.x), roundi(d.y))
-			if out == Vector2i.ZERO:
-				out = Vector2i(1, 0)
+			var want: Vector2 = (Vector2(un.pos[0], un.pos[1]) - Vector2(loc.nodes[r.id].pos[0], loc.nodes[r.id].pos[1])).normalized()
+			var mound: Vector2 = _spot(data, r, rng, 23.0, 27.0, 7.5, want)
+			var dir: Vector2 = (mound - r.center).normalized()
+			mound.x = clampf(mound.x, RIM + 10, W - RIM - 10)
+			mound.y = clampf(mound.y, RIM + 10, H - RIM - 10)
+			data.stamps.append({"kind": "mound", "center": mound, "radius": 7.5, "height": 7.5})
+			var mouth: Vector2 = mound - dir * 7.6
 			var cave := {"to": link, "to_name": un.get("name", link), "to_kind": un.get("kind", "cave"), "region": r.id,
-				"cell": tip, "dir": d, "arrive": Vector2i(Vector2(tip) - d * 4.0), "kind": _cave_kind(un.get("kind", "cave")),
+				"cell": Vector2i(mouth), "dir": dir, "arrive": Vector2i(mouth - dir * 4.0), "kind": _cave_kind(un.get("kind", "cave")),
 				"sealed": false, "riddle_id": ""}
 			if r.features.get("riddle_gate", false) and not sealed_done:
 				cave.sealed = true
 				cave.riddle_id = _pick_riddle(rng, {})
 				sealed_done = true
-			for k in range(-1, 6):
-				var cc := Vector2i(Vector2(tip) - d * k)
-				for oy in range(-1, 2):
-					for ox in range(-1, 2):
-						occupied[cc + Vector2i(ox, oy)] = true
 			data.caves.append(cave)
+			# Тропинка от центра района ко входу
+			var pts := PackedVector2Array()
+			for i in 12:
+				pts.append(r.center.lerp(mouth - dir * 1.0, float(i) / 11.0))
+			data.roads.append(pts)
 
-	# --- Указатели (точки быстрого перемещения): по одному на район, у центральной поляны
+	# --- Ориентиры районов: постройки на выровненных площадках, вышка/башня, валуны
 	for r in regions:
-		var main := _nearest(r.clearings, r.center)
-		r.main = main.id
-		var cell := _free_cell(grid, W, H, {"center": main.center, "radius": main.radius * 0.6}, rng, occupied)
-		for oy in range(-1, 2):
-			for ox in range(-1, 2):
-				occupied[cell + Vector2i(ox, oy)] = true
-		var arrive := cell + Vector2i(0, 2)
-		if grid[arrive.y * W + arrive.x] == BLOCK:
-			arrive = cell
-		data.signposts.append({"region": r.id, "name": r.name, "cell": cell, "arrive": arrive})
+		var hub: Vector2 = r.center
+		r.hub = hub
+		data.clearings.append({"center": hub, "radius": 10.0, "region": r.id, "side": 0, "id": data.clearings.size()})
+		var kind: String = r.kind
+		# Полуразрушенная башня с винтовой лестницей (часть ступеней обвалилась), наверху сундук
+		var tower_c: Vector2 = _spot(data, r, rng, 11.0, 15.0, 5.0)
+		var steps := 16
+		var missing: Array = []
+		for k in range(3, steps - 2):
+			if rng.randf() < 0.22 and not (k - 1) in missing:
+				missing.append(k)
+		data.vertical.append({"type": "spiral", "center": tower_c, "yaw": rng.randf() * TAU, "height": 7.2,
+			"steps": steps, "missing": missing, "region": r.id})
+		data.pads.append({"center": tower_c, "radius": 5.0})
+		# Постройки ориентира
+		var bc: Vector2 = _spot(data, r, rng, 9.0, 12.0, 6.0)
+		var b_dir: Vector2 = (bc - hub).normalized()
+		match kind:
+			"meadow", "riverside":
+				data.buildings.append({"type": "hut", "center": bc, "yaw": atan2(-b_dir.x, -b_dir.y), "region": r.id})
+				data.buildings.append({"type": "fence", "center": bc + b_dir * 5.5, "yaw": atan2(-b_dir.x, -b_dir.y), "region": r.id})
+				data.pads.append({"center": bc, "radius": 5.0})
+			"forest":
+				data.buildings.append({"type": "camp", "center": bc, "yaw": rng.randf() * TAU, "region": r.id})
+				data.pads.append({"center": bc, "radius": 4.0})
+			"ruins":
+				data.buildings.append({"type": "ruins", "center": bc, "yaw": rng.randf() * TAU, "region": r.id})
+				data.pads.append({"center": bc, "radius": 5.0})
+		# Уступы из каменных столбов: запрыгивай выше и выше — на вершине сундук
+		var cc: Vector2 = _spot(data, r, rng, 14.0, 19.0, 5.5)
+		data.columns.append(_column_cluster(cc, rng, r.id))
+		data.pads.append({"center": cc, "radius": 5.5})
+
+	# --- Рельеф и проходимость
+	_build_terrain(data, rng)
+
+	# --- Указатели, жители, сундуки, сейфы, враги, боссы
+	var occupied := {}
+	for v in data.vertical:
+		_occupy(occupied, v.center, 3.5)
+		# Лестница и место перед ней
+		var sd := Vector2(sin(v.yaw), cos(v.yaw))
+		for k in range(2, 13):
+			_occupy(occupied, v.center + sd * k, 1.6)
+	for b in data.buildings:
+		_occupy(occupied, b.center, 4.0)
+	for cl in data.columns:
+		_occupy(occupied, cl.center, 5.5)
+	for c in data.caves:
+		_occupy(occupied, Vector2(c.cell), 2.5)
+	var used := {"safes": []}
+	for r in regions:
+		var hub: Dictionary = {"center": r.hub, "radius": 8.0}
+		var area: Dictionary = {"center": r.center, "radius": 20.0}
+		var spot := _free_cell(data, hub, rng, occupied)
+		_occupy(occupied, Vector2(spot), 1.5)
+		var arrive := _free_cell(data, {"center": Vector2(spot) + Vector2(0, 2.5), "radius": 1.5}, rng, occupied)
+		data.signposts.append({"region": r.id, "name": r.name, "cell": spot, "arrive": arrive})
 		if loc.nodes[r.id].get("start", false):
 			data.start = arrive
-
-	# --- Плато с пандусом и каменные глыбы — рельеф на полянах (до сундуков и врагов)
-	for r in regions:
-		var big: Array = r.clearings.filter(func(c): return c.radius >= 4.5 and c.id != r.main)
-		big.shuffle()
-		if not big.is_empty() and rng.randf() < 0.85:
-			var c: Dictionary = big.pop_front()
-			_make_mesa(data, grid, c, lift, occupied, rng)
-		var rocky: Array = r.clearings.filter(func(cl): return cl.id != r.main)
-		for i in mini(rocky.size(), 1 + rng.randi() % 2):
-			var c: Dictionary = rocky[rng.randi() % rocky.size()]
-			var spot := _free_cell(grid, W, H, c, rng, occupied)
-			var yaw := rng.randf() * TAU
-			data.rocks.append({"pos": Vector2(spot) + Vector2(0.5, 0.5), "yaw": yaw, "region": r.id})
-			for oy in range(-2, 3):
-				for ox in range(-2, 3):
-					occupied[spot + Vector2i(ox, oy)] = true
-
-	# --- Башни и вышки с ценным сундуком наверху
-	for r in regions:
-		var vtypes: Array = r.features.get("vertical", ["tower" if r.kind == "ruins" else "stumps"])
-		var vpool: Array = r.clearings.filter(func(c): return c.radius >= 4.4 and c.id != r.main and not _disc_busy(occupied, c.center, 2.6))
-		vpool.sort_custom(func(a, b): return a.radius > b.radius)
-		for t in vtypes:
-			if vpool.is_empty():
-				break
-			var c: Dictionary = vpool.pop_front()
-			var yaw := rng.randf() * TAU
-			var center: Vector2 = c.center + Vector2(cos(yaw), sin(yaw)) * minf(c.radius - 3.4, 1.2)
-			for y in range(int(center.y) - 3, int(center.y) + 4):
-				for x in range(int(center.x) - 3, int(center.x) + 4):
-					if Vector2(x + 0.5, y + 0.5).distance_to(center) <= 3.2:
-						occupied[Vector2i(x, y)] = true
-			data.vertical.append({"type": t, "center": center, "yaw": yaw, "height": 5.6 if t == "tower" else 3.2, "region": r.id})
-
-	# --- Жители, сундуки, сейфы, враги, боссы по районам
-	var used := {"riddles": [], "safes": []}
-	for r in regions:
 		var f: Dictionary = r.features
-		var others: Array = r.clearings.filter(func(c): return c.id != r.main)
-		if others.is_empty():
-			others = r.clearings
-		var main_c: Dictionary = r.clearings.filter(func(c): return c.id == r.main)[0]
-		var npc_ids: Array = f.get("npcs", [])
-		for i in npc_ids.size():
-			data.npcs.append({"id": npc_ids[i], "cell": _free_cell(grid, W, H, main_c, rng, occupied), "region": r.id})
+		for npc in f.get("npcs", []):
+			data.npcs.append({"id": npc, "cell": _free_cell(data, hub, rng, occupied), "region": r.id})
 		for i in int(f.get("chests", 2)):
-			var c: Dictionary = others[rng.randi() % others.size()]
-			data.chests.append({"cell": _free_cell(grid, W, H, c, rng, occupied), "region": r.id, "index": i})
+			data.chests.append({"cell": _free_cell(data, area, rng, occupied), "region": r.id, "index": i})
 		if f.get("safe", false):
-			var c: Dictionary = others[rng.randi() % others.size()]
 			var sid := _pick_safe(rng, used)
 			used.safes.append(sid)
-			data.safes.append({"id": sid, "cell": _free_cell(grid, W, H, c, rng, occupied), "region": r.id, "reward": "loot"})
+			data.safes.append({"id": sid, "cell": _free_cell(data, hub, rng, occupied), "region": r.id, "reward": "loot"})
 		var pool: Array = f.get("pool", ["syntax_error"])
-		var enemy_cl := others.duplicate()
-		if r.chasm >= 0:
-			enemy_cl.sort_custom(func(a, b): return a.side > b.side)
 		for i in int(f.get("enemies", 3)):
-			var c: Dictionary = enemy_cl[i % enemy_cl.size()]
-			data.enemies.append({"id": pool[rng.randi() % pool.size()], "cell": _free_cell(grid, W, H, c, rng, occupied),
-				"area": _area_of(c), "region": r.id, "index": i})
+			var c := _free_cell(data, {"center": r.center, "radius": 21.0}, rng, occupied, 9.0)
+			data.enemies.append({"id": pool[rng.randi() % pool.size()], "cell": c, "area": Rect2i(c - Vector2i(5, 5), Vector2i(10, 10)),
+				"region": r.id, "index": i})
 		if f.has("boss"):
-			var far: Array = others.duplicate()
-			far.sort_custom(func(a, b): return a.center.distance_to(main_c.center) > b.center.distance_to(main_c.center))
-			var c: Dictionary = far[0]
-			data.bosses.append({"id": f.boss, "cell": _free_cell(grid, W, H, c, rng, occupied), "area": _area_of(c), "region": r.id})
-
-	data.regions = regions
-	data.lift = lift
-	_build_terrain(data)
+			var island: Array = data.chasms.filter(func(ch): return ch.region == r.id)
+			var bc: Vector2 = island[0].center if not island.is_empty() else r.center + _free_direction(r.dirs, rng) * 17.0
+			var cell := _free_cell(data, {"center": bc, "radius": 3.0}, rng, occupied)
+			data.bosses.append({"id": f.boss, "cell": cell, "area": Rect2i(cell - Vector2i(4, 4), Vector2i(8, 8)), "region": r.id})
 	_cache[key] = data
 	return data
 
 
-static func _disc_busy(occupied: Dictionary, center: Vector2, radius: float) -> bool:
-	for y in range(int(center.y - radius), int(center.y + radius) + 1):
-		for x in range(int(center.x - radius), int(center.x + radius) + 1):
-			if occupied.has(Vector2i(x, y)) and Vector2(x + 0.5, y + 0.5).distance_to(center) <= radius:
-				return true
-	return false
+## Скопление каменных столбов: путь из столбов, каждый выше предыдущего на ~0.9 м (прыжок поднимает
+## на 1.17 м), на вершине — площадка из трёх столбов с сундуком; вокруг — низкие столбы для вида.
+static func _column_cluster(center: Vector2, rng: RandomNumberGenerator, region: String) -> Dictionary:
+	var path: Array = []
+	var a := rng.randf() * TAU
+	var rad := 3.6
+	var h := 0.0
+	for k in 5:
+		h += 0.88
+		path.append({"pos": center + Vector2(cos(a), sin(a)) * rad, "h": h, "r": rng.randf_range(0.8, 0.95)})
+		a += rng.randf_range(0.5, 0.62)
+		rad = maxf(rad - 0.45, 1.6)
+	var top := h + 0.88
+	# Вершина — дальше по ходу, не перекрывая последний уступ
+	var last: Vector2 = path[-1].pos
+	var prev: Vector2 = path[-2].pos
+	var ahead := (last - prev).normalized()
+	var summit: Vector2 = last + ahead.rotated(0.35) * 2.3
+	var cols: Array = path.duplicate()
+	cols.append({"pos": summit, "h": top, "r": 1.15})
+	cols.append({"pos": summit + ahead.rotated(1.2) * 1.6, "h": top - rng.randf_range(0.0, 0.3), "r": 0.9})
+	var deco: Array = []
+	for k in 7:
+		var b := rng.randf() * TAU
+		var p: Vector2 = center + Vector2(cos(b), sin(b)) * rng.randf_range(3.8, 5.2)
+		var ok := true
+		for c in cols:
+			if p.distance_to(c.pos) < 1.7:
+				ok = false
+		if ok:
+			deco.append({"pos": p, "h": rng.randf_range(0.3, 1.1), "r": rng.randf_range(0.6, 0.9)})
+	return {"center": center, "path": path, "summit": summit, "top": top, "columns": cols + deco, "region": region}
+
+
+## Место для объекта района радиуса radius на расстоянии dmin..dmax от центра: не пересекает провалы, холмы
+## пещер, площадки построек, дороги и центры других районов; из подходящих — направление дальше всего от занятых.
+## Направление записывается в r.dirs. Если места нет — просто свободное направление.
+static func _spot(data: Dictionary, r: Dictionary, rng: RandomNumberGenerator, dmin: float, dmax: float, radius: float,
+		want: Vector2 = Vector2.ZERO) -> Vector2:
+	var best := Vector2.INF
+	var best_score := -INF
+	var best_dir := Vector2.ZERO
+	for k in 36:
+		var a := TAU * k / 36.0 + rng.randf() * 0.08
+		var d := Vector2(cos(a), sin(a))
+		for dist in [dmin, (dmin + dmax) * 0.5, dmax]:
+			var p: Vector2 = r.center + d * dist
+			if p.x < RIM + radius + 3 or p.y < RIM + radius + 3 or p.x > W - RIM - radius - 3 or p.y > H - RIM - radius - 3:
+				continue
+			if not _spot_free(data, r, p, radius):
+				continue
+			var score := PI
+			for u in r.dirs:
+				score = minf(score, absf(d.angle_to(u)))
+			score -= absf(dist - (dmin + dmax) * 0.5) * 0.01
+			if want != Vector2.ZERO:
+				score += d.dot(want) * 0.6
+			if score > best_score:
+				best_score = score
+				best = p
+				best_dir = d
+	if best == Vector2.INF:
+		best_dir = _free_direction(r.dirs, rng, want)
+		best = r.center + best_dir * (dmin + dmax) * 0.5
+	r.dirs.append(best_dir)
+	return best
+
+
+static func _spot_free(data: Dictionary, r: Dictionary, p: Vector2, radius: float) -> bool:
+	for ch in data.chasms:
+		if p.distance_to(ch.center) < float(ch.r_out) + radius + 2.0:
+			return false
+	for st in data.stamps:
+		if p.distance_to(st.center) < float(st.radius) + radius + 2.0:
+			return false
+	for pad in data.pads:
+		if p.distance_to(pad.center) < float(pad.radius) + radius + 1.5:
+			return false
+	for o in data.regions:
+		if o != r and p.distance_to(o.center) < radius + 12.0:
+			return false
+	for pts in data.roads:
+		for q in pts:
+			if p.distance_to(q) < radius + 2.0:
+				return false
+	return true
+
+
+## Направление от центра района, наиболее удалённое от уже занятых (дорог, построек); want — желаемое.
+static func _free_direction(used: Array, rng: RandomNumberGenerator, want: Vector2 = Vector2.ZERO) -> Vector2:
+	var best := Vector2.RIGHT
+	var best_score := -INF
+	for k in 24:
+		var a := TAU * k / 24.0 + rng.randf() * 0.1
+		var d := Vector2(cos(a), sin(a))
+		var score := PI
+		for u in used:
+			score = minf(score, absf(d.angle_to(u)))
+		if want != Vector2.ZERO:
+			score += d.dot(want) * 0.6
+		if score > best_score:
+			best_score = score
+			best = d
+	return best
+
+
+static func _occupy(occupied: Dictionary, center: Vector2, radius: float) -> void:
+	for y in range(int(center.y - radius) - 1, int(center.y + radius) + 2):
+		for x in range(int(center.x - radius) - 1, int(center.x + radius) + 2):
+			if Vector2(x + 0.5, y + 0.5).distance_to(center) <= radius:
+				occupied[Vector2i(x, y)] = true
 
 
 static func _cave_kind(kind: String) -> String:
 	return "crypt" if kind == "tomb" else ("stairs_down" if kind == "dungeon" else "cave")
 
 
-## Плато: круг на поляне, поднятый на 1.6–2.6 м (края — крутой обрыв), с пологим пандусом в одну сторону.
-static func _make_mesa(data: Dictionary, grid: PackedByteArray, c: Dictionary, lift: Dictionary, occupied: Dictionary, rng: RandomNumberGenerator) -> void:
-	var a := rng.randf() * TAU
-	var mr := rng.randf_range(2.2, 3.0)
-	var center: Vector2 = c.center + Vector2(cos(a), sin(a)) * maxf(c.radius - mr - 0.6, 0.0)
-	var height := rng.randf_range(1.6, 2.6)
-	var ramp_dir: Vector2 = (c.center - center).normalized() if c.center.distance_to(center) > 0.5 else Vector2(cos(a + PI), sin(a + PI))
-	for y in range(int(center.y - mr - 1), int(center.y + mr + 2)):
-		for x in range(int(center.x - mr - 1), int(center.x + mr + 2)):
-			if not _in(W, H, x, y) or grid[y * W + x] == BLOCK or grid[y * W + x] == CHASM:
-				continue
-			if Vector2(x + 0.5, y + 0.5).distance_to(center) <= mr:
-				lift[Vector2i(x, y)] = height
-	# Пандус: 5 клеток наружу от края, высота убывает
-	for k in range(1, 7):
-		var p: Vector2 = center + ramp_dir * (mr + k - 0.5)
-		for lat in [-1, 0, 1]:
-			var q := Vector2i(p + ramp_dir.orthogonal() * lat)
-			if _in(W, H, q.x, q.y) and grid[q.y * W + q.x] != BLOCK and grid[q.y * W + q.x] != CHASM:
-				lift[q] = maxf(float(lift.get(q, 0.0)), height * (1.0 - float(k) / 7.0))
-	data.mesas.append({"center": center, "radius": mr, "height": height, "region": c.region})
-
-
 # ---------------------------------------------------------------- Рельеф
 
-## Расширенная сетка (поля MARGIN вокруг), расстояния до проходимых клеток и высоты вершин.
-static func _build_terrain(data: Dictionary) -> void:
+## Высоты вершин (с полями MARGIN — горы уходят за край), затем проходимость клеток по уклону.
+static func _build_terrain(data: Dictionary, rng: RandomNumberGenerator) -> void:
 	var ew := W + MARGIN * 2
 	var eh := H + MARGIN * 2
-	var eg := PackedByteArray()
-	eg.resize(ew * eh)
-	eg.fill(BLOCK)
-	var grid: PackedByteArray = data.grid
-	for y in H:
-		for x in W:
-			eg[(y + MARGIN) * ew + x + MARGIN] = grid[y * W + x]
-	var edist := block_distance(eg, ew, eh)
-	var regions: Array = data.regions
-	var noise := FastNoiseLite.new()
-	noise.seed = W * 13 + H + regions.size()
-	noise.frequency = 0.08
-	var base_noise := FastNoiseLite.new()
-	base_noise.seed = noise.seed + 7
-	base_noise.frequency = 0.035
-	var lift: Dictionary = data.lift
 	var vw := ew + 1
 	var vh := eh + 1
+	var hills := FastNoiseLite.new()
+	hills.seed = rng.randi()
+	hills.frequency = 0.022
+	hills.fractal_octaves = 3
+	var detail := FastNoiseLite.new()
+	detail.seed = rng.randi()
+	detail.frequency = 0.09
+	var mountain := FastNoiseLite.new()
+	mountain.seed = rng.randi()
+	mountain.frequency = 0.05
+	# Расстояние до дорог (по вершинам) — полотно дороги ровнее
+	var road_d := _road_distance(data, vw, vh)
 	var hv := PackedFloat32Array()
 	hv.resize(vw * vh)
 	for vz in vh:
 		for vx in vw:
-			var wx := float(vx - MARGIN)
-			var wz := float(vz - MARGIN)
-			var base := _base_height(data, wx, wz) + base_noise.get_noise_2d(wx, wz) * 0.7
-			var dmin := 99
-			var near_chasm := false
-			var top_lift := 0.0
-			for o in [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 0)]:
-				var cx: int = vx + o.x
-				var cz: int = vz + o.y
-				if cx < 0 or cz < 0 or cx >= ew or cz >= eh:
-					continue
-				var i := cz * ew + cx
-				var v := eg[i]
-				if v == CHASM:
-					near_chasm = true
-					dmin = 0
-					continue
-				if v == BLOCK:
-					dmin = mini(dmin, edist[i] if edist[i] > 0 else 10)
-				else:
-					dmin = 0
-					top_lift = maxf(top_lift, float(lift.get(Vector2i(cx - MARGIN, cz - MARGIN), 0.0)))
-			if dmin == 99:
-				dmin = 10
-			var hgt := base
-			if near_chasm:
-				hgt = _chasm_level(data, wx, wz, base)
-			elif dmin == 0:
-				hgt = base + top_lift
-			else:
-				hgt = base + float(HILL[mini(dmin, HILL.size() - 1)]) + noise.get_noise_2d(wx, wz) * 0.6 * minf(dmin, 3) / 3.0 + maxf(dmin - 6, 0) * 0.6
+			var x := float(vx - MARGIN)
+			var z := float(vz - MARGIN)
+			var base := _base_height(data, x, z)
+			var hgt := base + hills.get_noise_2d(x, z) * 3.2 + detail.get_noise_2d(x, z) * 0.35
+			# Горы по краю долины: круто вверх (не взобраться)
+			var edge := minf(minf(x, z), minf(W - x, H - z))
+			if edge < RIM:
+				var t := RIM - edge
+				hgt += pow(t, 1.55) * 1.35 + maxf(mountain.get_noise_2d(x, z), -0.3) * t * 0.9
+			var rd: float = road_d[vz * vw + vx]
+			if rd < 4.0 and edge >= RIM:
+				hgt = lerpf(base + hills.get_noise_2d(x, z) * 1.6, hgt, clampf((rd - 1.5) / 2.5, 0.0, 1.0))
 			hv[vz * vw + vx] = hgt
+	# Скальные холмы (входы в пещеры): отвесные края, плоская вершина
+	for st in data.stamps:
+		_stamp_mound(hv, vw, vh, st)
+	# Площадки построек: ровно по средней высоте
+	for pad in data.pads:
+		_flatten(hv, vw, vh, pad.center, pad.radius)
+	# Острова: провал/озеро кольцом, остров и берег — на уровне района
+	for ch in data.chasms:
+		_flatten(hv, vw, vh, ch.center, ch.r_out + 3.0, float(ch.level))
+	# Проходимость: уклон клетки
+	var grid := PackedByteArray()
+	grid.resize(W * H)
+	for y in H:
+		for x in W:
+			var ex := x + MARGIN
+			var ez := y + MARGIN
+			var a := hv[ez * vw + ex]
+			var b := hv[ez * vw + ex + 1]
+			var c := hv[(ez + 1) * vw + ex + 1]
+			var d := hv[(ez + 1) * vw + ex]
+			var steep := maxf(maxf(a, b), maxf(c, d)) - minf(minf(a, b), minf(c, d)) > STEEP
+			var v := BLOCK if steep or x == 0 or y == 0 or x == W - 1 or y == H - 1 else FLOOR
+			if v == FLOOR and road_d[ez * vw + ex] < 1.6:
+				v = PATH
+			grid[y * W + x] = v
+	for ch in data.chasms:
+		var cc: Vector2 = ch.center
+		for y in range(int(cc.y - ch.r_out - 1), int(cc.y + ch.r_out + 2)):
+			for x in range(int(cc.x - ch.r_out - 1), int(cc.x + ch.r_out + 2)):
+				var dd := Vector2(x + 0.5, y + 0.5).distance_to(cc)
+				if dd >= ch.r_in and dd <= ch.r_out and _in(W, H, x, y):
+					grid[y * W + x] = CHASM
+		# Разрушенный каменный мост: от берега к острову, пролёты с провалами (перепрыгнуть)
+		var dir: Vector2 = ch.dir
+		var from: float = ch.r_out + 1.2      # от центра острова: начало на берегу
+		var to: float = ch.r_in - 1.2         # конец на острове
+		var t := from
+		var first := true
+		while t > to:
+			var seg := rng.randf_range(1.6, 2.2) if not first else 2.6
+			var end_t := maxf(t - seg, to)
+			if end_t - to < 1.4:
+				end_t = to
+			var mid_t := (t + end_t) * 0.5
+			var p: Vector2 = cc - dir * mid_t
+			var lv: float = float(ch.level) + (0.0 if first or end_t == to else rng.randf_range(-0.12, 0.22))
+			data.bridges.append({"pos": Vector3(p.x, lv, p.y), "size": Vector3(2.0, 0.5, t - end_t), "yaw": atan2(dir.x, dir.y),
+				"tilt": 0.0 if first or end_t == to else rng.randf_range(-0.06, 0.06), "chasm": data.chasms.find(ch)})
+			first = false
+			t = end_t - rng.randf_range(1.0, 1.5)   # провал
+	data.grid = grid
+	var eg := PackedByteArray()
+	eg.resize(ew * eh)
+	eg.fill(BLOCK)
+	for y in H:
+		for x in W:
+			eg[(y + MARGIN) * ew + x + MARGIN] = grid[y * W + x]
 	data.ext = {"ew": ew, "eh": eh, "grid": eg}
-	data.edist = edist
-	data.terrain = {"ew": ew, "eh": eh, "hv": hv}
+	data.edist = block_distance(eg, ew, eh)
+	data.terrain = {"ew": ew, "eh": eh, "hv": hv, "snap": _chasm_snap(data, grid)}
+	data.lift = {}
 
 
-## База рельефа: высоты районов, плавно смешанные по расстоянию; у пропастей — ровно уровень района.
+## Края провалов не «лесенкой» по клеткам: углы клеток на границе земли и провала
+## сдвигаются на окружность кольца (ближайшую — внешнюю или внутреннюю). Ключ — угол сетки, значение — точка.
+static func _chasm_snap(data: Dictionary, grid: PackedByteArray) -> Dictionary:
+	var snap := {}
+	for ch in data.chasms:
+		var cc: Vector2 = ch.center
+		for cy in range(int(cc.y - ch.r_out - 2), int(cc.y + ch.r_out + 3)):
+			for cx in range(int(cc.x - ch.r_out - 2), int(cc.x + ch.r_out + 3)):
+				var has_chasm := false
+				var has_land := false
+				for o in [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 0)]:
+					var x: int = cx + o.x
+					var y: int = cy + o.y
+					if not _in(W, H, x, y):
+						continue
+					if grid[y * W + x] == CHASM:
+						has_chasm = true
+					else:
+						has_land = true
+				if not (has_chasm and has_land):
+					continue
+				var p := Vector2(cx, cy)
+				var d := p.distance_to(cc)
+				var r: float = ch.r_out if absf(d - ch.r_out) < absf(d - ch.r_in) else ch.r_in
+				snap[Vector2i(cx, cy)] = cc + (p - cc).normalized() * r
+	return snap
+
+
+## Положение угла сетки (с учётом сглаживания краёв провалов).
+static func corner_pos(terrain: Dictionary, cx: int, cy: int) -> Vector2:
+	return terrain.get("snap", {}).get(Vector2i(cx, cy), Vector2(cx, cy))
+
+
+## База рельефа: высоты районов, плавно смешанные по расстоянию.
 static func _base_height(data: Dictionary, x: float, z: float) -> float:
 	var p := Vector2(x, z)
 	var wsum := 0.0
 	var hsum := 0.0
 	for r in data.regions:
 		var d: float = p.distance_to(r.center)
-		var wgt := 1.0 / pow(maxf(d, 3.0), 2.4)
+		var wgt := 1.0 / pow(maxf(d, 4.0), 2.2)
 		wsum += wgt
 		hsum += wgt * float(r.elev)
-	var h := hsum / maxf(wsum, 0.000001)
-	for ch in data.chasms:
-		var rect: Rect2i = ch.rect
-		var dx := maxf(maxf(rect.position.x - x, x - rect.end.x), 0.0)
-		var dz := maxf(maxf(rect.position.y - z, z - rect.end.y), 0.0)
-		var d := Vector2(dx, dz).length()
-		if d < 8.0:
-			h = lerpf(float(ch.level), h, d / 8.0)
-	return h
+	return hsum / maxf(wsum, 0.000001)
 
 
-static func _chasm_level(data: Dictionary, x: float, z: float, fallback: float) -> float:
-	for ch in data.chasms:
-		var rect: Rect2i = ch.rect
-		if x >= rect.position.x - 1 and x <= rect.end.x + 1 and z >= rect.position.y - 1 and z <= rect.end.y + 1:
-			return float(ch.level)
-	return fallback
+## Расстояние от вершин сетки до ближайшей дороги (по точкам полилиний).
+static func _road_distance(data: Dictionary, vw: int, vh: int) -> PackedFloat32Array:
+	var d := PackedFloat32Array()
+	d.resize(vw * vh)
+	d.fill(99.0)
+	for pts in data.roads:
+		for p in pts:
+			var cx := int(p.x) + MARGIN
+			var cz := int(p.y) + MARGIN
+			for z in range(cz - 5, cz + 6):
+				for x in range(cx - 5, cx + 6):
+					if x < 0 or z < 0 or x >= vw or z >= vh:
+						continue
+					var dd := Vector2(x - MARGIN, z - MARGIN).distance_to(p)
+					if dd < d[z * vw + x]:
+						d[z * vw + x] = dd
+	return d
+
+
+static func _stamp_mound(hv: PackedFloat32Array, vw: int, vh: int, st: Dictionary) -> void:
+	var c: Vector2 = st.center
+	var r: float = st.radius
+	var top := -INF
+	for z in range(int(c.y - r) - 2, int(c.y + r) + 3):
+		for x in range(int(c.x - r) - 2, int(c.x + r) + 3):
+			var vx := x + MARGIN
+			var vz := z + MARGIN
+			if vx >= 0 and vz >= 0 and vx < vw and vz < vh:
+				top = maxf(top, hv[vz * vw + vx])
+	top += float(st.height)
+	for z in range(int(c.y - r) - 2, int(c.y + r) + 3):
+		for x in range(int(c.x - r) - 2, int(c.x + r) + 3):
+			var vx := x + MARGIN
+			var vz := z + MARGIN
+			if vx < 0 or vz < 0 or vx >= vw or vz >= vh:
+				continue
+			var d := Vector2(x, z).distance_to(c)
+			var t := clampf((r - d) / 2.2, 0.0, 1.0)   # отвесный край на последних ~2 м радиуса
+			hv[vz * vw + vx] = maxf(hv[vz * vw + vx], lerpf(hv[vz * vw + vx], top, t))
+
+
+static func _flatten(hv: PackedFloat32Array, vw: int, vh: int, c: Vector2, r: float, level: float = INF) -> void:
+	var avg := 0.0
+	var n := 0
+	for z in range(int(c.y - r), int(c.y + r) + 1):
+		for x in range(int(c.x - r), int(c.x + r) + 1):
+			var vx := x + MARGIN
+			var vz := z + MARGIN
+			if vx >= 0 and vz >= 0 and vx < vw and vz < vh and Vector2(x, z).distance_to(c) <= r:
+				avg += hv[vz * vw + vx]
+				n += 1
+	var target := avg / maxf(n, 1) if level == INF else level
+	for z in range(int(c.y - r) - 4, int(c.y + r) + 5):
+		for x in range(int(c.x - r) - 4, int(c.x + r) + 5):
+			var vx := x + MARGIN
+			var vz := z + MARGIN
+			if vx < 0 or vz < 0 or vx >= vw or vz >= vh:
+				continue
+			var d := Vector2(x, z).distance_to(c)
+			var t := clampf((d - r) / 4.0, 0.0, 1.0)   # плавный переход за краем площадки
+			hv[vz * vw + vx] = lerpf(target, hv[vz * vw + vx], t)
 
 
 ## Расстояние (в клетках) от каждой непроходимой клетки до ближайшей проходимой (BFS, до 10).
@@ -494,59 +600,21 @@ static func region_at(data: Dictionary, p: Vector2) -> String:
 
 # ---------------------------------------------------------------- Утилиты
 
-static func _put(grid: PackedByteArray, w: int, h: int, x: int, y: int, v: int) -> void:
-	if x > 0 and y > 0 and x < w - 1 and y < h - 1:
-		grid[y * w + x] = v
-
-
-static func _carve_circle(grid: PackedByteArray, w: int, h: int, c: Vector2, r: float, rng: RandomNumberGenerator) -> void:
-	var wobble := rng.randf() * TAU
-	for y in range(int(c.y - r - 2), int(c.y + r + 3)):
-		for x in range(int(c.x - r - 2), int(c.x + r + 3)):
-			var d := Vector2(x + 0.5, y + 0.5) - c
-			var rr := r * (1.0 + 0.18 * sin(atan2(d.y, d.x) * 3.0 + wobble))
-			if d.length() <= rr and _in(w, h, x, y):
-				if grid[y * w + x] == BLOCK:
-					grid[y * w + x] = FLOOR
-
-
-static func _carve_path(grid: PackedByteArray, w: int, h: int, a: Vector2, b: Vector2, rng: RandomNumberGenerator) -> void:
-	var mid := (a + b) * 0.5 + (b - a).orthogonal().normalized() * a.distance_to(b) * rng.randf_range(-0.25, 0.25)
-	var steps := int(a.distance_to(b) * 2.0) + 2
-	for i in steps + 1:
-		var t := float(i) / steps
-		var p := a.lerp(mid, t).lerp(mid.lerp(b, t), t)
-		for dy in range(-1, 2):
-			for dx in range(-1, 2):
-				var x := int(p.x) + dx
-				var y := int(p.y) + dy
-				if _in(w, h, x, y) and grid[y * w + x] == BLOCK:
-					grid[y * w + x] = PATH
-
-
 static func _in(w: int, h: int, x: int, y: int) -> bool:
 	return x > 0 and y > 0 and x < w - 1 and y < h - 1
 
 
-static func _nearest(list: Array, p: Vector2) -> Dictionary:
-	var best: Dictionary = list[0]
-	for c in list:
-		if c.center.distance_to(p) < best.center.distance_to(p):
-			best = c
-	return best
-
-
-static func _area_of(c: Dictionary) -> Rect2i:
-	var r := int(c.radius)
-	return Rect2i(int(c.center.x) - r, int(c.center.y) - r, r * 2, r * 2)
-
-
-static func _free_cell(grid: PackedByteArray, w: int, h: int, c: Dictionary, rng: RandomNumberGenerator, occupied: Dictionary) -> Vector2i:
-	for attempt in 60:
+## Свободная проходимая клетка в круге (по возможности не на дороге); min_r — не ближе к центру.
+static func _free_cell(data: Dictionary, c: Dictionary, rng: RandomNumberGenerator, occupied: Dictionary, min_r: float = 0.0) -> Vector2i:
+	var grid: PackedByteArray = data.grid
+	for attempt in 80:
 		var a := rng.randf() * TAU
-		var r: float = rng.randf() * maxf(c.radius - 1.5, 0.5)
-		var cell := Vector2i(c.center + Vector2(cos(a), sin(a)) * r)
-		if _in(w, h, cell.x, cell.y) and grid[cell.y * w + cell.x] in [FLOOR, PATH] and not occupied.has(cell):
+		var r: float = lerpf(min_r, float(c.radius), rng.randf())
+		var cell := Vector2i(Vector2(c.center) + Vector2(cos(a), sin(a)) * r)
+		if not _in(W, H, cell.x, cell.y) or occupied.has(cell):
+			continue
+		var v := grid[cell.y * W + cell.x]
+		if v == FLOOR or (v == PATH and attempt > 40):
 			occupied[cell] = true
 			return cell
 	return Vector2i(c.center)
